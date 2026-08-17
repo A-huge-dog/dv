@@ -1,0 +1,46 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, role, job_id, regeneration_round,
+  input_fingerprint, spec_fingerprint, policy_fingerprint, artifact_roots,
+  unit_roots, dependencies, provider_id, model_id, role_fingerprint,
+  tool_allow_list, retrieval_call_limit, final_output, instructions, formal_scope,
+  untrusted_inputs, forbidden_actions, prompt_fingerprint]
+properties:
+  schema_version: {const: "1.0"}
+  artifact_kind: {const: PROJECT_SYSTEM_PROMPT}
+  role: {enum: [REVIEWER, ORCHESTRATOR, STAGE_1, STAGE_2, STAGE_3]}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  regeneration_round: {type: integer, const: 1}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  spec_fingerprint: {$ref: '#/$defs/fingerprint'}
+  policy_fingerprint: {$ref: '#/$defs/fingerprint'}
+  artifact_roots: {type: object}
+  unit_roots: {type: object}
+  dependencies: {type: array, items: {type: object}}
+  provider_id: {type: string, minLength: 1}
+  model_id: {type: string, minLength: 1}
+  role_fingerprint: {$ref: '#/$defs/fingerprint'}
+  tool_allow_list: {type: array, uniqueItems: true, items: {type: string}}
+  retrieval_call_limit: {type: integer, minimum: 0, maximum: 3}
+  final_output: {type: string, minLength: 1}
+  instructions: {type: string, minLength: 1}
+  formal_scope: {type: object}
+  untrusted_inputs:
+    type: array
+    uniqueItems: true
+    allOf: [{contains: {const: USER_DATA}}, {contains: {const: SPEC}},
+      {contains: {const: HISTORICAL_REPORT}}, {contains: {const: TOOL_RESULT}},
+      {contains: {const: FAILURE_FEEDBACK}}]
+    items: {type: string}
+  forbidden_actions:
+    type: array
+    uniqueItems: true
+    allOf: [{contains: {const: APPROVAL}}, {contains: {const: PROMOTION}},
+      {contains: {const: WAIVER}}, {contains: {const: SCOPE_MUTATION}},
+      {contains: {const: POLICY_MUTATION}}, {contains: {const: BUDGET_MUTATION}},
+      {contains: {const: RTL_EXECUTION}}, {contains: {const: EDA_EXECUTION}}]
+    items: {type: string}
+  prompt_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

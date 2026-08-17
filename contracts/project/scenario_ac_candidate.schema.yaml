@@ -1,0 +1,76 @@
+$id: "urn:dv:project:scenario-ac-candidate:4.0"
+$comment: >-
+  Model-owned PJ-002 Stage 1 semantics. Runtime owns candidate/formal
+  versions, kinds, formal IDs, ordering, counts, snippets, fingerprints,
+  lineage, paths, and provider evidence.
+type: object
+additionalProperties: false
+required: [scenarios, acceptance_criteria, completeness]
+properties:
+  scenarios:
+    type: array
+    minItems: 1
+    maxItems: 512
+    items: {$ref: '#/$defs/scenario'}
+  acceptance_criteria:
+    type: array
+    minItems: 1
+    maxItems: 2048
+    items: {$ref: '#/$defs/ac'}
+  completeness:
+    type: object
+    additionalProperties: false
+    required: [declared_complete, omitted_behaviors]
+    properties:
+      declared_complete: {type: boolean}
+      omitted_behaviors:
+        type: array
+        maxItems: 2048
+        items: {type: string, minLength: 1, maxLength: 1024}
+$defs:
+  evidence:
+    type: object
+    additionalProperties: false
+    required: [path, line_start, line_end]
+    properties:
+      path: {type: string, minLength: 1}
+      line_start: {type: integer, minimum: 1}
+      line_end: {type: integer, minimum: 1}
+  status:
+    enum: [CHECKABLE, OBSERVATION_ONLY, BLOCKED_CONTRACT, SPEC_AMBIGUITY]
+  scenario:
+    type: object
+    additionalProperties: false
+    required: [objective, verification_level, status, reason,
+      spec_evidence]
+    properties:
+      objective: {type: string, minLength: 1, maxLength: 2048}
+      verification_level: {enum: [UNIT, SUBSYSTEM, SYSTEM, OBSERVATION]}
+      status: {$ref: '#/$defs/status'}
+      reason: {type: string, maxLength: 1024}
+      spec_evidence:
+        type: array
+        minItems: 1
+        maxItems: 32
+        items: {$ref: '#/$defs/evidence'}
+  ac:
+    type: object
+    additionalProperties: false
+    required: [scenario_indexes, behavior, verification_level, status,
+      reason, spec_evidence]
+    properties:
+      scenario_indexes:
+        type: array
+        minItems: 1
+        maxItems: 512
+        uniqueItems: true
+        items: {type: integer, minimum: 0, maximum: 511}
+      behavior: {type: string, minLength: 1, maxLength: 2048}
+      verification_level: {enum: [UNIT, SUBSYSTEM, SYSTEM, OBSERVATION]}
+      status: {$ref: '#/$defs/status'}
+      reason: {type: string, maxLength: 1024}
+      spec_evidence:
+        type: array
+        minItems: 1
+        maxItems: 32
+        items: {$ref: '#/$defs/evidence'}

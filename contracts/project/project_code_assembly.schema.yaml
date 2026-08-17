@@ -1,0 +1,30 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, assembly_id, job_id, revision,
+  unit_index_fingerprint, top, sequence, content, content_fingerprint,
+  assembly_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: PROJECT_CODE_ASSEMBLY}
+  assembly_id: {type: string, pattern: '^ASSEMBLY\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, minLength: 1, maxLength: 256}
+  revision: {type: integer, minimum: 0, maximum: 999}
+  unit_index_fingerprint: {$ref: '#/$defs/fingerprint'}
+  top: {type: string, pattern: '^[A-Za-z_][A-Za-z0-9_$]*$'}
+  sequence:
+    type: array
+    minItems: 1
+    maxItems: 262144
+    items:
+      type: object
+      additionalProperties: false
+      required: [unit_id, segment_index]
+      properties:
+        unit_id: {type: string, pattern: '^[A-Z][A-Z0-9_.-]{0,255}$'}
+        segment_index: {type: integer, minimum: 0, maximum: 262143}
+  content: {type: string, minLength: 1, maxLength: 262144}
+  content_fingerprint: {$ref: '#/$defs/fingerprint'}
+  assembly_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

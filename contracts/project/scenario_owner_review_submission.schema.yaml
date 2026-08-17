@@ -1,0 +1,12 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, job_id, submitted_form,
+  submitted_at, submission_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: SCENARIO_OWNER_REVIEW_SUBMISSION}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  submitted_form: {type: object}
+  submitted_at: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$'}
+  submission_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

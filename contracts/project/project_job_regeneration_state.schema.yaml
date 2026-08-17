@@ -1,0 +1,29 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, state_id, sequence, event, job_id,
+  input_fingerprint, initial_generation_done, regeneration_used,
+  final_review_done, source_report_fingerprint, previous_state_fingerprint,
+  state_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  state_id: {type: string, pattern: '^REGENSTATE\.[A-Z0-9_.-]+$'}
+  sequence: {type: integer, minimum: 1, maximum: 3}
+  event: {enum: [INITIAL_GENERATION_DONE, REGENERATION_STARTED,
+    FINAL_REVIEW_DONE]}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  initial_generation_done: {type: boolean}
+  regeneration_used: {type: boolean}
+  final_review_done: {type: boolean}
+  source_report_fingerprint:
+    anyOf:
+      - {type: string, const: NONE}
+      - {$ref: '#/$defs/fingerprint'}
+  previous_state_fingerprint:
+    anyOf:
+      - {type: string, const: NONE}
+      - {$ref: '#/$defs/fingerprint'}
+  state_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

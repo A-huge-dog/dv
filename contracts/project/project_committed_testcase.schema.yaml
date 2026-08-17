@@ -1,0 +1,92 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, candidate_id, job_id, revision,
+  state, output_path, top, content, content_fingerprint, input_fingerprint,
+  spec_fingerprint, scenario_ac_map_fingerprint,
+  ac_testcase_map_fingerprint, upstream_fingerprints, policy_fingerprint,
+  code_units, assembly_manifest, implemented_testcase_ids,
+  traceability_status, provider, validation, candidate_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: COMMITTED_PORTABLE_SV_TESTCASE}
+  candidate_id: {type: string, pattern: '^PROJECTTESTCOMMIT\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  revision: {type: integer, minimum: 1, maximum: 100}
+  state: {type: string, const: COMMIT_PREPARED}
+  output_path:
+    {type: string, pattern: '^staging/generated/portable_sv/testcase\.r[0-9]{3}\.sv$'}
+  top: {type: string, pattern: '^[A-Za-z_][A-Za-z0-9_$]*$'}
+  content: {type: string, minLength: 1, maxLength: 262144}
+  content_fingerprint: {$ref: '#/$defs/fingerprint'}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  spec_fingerprint: {$ref: '#/$defs/fingerprint'}
+  scenario_ac_map_fingerprint: {$ref: '#/$defs/fingerprint'}
+  ac_testcase_map_fingerprint: {$ref: '#/$defs/fingerprint'}
+  upstream_fingerprints:
+    type: object
+    additionalProperties: false
+    required: [input, spec, scenario_ac_map, ac_testcase_map]
+    properties:
+      input: {$ref: '#/$defs/fingerprint'}
+      spec: {$ref: '#/$defs/fingerprint'}
+      scenario_ac_map: {$ref: '#/$defs/fingerprint'}
+      ac_testcase_map: {$ref: '#/$defs/fingerprint'}
+  policy_fingerprint: {$ref: '#/$defs/fingerprint'}
+  code_units:
+    type: array
+    minItems: 1
+    maxItems: 4096
+    items:
+      type: object
+      additionalProperties: false
+      required: [code_unit_id, role, testcase_ids, content,
+        content_fingerprint]
+      properties:
+        code_unit_id: {type: string, pattern: '^CODE\.(SHARED|TESTCASE)\.[A-Z0-9_.-]+$'}
+        role: {enum: [SHARED, TESTCASE]}
+        testcase_ids:
+          type: array
+          uniqueItems: true
+          items: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+        content: {type: string, minLength: 1, maxLength: 262144}
+        content_fingerprint: {$ref: '#/$defs/fingerprint'}
+  assembly_manifest:
+    type: array
+    minItems: 1
+    maxItems: 4096
+    uniqueItems: true
+    items: {type: string, pattern: '^CODE\.(SHARED|TESTCASE)\.[A-Z0-9_.-]+$'}
+  implemented_testcase_ids:
+    type: array
+    uniqueItems: true
+    items: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+  traceability_status: {type: string, const: FINAL_REVIEW_REQUIRED}
+  provider: {$ref: '#/$defs/provider'}
+  validation:
+    type: object
+    additionalProperties: false
+    required: [status, checks, validation_fingerprint]
+    properties:
+      status: {type: string, const: PASS}
+      checks:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {type: string, minLength: 1}
+      validation_fingerprint: {$ref: '#/$defs/fingerprint'}
+  candidate_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  provider:
+    type: object
+    additionalProperties: false
+    required: [provider_id, model_id, request_id, response_id,
+      input_tokens, output_tokens]
+    properties:
+      provider_id: {type: string, minLength: 1}
+      model_id: {type: string, minLength: 1}
+      request_id: {type: string, minLength: 1}
+      response_id: {type: string, minLength: 1}
+      input_tokens: {type: integer, minimum: 0}
+      output_tokens: {type: integer, minimum: 0}

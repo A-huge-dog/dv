@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dv-agent-provider-response-1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "request_id", "operation", "finish_reason", "content",
+    "tool_calls", "usage", "model_id", "provider_metadata", "diagnostics"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "request_id": {"type": "string", "minLength": 1},
+    "operation": {"enum": ["COMPLETE", "SELECT_TOOLS"]},
+    "finish_reason": {"enum": ["STOP", "TOOL_CALLS", "LENGTH", "CONTENT_FILTER", "ERROR"]},
+    "content": {"type": "string"},
+    "tool_calls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["call_id", "name", "arguments"],
+        "properties": {
+          "call_id": {"type": "string", "minLength": 1},
+          "name": {"type": "string", "minLength": 1},
+          "arguments": {"type": "object"}
+        }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_tokens", "output_tokens"],
+      "properties": {
+        "input_tokens": {"type": "integer", "minimum": 0},
+        "output_tokens": {"type": "integer", "minimum": 0}
+      }
+    },
+    "model_id": {"type": "string", "minLength": 1},
+    "provider_metadata": {"type": "object"},
+    "diagnostics": {"type": "array", "items": {"type": "object"}}
+  }
+}

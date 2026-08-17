@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dv-agent-provider-probe-1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "provider_id", "model_id", "status",
+    "tool_call_capable", "provider_version", "diagnostics"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "provider_id": {"type": "string", "minLength": 1},
+    "model_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["PASS", "FAIL"]},
+    "tool_call_capable": {"type": "boolean"},
+    "provider_version": {"type": "string", "minLength": 1},
+    "diagnostics": {"type": "array", "items": {"type": "object"}}
+  }
+}

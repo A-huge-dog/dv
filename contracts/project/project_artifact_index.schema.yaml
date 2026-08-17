@@ -1,0 +1,53 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, index_id, stage, variant, job_id,
+  revision, input_fingerprint, spec_fingerprint, policy_fingerprint,
+  owner_scope_fingerprint, producer, children, completeness, metadata,
+  root_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: PROJECT_ARTIFACT_INDEX}
+  index_id: {type: string, pattern: '^INDEX\.[A-Z0-9_.-]+$'}
+  stage: {enum: [STAGE1, STAGE2, STAGE3, REVIEW]}
+  variant: {enum: [PROVIDER, CURRENT]}
+  job_id: {type: string, minLength: 1, maxLength: 256}
+  revision: {type: integer, minimum: 0, maximum: 999}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  spec_fingerprint: {$ref: '#/$defs/fingerprint'}
+  policy_fingerprint: {$ref: '#/$defs/fingerprint'}
+  owner_scope_fingerprint: {$ref: '#/$defs/fingerprint'}
+  producer: {type: object, minProperties: 1}
+  children:
+    type: array
+    minItems: 1
+    maxItems: 8192
+    items:
+      type: object
+      additionalProperties: false
+      required: [unit_id, unit_kind, path, content_fingerprint,
+        dependency_fingerprint, artifact_fingerprint]
+      properties:
+        unit_id: {type: string, pattern: '^[A-Z][A-Z0-9_.-]{0,255}$'}
+        unit_kind: {type: string, minLength: 1}
+        path:
+          type: string
+          pattern: '^staging/units/(stage1|stage2|stage3|review)/(provider|current)\.r[0-9]{3}/[a-z0-9_.-]+\.json$'
+        content_fingerprint: {$ref: '#/$defs/fingerprint'}
+        dependency_fingerprint: {$ref: '#/$defs/fingerprint'}
+        artifact_fingerprint: {$ref: '#/$defs/fingerprint'}
+  completeness:
+    type: object
+    additionalProperties: false
+    required: [unit_ids, unit_count]
+    properties:
+      unit_ids:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {type: string, pattern: '^[A-Z][A-Z0-9_.-]{0,255}$'}
+      unit_count: {type: integer, minimum: 1, maximum: 8192}
+  metadata: {type: object}
+  root_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

@@ -1,0 +1,15 @@
+schema_version: "1.0"
+provider_kind: DASHSCOPE
+provider_id: dashscope-deepseek
+# Current Beijing DeepSeek coding/reasoning candidate; probe confirms availability.
+model_id: deepseek-v4-pro
+endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1
+auth_env: DASHSCOPE_API_KEY
+api_version: chat-completions-v1
+tool_calls_required: true
+store: false
+timeout_seconds: 420
+max_retries: 0
+max_output_tokens: 393216
+# Semantic review must reserve output tokens for the typed tool call.
+enable_thinking: false

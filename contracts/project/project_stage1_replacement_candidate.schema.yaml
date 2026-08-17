@@ -1,0 +1,40 @@
+type: object
+additionalProperties: false
+required: [replacements]
+properties:
+  replacements:
+    type: array
+    minItems: 1
+    maxItems: 256
+    items: {$ref: '#/$defs/replacement'}
+$defs:
+  replacement:
+    type: object
+    additionalProperties: false
+    required: [unit_id, semantic_body]
+    properties:
+      unit_id: {type: string, pattern: '^(SCENARIO|AC)\.[A-Z0-9_.-]+$'}
+      semantic_body:
+        anyOf:
+          - {$ref: '#/$defs/scenario_body'}
+          - {$ref: '#/$defs/ac_body'}
+  scenario_body:
+    type: object
+    additionalProperties: false
+    required: [objective, verification_level, status, reason]
+    properties:
+      objective: {type: string, minLength: 1}
+      verification_level: {enum: [UNIT, SUBSYSTEM, SYSTEM, OBSERVATION]}
+      status:
+        {enum: [CHECKABLE, OBSERVATION_ONLY, BLOCKED_CONTRACT, SPEC_AMBIGUITY]}
+      reason: {type: string}
+  ac_body:
+    type: object
+    additionalProperties: false
+    required: [behavior, verification_level, status, reason]
+    properties:
+      behavior: {type: string, minLength: 1}
+      verification_level: {enum: [UNIT, SUBSYSTEM, SYSTEM, OBSERVATION]}
+      status:
+        {enum: [CHECKABLE, OBSERVATION_ONLY, BLOCKED_CONTRACT, SPEC_AMBIGUITY]}
+      reason: {type: string}

@@ -1,0 +1,179 @@
+schema_version: "6.0"
+type: object
+additionalProperties: false
+required: [schema_version, workflow_version, report_id, review_id, job_id,
+  thread_id, created_at, input_fingerprint, review_round, review_phase,
+  previous_report_fingerprint, artifact_roots, generator, reviewer,
+  deterministic_validation_fingerprint, review_request_fingerprint,
+  provider_response_fingerprint, routing_fingerprint, findings, ac_reviews,
+  verdict, diagnostics, human_review_required, report_fingerprint]
+properties:
+  schema_version: {type: string, const: "6.0"}
+  workflow_version: {type: string, const: "6.0"}
+  report_id: {type: string, pattern: '^TESTREVIEWREPORT\.[A-Z0-9_.-]+$'}
+  review_id: {type: string, pattern: '^REVIEW\.PROJECT\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  thread_id: {type: string, minLength: 1}
+  created_at: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$'}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  review_round: {type: integer, minimum: 1, maximum: 2}
+  review_phase: {enum: [INITIAL, FINAL]}
+  previous_report_fingerprint:
+    anyOf:
+      - {type: string, const: NONE}
+      - {$ref: '#/$defs/fingerprint'}
+  artifact_roots: {$ref: '#/$defs/roots'}
+  generator: {$ref: '#/$defs/identity'}
+  reviewer: {$ref: '#/$defs/identity'}
+  deterministic_validation_fingerprint: {$ref: '#/$defs/fingerprint'}
+  review_request_fingerprint: {$ref: '#/$defs/fingerprint'}
+  provider_response_fingerprint: {$ref: '#/$defs/fingerprint'}
+  routing_fingerprint: {$ref: '#/$defs/fingerprint'}
+  findings:
+    type: array
+    maxItems: 128
+    items: {$ref: '#/$defs/finding'}
+  ac_reviews:
+    type: array
+    minItems: 1
+    maxItems: 2048
+    items: {$ref: '#/$defs/ac_review'}
+  verdict: {enum: [CLEAN, FINDINGS_REPORTED]}
+  diagnostics:
+    type: array
+    maxItems: 128
+    items: {type: string, minLength: 1, maxLength: 512}
+  human_review_required: {type: boolean, const: true}
+  report_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  roots:
+    type: object
+    additionalProperties: false
+    required: [scenario_ac_map, ac_testcase_map, testcase]
+    properties:
+      scenario_ac_map: {$ref: '#/$defs/fingerprint'}
+      ac_testcase_map: {$ref: '#/$defs/fingerprint'}
+      testcase: {$ref: '#/$defs/fingerprint'}
+  identity:
+    type: object
+    additionalProperties: false
+    required: [runtime_role, provider_id, model_id, request_id, response_id,
+      input_tokens, output_tokens]
+    properties:
+      runtime_role: {enum: [GENERATOR, REVIEWER]}
+      provider_id: {type: string, minLength: 1}
+      model_id: {type: string, minLength: 1}
+      request_id: {type: string, minLength: 1}
+      response_id: {type: string, minLength: 1}
+      input_tokens: {type: integer, minimum: 0}
+      output_tokens: {type: integer, minimum: 0}
+  spec_evidence:
+    type: object
+    additionalProperties: false
+    required: [path, line_start, line_end, snippet, snippet_fingerprint]
+    properties:
+      path: {type: string, minLength: 1}
+      line_start: {type: integer, minimum: 1}
+      line_end: {type: integer, minimum: 1}
+      snippet: {type: string, minLength: 1, maxLength: 4096}
+      snippet_fingerprint: {$ref: '#/$defs/fingerprint'}
+  code_evidence:
+    type: object
+    additionalProperties: false
+    required: [line_start, line_end, snippet, snippet_fingerprint]
+    properties:
+      line_start: {type: integer, minimum: 1}
+      line_end: {type: integer, minimum: 1}
+      snippet: {type: string, minLength: 1, maxLength: 4096}
+      snippet_fingerprint: {$ref: '#/$defs/fingerprint'}
+  affected:
+    type: object
+    additionalProperties: false
+    required: [scenario_ids, ac_ids, testcase_ids, code_unit_ids]
+    properties:
+      scenario_ids:
+        type: array
+        uniqueItems: true
+        items: {type: string, pattern: '^SCENARIO\.[A-Z0-9_.-]+$'}
+      ac_ids:
+        type: array
+        uniqueItems: true
+        items: {type: string, pattern: '^AC\.[A-Z0-9_.-]+$'}
+      testcase_ids:
+        type: array
+        uniqueItems: true
+        items: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+      code_unit_ids:
+        type: array
+        uniqueItems: true
+        items: {type: string, pattern: '^CODE\.[A-Z0-9_.-]+$'}
+  finding:
+    type: object
+    additionalProperties: false
+    required: [issue_id, severity, suspected_origin_stage, affected,
+      spec_evidence, testcase_evidence, problem_and_required_change,
+      artifact_roots, lineage, issue_fingerprint]
+    properties:
+      issue_id: {type: string, pattern: '^ISSUE\.[A-Z0-9_.-]+$'}
+      severity: {enum: [ERROR, WARNING]}
+      suspected_origin_stage: {enum: [STAGE_1, STAGE_2, STAGE_3, SPEC]}
+      affected: {$ref: '#/$defs/affected'}
+      spec_evidence:
+        type: array
+        minItems: 1
+        maxItems: 32
+        items: {$ref: '#/$defs/spec_evidence'}
+      testcase_evidence:
+        type: array
+        maxItems: 32
+        items: {$ref: '#/$defs/code_evidence'}
+      problem_and_required_change:
+        {type: string, minLength: 1, maxLength: 4096}
+      artifact_roots: {$ref: '#/$defs/roots'}
+      lineage:
+        type: object
+        additionalProperties: false
+        required: [review_round, previous_report_fingerprint]
+        properties:
+          review_round: {type: integer, minimum: 1, maximum: 2}
+          previous_report_fingerprint:
+            anyOf:
+              - {type: string, const: NONE}
+              - {$ref: '#/$defs/fingerprint'}
+      issue_fingerprint: {$ref: '#/$defs/fingerprint'}
+  ac_review:
+    type: object
+    additionalProperties: false
+    required: [ac_id, scenario_ids, testcase_ids, status, spec_evidence,
+      scenario_ac_item_fingerprint, ac_testcase_coverage_fingerprint,
+      stimulus_evidence, checker_evidence, omission, review_fingerprint]
+    properties:
+      ac_id: {type: string, pattern: '^AC\.[A-Z0-9_.-]+$'}
+      scenario_ids:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {type: string, pattern: '^SCENARIO\.[A-Z0-9_.-]+$'}
+      testcase_ids:
+        type: array
+        uniqueItems: true
+        items: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+      status: {enum: [COVERED, OBSERVATION_ONLY, BLOCKED, OMITTED]}
+      spec_evidence:
+        type: array
+        minItems: 1
+        maxItems: 32
+        items: {$ref: '#/$defs/spec_evidence'}
+      scenario_ac_item_fingerprint: {$ref: '#/$defs/fingerprint'}
+      ac_testcase_coverage_fingerprint: {$ref: '#/$defs/fingerprint'}
+      stimulus_evidence:
+        type: array
+        maxItems: 32
+        items: {$ref: '#/$defs/code_evidence'}
+      checker_evidence:
+        type: array
+        maxItems: 32
+        items: {$ref: '#/$defs/code_evidence'}
+      omission: {type: string, maxLength: 2048}
+      review_fingerprint: {$ref: '#/$defs/fingerprint'}

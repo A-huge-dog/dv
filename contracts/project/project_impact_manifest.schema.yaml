@@ -1,0 +1,66 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, impact_id, job_id,
+  input_fingerprint, spec_fingerprint, policy_fingerprint,
+  owner_scope_fingerprint, old_roots, new_roots, dirty_units, reused_units,
+  removed_units, impact_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: PROJECT_INCREMENTAL_IMPACT}
+  impact_id: {type: string, pattern: '^IMPACT\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, minLength: 1, maxLength: 256}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  spec_fingerprint: {$ref: '#/$defs/fingerprint'}
+  policy_fingerprint: {$ref: '#/$defs/fingerprint'}
+  owner_scope_fingerprint: {$ref: '#/$defs/fingerprint'}
+  old_roots: {type: object}
+  new_roots: {type: object}
+  dirty_units:
+    type: array
+    maxItems: 16384
+    items: {$ref: '#/$defs/change'}
+  reused_units:
+    type: array
+    maxItems: 16384
+    items: {$ref: '#/$defs/change'}
+  removed_units:
+    type: array
+    maxItems: 16384
+    items: {$ref: '#/$defs/change'}
+  source_checkpoint_fingerprint: {$ref: '#/$defs/fingerprint'}
+  replacement_fingerprint: {$ref: '#/$defs/fingerprint'}
+  commit_id: {type: string, pattern: '^COMMIT\.PROJECT\.[A-Z0-9_.-]+$'}
+  impact_fingerprint: {$ref: '#/$defs/fingerprint'}
+allOf:
+  - if:
+      anyOf:
+        - {required: [source_checkpoint_fingerprint]}
+        - {required: [replacement_fingerprint]}
+        - {required: [commit_id]}
+    then:
+      required: [source_checkpoint_fingerprint, replacement_fingerprint,
+        commit_id]
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  change:
+    type: object
+    additionalProperties: false
+    required: [unit_key, unit_id, stage, unit_kind, old_fingerprint,
+      new_fingerprint, reasons]
+    properties:
+      unit_key: {type: string, minLength: 1, maxLength: 1024}
+      unit_id: {type: string, minLength: 1, maxLength: 256}
+      stage: {enum: [STAGE1, STAGE2, STAGE3, REVIEW]}
+      unit_kind: {type: string, minLength: 1, maxLength: 64}
+      old_fingerprint: {type: [string, 'null'], pattern: '^[0-9a-f]{64}$'}
+      new_fingerprint: {type: [string, 'null'], pattern: '^[0-9a-f]{64}$'}
+      reasons:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          enum: [ADDED, REMOVED, CONTENT_CHANGED,
+            DIRECT_DEPENDENCY_CHANGED, TRANSITIVE_DEPENDENCY_CHANGED,
+            UNCHANGED]
+  

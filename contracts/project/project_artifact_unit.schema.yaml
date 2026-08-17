@@ -1,0 +1,66 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, stage, unit_kind, unit_id, job_id,
+  revision, input_fingerprint, spec_fingerprint, policy_fingerprint,
+  owner_scope_fingerprint, semantic_body, spec_evidence, producer,
+  local_evidence, dependency_fingerprints, content_fingerprint, dependency_fingerprint,
+  artifact_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: PROJECT_ARTIFACT_UNIT}
+  stage: {enum: [STAGE1, STAGE2, STAGE3, REVIEW]}
+  unit_kind:
+    enum: [SCENARIO, ACCEPTANCE_CRITERION, LOGICAL_TESTCASE, AC_COVERAGE,
+      CODE_SHARED, CODE_TESTCASE, REVIEW_AC, REVIEW_TESTCASE, REVIEW_SHARED]
+  unit_id: {type: string, pattern: '^[A-Z][A-Z0-9_.-]{0,255}$'}
+  job_id: {type: string, minLength: 1, maxLength: 256}
+  revision: {type: integer, minimum: 0, maximum: 999}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  spec_fingerprint: {$ref: '#/$defs/fingerprint'}
+  policy_fingerprint: {$ref: '#/$defs/fingerprint'}
+  owner_scope_fingerprint: {$ref: '#/$defs/fingerprint'}
+  semantic_body: {type: object}
+  spec_evidence:
+    type: array
+    maxItems: 64
+    items: {$ref: '#/$defs/evidence'}
+  local_evidence:
+    type: array
+    maxItems: 4096
+    items: {type: object}
+  producer:
+    type: object
+    minProperties: 1
+  dependency_fingerprints:
+    type: array
+    minItems: 4
+    maxItems: 4096
+    uniqueItems: true
+    items: {$ref: '#/$defs/dependency'}
+  content_fingerprint: {$ref: '#/$defs/fingerprint'}
+  dependency_fingerprint: {$ref: '#/$defs/fingerprint'}
+  artifact_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  evidence:
+    type: object
+    additionalProperties: false
+    required: [path, line_start, line_end, snippet, snippet_fingerprint]
+    properties:
+      path: {type: string, minLength: 1, maxLength: 1024}
+      line_start: {type: integer, minimum: 1}
+      line_end: {type: integer, minimum: 1}
+      snippet: {type: string, minLength: 1, maxLength: 16384}
+      snippet_fingerprint: {$ref: '#/$defs/fingerprint'}
+  dependency:
+    type: object
+    additionalProperties: false
+    required: [kind, identity, fingerprint]
+    properties:
+      kind:
+        enum: [JOB_INPUT, SPEC_BASELINE, SPEC_EVIDENCE, POLICY, OWNER_SCOPE,
+          PROVIDER, SCENARIO, ACCEPTANCE_CRITERION, LOGICAL_TESTCASE,
+          AC_COVERAGE, CODE_SHARED, CODE_TESTCASE, REVIEW_AC]
+      identity: {type: string, minLength: 1, maxLength: 1024}
+      fingerprint: {$ref: '#/$defs/fingerprint'}

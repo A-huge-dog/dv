@@ -1,0 +1,22 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, request_id, job_id, checkpoint_id,
+  checkpoint_fingerprint, requester, created_at, request_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  request_id: {type: string, pattern: '^CANCELREQUEST\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  checkpoint_id: {type: string, pattern: '^CHECKPOINT\.[A-Z0-9_.-]+$'}
+  checkpoint_fingerprint: {$ref: '#/$defs/fingerprint'}
+  requester:
+    type: object
+    additionalProperties: false
+    required: [kind, identity]
+    properties:
+      kind: {enum: [HUMAN, OPERATOR]}
+      identity: {type: string, minLength: 1, maxLength: 256}
+  created_at: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$'}
+  request_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

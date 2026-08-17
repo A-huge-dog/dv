@@ -1,0 +1,23 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, validation_id, job_id,
+  input_fingerprint, source_checkpoint_fingerprint,
+  replacement_fingerprint, candidate_fingerprint, content_fingerprint,
+  request, evidence, status, validation_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: PROJECT_PRECOMMIT_COMPILE_VALIDATION}
+  validation_id: {type: string, pattern: '^COMPILEVALIDATION\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  source_checkpoint_fingerprint: {$ref: '#/$defs/fingerprint'}
+  replacement_fingerprint: {$ref: '#/$defs/fingerprint'}
+  candidate_fingerprint: {$ref: '#/$defs/fingerprint'}
+  content_fingerprint: {$ref: '#/$defs/fingerprint'}
+  request: {type: object}
+  evidence: {type: object}
+  status: {enum: [PASS, FAIL, BLOCKED_TOOL]}
+  validation_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

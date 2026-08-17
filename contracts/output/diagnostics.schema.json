@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dv-framework-diagnostics-1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "code", "severity", "message", "path", "source_id",
+    "required_owner", "required_artifact_kind", "required_decision_kind"],
+  "properties": {
+    "schema_version": {"const": "1.1"},
+    "code": {"enum": ["ACCEPTED", "INVALID_SCHEMA", "MISSING_REQUIRED_FIELD",
+      "VERSION_MISMATCH", "UNSUPPORTED_FORMAT", "CONFLICTING_SOURCE",
+      "POLICY_NOT_CONFIGURED", "INVALID_TRANSITION", "PROVIDER_CONFIG_MISSING",
+      "PROVIDER_PROBE_FAILED", "TOOL_PERMISSION_DENIED", "TOOL_LIMIT_EXCEEDED",
+      "INVALID_TOOL_CALL", "APPROVAL_REQUIRED", "APPROVAL_REJECTED",
+      "INVALID_APPROVAL_PROVENANCE", "MISSING_BEHAVIOR_CONTRACT",
+      "AMBIGUOUS_BEHAVIOR", "MISSING_RTL_BINDING", "MISSING_ORACLE", "UNSUPPORTED_SEMANTICS",
+      "STALE_EVIDENCE", "CYCLE_DETECTED", "BUDGET_EXHAUSTED"]},
+    "severity": {"enum": ["INFO", "ERROR"]},
+    "message": {"type": "string", "minLength": 1},
+    "path": {"type": "string"},
+    "source_id": {"type": "string"},
+    "required_owner": {"enum": ["NONE", "DV_AGENT_DEVELOPER", "SPEC_OWNER",
+      "DESIGN_OWNER", "HARDWARE_APPROVER", "DV_REVIEWER", "EDA_OWNER"]},
+    "required_artifact_kind": {"type": "string", "minLength": 1},
+    "required_decision_kind": {"type": "string", "minLength": 1}
+  }
+}

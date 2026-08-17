@@ -1,0 +1,43 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, job_id, source, testcase_candidate, reviewer_config, input_authority]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  job_id:
+    type: string
+    minLength: 1
+    maxLength: 128
+    pattern: '^[A-Za-z0-9][A-Za-z0-9_.-]*$'
+  source:
+    type: object
+    additionalProperties: false
+    required: [project_job_id, scenario_ac_map, ac_testcase_map]
+    properties:
+      project_job_id:
+        {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+      scenario_ac_map:
+        type: string
+        pattern: '^staging/mappings/scenario_ac_map(?:\.checked)?\.r[0-9]{3}\.json$'
+      ac_testcase_map:
+        type: string
+        pattern: '^staging/mappings/ac_testcase_map\.r[0-9]{3}\.json$'
+  testcase_candidate:
+    type: string
+    minLength: 1
+    maxLength: 512
+    pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*testcase\.r[0-9]{3}\.json$'
+  reviewer_config:
+    type: string
+    minLength: 1
+    maxLength: 512
+    pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.ya?ml$'
+  input_authority:
+    type: object
+    additionalProperties: false
+    required: [actor_type, identity, role, decision]
+    properties:
+      actor_type: {type: string, const: HUMAN}
+      identity: {type: string, minLength: 1, maxLength: 256}
+      role: {type: string, const: STAGE3_TEST_OWNER}
+      decision: {type: string, const: APPROVE}

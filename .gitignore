@@ -1,0 +1,35 @@
+# Python-generated files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local environments and editor state
+.venv/
+venv/
+.idea/
+.vscode/
+
+# Credentials and machine-local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credential*
+*secret*
+
+# Runtime evidence and generated output
+result/
+tmp/
+build/
+dist/
+*.log
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

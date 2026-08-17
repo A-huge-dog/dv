@@ -1,0 +1,37 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, session_id, job_id, role, lineage, entries,
+  terminal, manifest_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  session_id: {type: string, pattern: '^[A-Z][A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  role: {enum: [ORCHESTRATOR, STAGE_1, STAGE_2, STAGE_3, REVIEWER]}
+  lineage: {type: object}
+  entries:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required: [sequence, kind, path, content_fingerprint]
+      properties:
+        sequence: {type: integer, minimum: 1}
+        kind: {enum: [REQUEST, RESPONSE, TOOL_CALL, TOOL_RESULT]}
+        path: {type: string, pattern: '^[0-9]{4}\.[a-z_]+\.json$'}
+        content_fingerprint: {$ref: '#/$defs/fingerprint'}
+  terminal:
+    type: object
+    additionalProperties: false
+    required: [status, code, result_sequence]
+    properties:
+      status: {enum: [COMPLETED, FAILED, CANCELLED]}
+      code: {type: string, minLength: 1}
+      result_sequence:
+        anyOf:
+          - {type: integer, minimum: 1}
+          - {type: 'null'}
+  manifest_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

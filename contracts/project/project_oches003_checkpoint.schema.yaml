@@ -1,0 +1,36 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, workflow_version, state, job_id,
+  input_fingerprint, commit_manifest_path, commit_fingerprint,
+  impact_manifest_path, impact_fingerprint, review_request_path,
+  review_report_path, review_validation_path, review_unit_index_path,
+  review_report_fingerprint, review_validation_fingerprint,
+  review_unit_root, review_verdict, error_count, warning_count,
+  regeneration_state_fingerprint,
+  current_state_modified, checkpoint_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  workflow_version: {type: string, const: "6.0"}
+  state: {type: string, const: OCHES003_FINAL_REVIEW_COMPLETE}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  commit_manifest_path: {type: string, pattern: '^audit/oches003_commit_manifest\.[0-9]{3}\.json$'}
+  commit_fingerprint: {$ref: '#/$defs/fingerprint'}
+  impact_manifest_path: {type: string, minLength: 1}
+  impact_fingerprint: {$ref: '#/$defs/fingerprint'}
+  review_request_path: {type: string, const: staging/reviews/review_request.r002.json}
+  review_report_path: {type: string, const: staging/reviews/review_report.r002.json}
+  review_validation_path: {type: string, const: staging/validations/review_validation.r002.json}
+  review_unit_index_path: {type: string, const: staging/units/review/index.current.r001.json}
+  review_report_fingerprint: {$ref: '#/$defs/fingerprint'}
+  review_validation_fingerprint: {$ref: '#/$defs/fingerprint'}
+  review_unit_root: {$ref: '#/$defs/fingerprint'}
+  review_verdict: {enum: [CLEAN, FINDINGS_REPORTED]}
+  error_count: {type: integer, minimum: 0, maximum: 128}
+  warning_count: {type: integer, minimum: 0, maximum: 128}
+  regeneration_state_fingerprint: {$ref: '#/$defs/fingerprint'}
+  current_state_modified: {type: boolean, const: true}
+  checkpoint_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

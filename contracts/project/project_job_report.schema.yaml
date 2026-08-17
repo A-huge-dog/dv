@@ -1,0 +1,29 @@
+schema_version: "2.0"
+type: object
+additionalProperties: false
+required: [schema_version, report_id, job_id, project_id, status,
+  execution_status, verification_verdict, input_fingerprint, provider,
+  review, testcase, approval, eda, checked_behaviors, limited_behaviors,
+  artifacts, diagnostics, report_fingerprint]
+properties:
+  schema_version: {type: string, const: "2.0"}
+  report_id: {type: string, pattern: '^REPORT\.PROJECT\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  project_id: {type: string, pattern: '^PROJECT\.[A-Z0-9_.-]+$'}
+  status: {enum: [COMPLETE, FAILED, BLOCKED]}
+  execution_status: {enum: [PASS, FAIL, BLOCKED_TOOL, BLOCKED_INPUT]}
+  verification_verdict:
+    {enum: [FUNCTIONAL_PASS, FUNCTIONAL_FAIL, PROTOCOL_PASS,
+      PROTOCOL_FAIL, OBSERVATION_ONLY, INCONCLUSIVE, BLOCKED_CONTRACT,
+      NOT_ASSESSABLE]}
+  input_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  provider: {type: object}
+  review: {type: object}
+  testcase: {type: object}
+  approval: {type: object}
+  eda: {type: object}
+  checked_behaviors: {type: array, items: {type: object}}
+  limited_behaviors: {type: array, items: {type: object}}
+  artifacts: {type: array, items: {type: object}}
+  diagnostics: {type: array, items: {type: string}}
+  report_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

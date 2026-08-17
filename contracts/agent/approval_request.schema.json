@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dv-agent-approval-request-2.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "approval_request_id", "job_id", "thread_id",
+    "approval_kind", "candidate_artifact_id", "candidate_fingerprint",
+    "candidate_tool_call_id", "validation_artifact_ids", "validation_status",
+    "required_role", "checkpoint_id", "requested_at"],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "approval_request_id": {"type": "string", "minLength": 1},
+    "job_id": {"type": "string", "minLength": 1},
+    "thread_id": {"type": "string", "minLength": 1},
+    "approval_kind": {"enum": ["SEMANTIC_BASELINE", "SEMANTIC_BINDING",
+      "VERIFICATION_PLAN", "ARTIFACT_PROMOTION", "CONTRACT_EXCEPTION",
+      "DEBUG_DISPOSITION", "WAIVER", "CLOSURE"]},
+    "candidate_artifact_id": {"type": "string", "minLength": 1},
+    "candidate_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "candidate_tool_call_id": {"type": "string", "minLength": 1},
+    "validation_artifact_ids": {"type": "array", "items": {"type": "string"}},
+    "validation_status": {"const": "PASS"},
+    "required_role": {"enum": ["SPEC_OWNER", "DESIGN_OWNER", "HARDWARE_APPROVER",
+      "DV_REVIEWER", "EDA_OWNER"]},
+    "checkpoint_id": {"type": "string", "minLength": 1},
+    "bundle_fingerprints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input", "scenario_ac_map", "ac_testcase_map",
+        "testcase", "review", "review_validation", "stage1_units",
+        "stage2_units", "stage3_units", "stage3_assembly", "review_units",
+        "checkpoint"],
+      "properties": {
+        "input": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "scenario_ac_map": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "ac_testcase_map": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "testcase": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "review": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "review_validation": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "stage1_units": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "stage2_units": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "stage3_units": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "stage3_assembly": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "review_units": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "checkpoint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "requested_at": {"type": "string", "minLength": 1}
+  }
+}

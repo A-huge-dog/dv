@@ -1,0 +1,39 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, event_id, sequence, event, job_id,
+  checkpoint_id, checkpoint_fingerprint, actor, result_fingerprint,
+  result_path, diagnostic_code, previous_event_fingerprint, created_at,
+  event_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  event_id: {type: string, pattern: '^QUEUEEVENT\.[A-Z0-9_.-]+$'}
+  sequence: {type: integer, minimum: 1}
+  event: {enum: [ENQUEUED, REQUEUED, STARTED, CANCEL_REQUESTED, CANCELLED, COMPLETED, FAILED]}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  checkpoint_id: {type: string, pattern: '^CHECKPOINT\.[A-Z0-9_.-]+$'}
+  checkpoint_fingerprint: {$ref: '#/$defs/fingerprint'}
+  actor:
+    type: object
+    additionalProperties: false
+    required: [kind, identity]
+    properties:
+      kind: {enum: [HUMAN, OPERATOR, FRAMEWORK]}
+      identity: {type: string, minLength: 1, maxLength: 256}
+  result_fingerprint:
+    anyOf:
+      - {type: string, const: NONE}
+      - {$ref: '#/$defs/fingerprint'}
+  result_path:
+    anyOf:
+      - {type: string, const: NONE}
+      - {type: string, pattern: '^scheduler/results/[a-z0-9_.-]+\.json$'}
+  diagnostic_code: {type: string, minLength: 1, maxLength: 128}
+  previous_event_fingerprint:
+    anyOf:
+      - {type: string, const: NONE}
+      - {$ref: '#/$defs/fingerprint'}
+  created_at: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$'}
+  event_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

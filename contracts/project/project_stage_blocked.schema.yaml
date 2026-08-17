@@ -1,0 +1,7 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [outcome, reason]
+properties:
+  outcome: {enum: [SPEC_AMBIGUITY, BLOCKED_INPUT]}
+  reason: {type: string, minLength: 1, maxLength: 1024}

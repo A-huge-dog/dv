@@ -1,0 +1,73 @@
+$id: "urn:dv:project:ac-testcase-candidate:4.0"
+$comment: >-
+  Model-owned PJ-002 Stage 2 semantics. Runtime derives testcase IDs,
+  ordering, reverse coverage, completeness bookkeeping, snippets,
+  fingerprints, storage, and lineage.
+type: object
+additionalProperties: false
+required: [logical_testcases, completeness]
+properties:
+  logical_testcases:
+    type: array
+    maxItems: 2048
+    items: {$ref: '#/$defs/testcase'}
+  completeness:
+    type: object
+    additionalProperties: false
+    required: [declared_complete, omissions]
+    properties:
+      declared_complete: {type: boolean}
+      omissions:
+        type: array
+        maxItems: 2048
+        items:
+          type: object
+          additionalProperties: false
+          required: [ac_id, reason]
+          properties:
+            ac_id: {type: string, pattern: '^AC\.[A-Z0-9_.-]+$'}
+            reason: {type: string, minLength: 1, maxLength: 2048}
+$defs:
+  evidence:
+    type: object
+    additionalProperties: false
+    required: [path, line_start, line_end]
+    properties:
+      path: {type: string, minLength: 1}
+      line_start: {type: integer, minimum: 1}
+      line_end: {type: integer, minimum: 1}
+  testcase:
+    type: object
+    additionalProperties: false
+    required: [objective, scenario_ids, ac_ids, preconditions,
+      stimulus, transaction_sequence, timing_intent, checker, expected_result,
+      failure_condition, timeout_cycles, status, reason, spec_evidence]
+    properties:
+      objective: {type: string, minLength: 1, maxLength: 2048}
+      scenario_ids:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {type: string, pattern: '^SCENARIO\.[A-Z0-9_.-]+$'}
+      ac_ids:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {type: string, pattern: '^AC\.[A-Z0-9_.-]+$'}
+      preconditions: {type: string, minLength: 1, maxLength: 2048}
+      stimulus: {type: string, maxLength: 4096}
+      transaction_sequence: {type: string, maxLength: 4096}
+      timing_intent: {type: string, minLength: 1, maxLength: 2048}
+      checker: {type: string, maxLength: 4096}
+      expected_result: {type: string, maxLength: 4096}
+      failure_condition: {type: string, maxLength: 4096}
+      timeout_cycles: {type: integer, minimum: 1, maximum: 1000000}
+      status:
+        enum: [PLANNED, CHECKABLE, OBSERVATION_ONLY, BLOCKED_CONTRACT,
+          SPEC_AMBIGUITY]
+      reason: {type: string, maxLength: 2048}
+      spec_evidence:
+        type: array
+        minItems: 1
+        maxItems: 32
+        items: {$ref: '#/$defs/evidence'}

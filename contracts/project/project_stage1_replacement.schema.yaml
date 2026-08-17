@@ -1,0 +1,116 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, replacement_id, session_id, dispatch_id,
+  dispatch_fingerprint, job_id, stage, base_artifact_roots, base_unit_roots,
+  scope_fingerprint, stage_agent, replacements, response_fingerprint,
+  replacement_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  replacement_id: {type: string, pattern: '^REPLACEMENT\.STAGE1\.[A-Z0-9_.-]+$'}
+  session_id: {type: string, pattern: '^STAGESESSION\.[A-Z0-9_.-]+$'}
+  dispatch_id: {type: string, pattern: '^REPAIRDISPATCH\.[A-Z0-9_.-]+$'}
+  dispatch_fingerprint: {$ref: '#/$defs/fingerprint'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  stage: {type: string, const: STAGE_1}
+  base_artifact_roots: {$ref: '#/$defs/artifact_roots'}
+  base_unit_roots: {$ref: '#/$defs/unit_roots'}
+  scope_fingerprint: {$ref: '#/$defs/fingerprint'}
+  stage_agent: {$ref: '#/$defs/agent'}
+  replacements:
+    type: array
+    minItems: 1
+    maxItems: 256
+    items: {$ref: '#/$defs/replacement'}
+  response_fingerprint: {$ref: '#/$defs/fingerprint'}
+  replacement_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  config_path:
+    {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.ya?ml$'}
+  agent:
+    type: object
+    additionalProperties: false
+    required: [runtime_role, model_class, profile_path, profile_fingerprint,
+      profile_document_fingerprint, config_path, config_fingerprint,
+      config_document_fingerprint, provider_id, model_id, request_id,
+      response_id]
+    properties:
+      runtime_role: {type: string, const: STAGE_AGENT}
+      model_class: {type: string, minLength: 1}
+      profile_path: {$ref: '#/$defs/config_path'}
+      profile_fingerprint: {$ref: '#/$defs/fingerprint'}
+      profile_document_fingerprint: {$ref: '#/$defs/fingerprint'}
+      config_path: {$ref: '#/$defs/config_path'}
+      config_fingerprint: {$ref: '#/$defs/fingerprint'}
+      config_document_fingerprint: {$ref: '#/$defs/fingerprint'}
+      provider_id: {type: string, minLength: 1}
+      model_id: {type: string, minLength: 1}
+      request_id: {type: string, minLength: 1}
+      response_id: {type: string, minLength: 1}
+  replacement:
+    type: object
+    additionalProperties: false
+    required: [unit_id, unit_kind, base_revision, base_artifact_fingerprint,
+      semantic_body, spec_evidence]
+    properties:
+      unit_id: {type: string, pattern: '^(SCENARIO|AC)\.[A-Z0-9_.-]+$'}
+      unit_kind: {enum: [SCENARIO, ACCEPTANCE_CRITERION]}
+      base_revision: {type: integer, minimum: 0, maximum: 999}
+      base_artifact_fingerprint: {$ref: '#/$defs/fingerprint'}
+      semantic_body:
+        anyOf:
+          - {$ref: '#/$defs/scenario_body'}
+          - {$ref: '#/$defs/ac_body'}
+      spec_evidence:
+        type: array
+        minItems: 1
+        maxItems: 32
+        items: {$ref: '#/$defs/evidence'}
+  evidence:
+    type: object
+    additionalProperties: false
+    required: [path, line_start, line_end, snippet, snippet_fingerprint]
+    properties:
+      path: {type: string, minLength: 1}
+      line_start: {type: integer, minimum: 1}
+      line_end: {type: integer, minimum: 1}
+      snippet: {type: string, minLength: 1}
+      snippet_fingerprint: {$ref: '#/$defs/fingerprint'}
+  artifact_roots:
+    type: object
+    additionalProperties: false
+    required: [scenario_ac_map, ac_testcase_map, testcase]
+    properties:
+      scenario_ac_map: {$ref: '#/$defs/fingerprint'}
+      ac_testcase_map: {$ref: '#/$defs/fingerprint'}
+      testcase: {$ref: '#/$defs/fingerprint'}
+  unit_roots:
+    type: object
+    additionalProperties: false
+    required: [stage1, stage2, stage3, review]
+    properties:
+      stage1: {$ref: '#/$defs/fingerprint'}
+      stage2: {$ref: '#/$defs/fingerprint'}
+      stage3: {$ref: '#/$defs/fingerprint'}
+      review: {$ref: '#/$defs/fingerprint'}
+  scenario_body:
+    type: object
+    additionalProperties: false
+    required: [objective, verification_level, status, reason]
+    properties:
+      objective: {type: string, minLength: 1}
+      verification_level: {enum: [UNIT, SUBSYSTEM, SYSTEM, OBSERVATION]}
+      status:
+        {enum: [CHECKABLE, OBSERVATION_ONLY, BLOCKED_CONTRACT, SPEC_AMBIGUITY]}
+      reason: {type: string}
+  ac_body:
+    type: object
+    additionalProperties: false
+    required: [behavior, verification_level, status, reason]
+    properties:
+      behavior: {type: string, minLength: 1}
+      verification_level: {enum: [UNIT, SUBSYSTEM, SYSTEM, OBSERVATION]}
+      status:
+        {enum: [CHECKABLE, OBSERVATION_ONLY, BLOCKED_CONTRACT, SPEC_AMBIGUITY]}
+      reason: {type: string}

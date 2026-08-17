@@ -1,0 +1,29 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, job_id, regeneration_round, source_report_id,
+  source_report_fingerprint, artifact_roots, scope_fingerprint, findings,
+  feedback_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  regeneration_round: {type: integer, const: 1}
+  source_report_id: {type: string, pattern: '^TESTREVIEWREPORT\.[A-Z0-9_.-]+$'}
+  source_report_fingerprint: {$ref: '#/$defs/fingerprint'}
+  artifact_roots:
+    type: object
+    additionalProperties: false
+    required: [scenario_ac_map, ac_testcase_map, testcase]
+    properties:
+      scenario_ac_map: {$ref: '#/$defs/fingerprint'}
+      ac_testcase_map: {$ref: '#/$defs/fingerprint'}
+      testcase: {$ref: '#/$defs/fingerprint'}
+  scope_fingerprint: {$ref: '#/$defs/fingerprint'}
+  findings:
+    type: array
+    minItems: 1
+    maxItems: 128
+    items: {type: object}
+  feedback_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

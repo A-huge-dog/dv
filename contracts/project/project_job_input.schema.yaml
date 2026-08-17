@@ -1,0 +1,153 @@
+schema_version: "4.0"
+type: object
+additionalProperties: false
+required: [schema_version, manifest_kind, job_id, project_id, submission,
+  spec, rtl, agent_profile, eda, testcase, input_authority, input_fingerprint]
+properties:
+  schema_version: {type: string, const: "4.0"}
+  manifest_kind: {type: string, const: PROJECT_INPUT_MANIFEST}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  project_id: {type: string, pattern: '^PROJECT\.[A-Z0-9_.-]+$'}
+  submission:
+    type: object
+    additionalProperties: false
+    required: [baseline_path, byte_fingerprint, document_fingerprint]
+    properties:
+      baseline_path:
+        {type: string, const: input_baseline/project_job_submission.yaml}
+      byte_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+      document_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  spec:
+    type: object
+    additionalProperties: false
+    required: [sources]
+    properties:
+      sources:
+        type: array
+        minItems: 1
+        maxItems: 64
+        items: {$ref: '#/$defs/baseline_source'}
+  rtl:
+    type: object
+    additionalProperties: false
+    required: [sources, top, parameters, authority]
+    properties:
+      sources:
+        type: array
+        minItems: 1
+        maxItems: 64
+        items: {$ref: '#/$defs/baseline_source'}
+      top: {type: string, pattern: '^[A-Za-z_][A-Za-z0-9_$]*$'}
+      parameters: {type: object}
+      authority: {type: string, const: INTERFACE_AND_BUILD_ONLY}
+  agent_profile:
+    type: object
+    additionalProperties: false
+    required: [path, baseline_path, byte_fingerprint, document_fingerprint,
+      profile_id, bindings]
+    properties:
+      path: {$ref: '#/$defs/config_path'}
+      baseline_path:
+        {type: string, const: input_baseline/agent_profile/profile.yaml}
+      byte_fingerprint: {$ref: '#/$defs/fingerprint'}
+      document_fingerprint: {$ref: '#/$defs/fingerprint'}
+      profile_id:
+        {type: string, pattern: '^PROJECT_AGENT_PROFILE\.[A-Z0-9_.-]+$'}
+      bindings:
+        type: object
+        additionalProperties: false
+        required: [initial, repair, review]
+        properties:
+          initial:
+            type: object
+            additionalProperties: false
+            required: [stage1, stage2, stage3]
+            properties:
+              stage1: {$ref: '#/$defs/provider_reference'}
+              stage2: {$ref: '#/$defs/provider_reference'}
+              stage3: {$ref: '#/$defs/provider_reference'}
+          repair:
+            type: object
+            additionalProperties: false
+            required: [orchestrator, stage1, stage2, stage3]
+            properties:
+              orchestrator: {$ref: '#/$defs/provider_reference'}
+              stage1: {$ref: '#/$defs/provider_reference'}
+              stage2: {$ref: '#/$defs/provider_reference'}
+              stage3: {$ref: '#/$defs/provider_reference'}
+          review:
+            type: object
+            additionalProperties: false
+            required: [initial, final]
+            properties:
+              initial: {$ref: '#/$defs/provider_reference'}
+              final: {$ref: '#/$defs/provider_reference'}
+  eda:
+    type: object
+    additionalProperties: false
+    required: [profile_id, executable_ref, environment_fingerprint,
+      approval_ref, timeout_seconds]
+    properties:
+      profile_id: {type: string, const: EDAPROFILE.VERILATOR.PROJECT.V1}
+      executable_ref: {type: string, const: EDAEXEC.VERILATOR}
+      environment_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+      approval_ref: {type: string, const: EDAAPPROVAL.PROJECT.PROFILE.VERILATOR.V1}
+      timeout_seconds: {type: integer, minimum: 1, maximum: 600}
+  testcase:
+    type: object
+    additionalProperties: false
+    required: [top, pass_marker]
+    properties:
+      top: {type: string, pattern: '^tb_project_[0-9a-f]{16}$'}
+      pass_marker: {type: string, pattern: '^DV_PROJECT_[A-F0-9]{16}_PASS$'}
+  input_authority:
+    type: object
+    additionalProperties: false
+    required: [actor_type, identity, roles, decision, authority_fingerprint]
+    properties:
+      actor_type: {type: string, const: HUMAN}
+      identity: {type: string, minLength: 1, maxLength: 256}
+      roles:
+        type: array
+        minItems: 2
+        maxItems: 2
+        uniqueItems: true
+        items: {enum: [SPEC_OWNER, DESIGN_OWNER]}
+      decision: {type: string, const: APPROVE}
+      authority_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  input_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  config_path:
+    type: string
+    minLength: 1
+    maxLength: 512
+    pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.ya?ml$'
+  baseline_source:
+    type: object
+    additionalProperties: false
+    required: [path, baseline_path, fingerprint, normalized_fingerprint,
+      source_identity]
+    properties:
+      path:
+        {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.(sv|svh|v|md|txt)$'}
+      baseline_path:
+        {type: string, pattern: '^result/jobs/JOB\.PROJECT\.[A-Z0-9_.-]+/input_baseline/(spec|rtl)/[A-Za-z0-9][A-Za-z0-9._-]*$'}
+      fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+      normalized_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+      source_identity: {type: string, pattern: '^[0-9a-f]{64}$'}
+  provider_reference:
+    type: object
+    additionalProperties: false
+    required: [path, baseline_path, fingerprint, document_fingerprint,
+      provider_id, model_id, auth_env]
+    properties:
+      path:
+        {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.ya?ml$'}
+      baseline_path:
+        {type: string, pattern: '^input_baseline/agent_profile/providers/[A-Za-z0-9._-]+\.ya?ml$'}
+      fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+      document_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+      provider_id: {type: string, minLength: 1}
+      model_id: {type: string, minLength: 1}
+      auth_env: {type: string, pattern: '^[A-Z][A-Z0-9_]*$'}

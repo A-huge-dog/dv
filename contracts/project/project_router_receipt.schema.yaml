@@ -1,0 +1,26 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, receipt_id, job_id, plan_id, plan_fingerprint,
+  status, diagnostic, formal_dispatch_id, receipt_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  receipt_id: {type: string, pattern: '^ROUTERRECEIPT\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  plan_id: {type: string, pattern: '^REPAIRPLAN\.[A-Z0-9_.-]+$'}
+  plan_fingerprint: {$ref: '#/$defs/fingerprint'}
+  status: {enum: [ACCEPTED, REJECTED]}
+  diagnostic:
+    type: object
+    additionalProperties: false
+    required: [code, message]
+    properties:
+      code: {type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$'}
+      message: {type: string, minLength: 1, maxLength: 1024}
+  formal_dispatch_id:
+    anyOf:
+      - {type: string, const: NONE}
+      - {type: string, pattern: '^REPAIRDISPATCH\.[A-Z0-9_.-]+$'}
+  receipt_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

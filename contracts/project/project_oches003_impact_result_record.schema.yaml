@@ -1,0 +1,36 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, record_type, job_id, regeneration_round, sequence,
+  producer_role, input_fingerprint, spec_fingerprint, policy_fingerprint,
+  upstream_fingerprints, created_at, payload, record_fingerprint]
+properties:
+  schema_version: {const: "1.0"}
+  record_type: {const: IMPACT_RESULT}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  regeneration_round: {type: integer, const: 1}
+  sequence: {type: integer, minimum: 1}
+  producer_role: {enum: [FRAMEWORK, ROUTER, ORCHESTRATOR, STAGE_AGENT, REVIEWER, HUMAN]}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  spec_fingerprint: {$ref: '#/$defs/fingerprint'}
+  policy_fingerprint: {$ref: '#/$defs/fingerprint'}
+  upstream_fingerprints:
+    type: object
+    required: [previous_record]
+    additionalProperties:
+      anyOf: [{$ref: '#/$defs/fingerprint'}, {const: NONE}]
+  created_at: {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$'}
+  payload:
+    type: object
+    required: [group_id, commit_fingerprint, dirty_units, reused_units, direct_dependency_closure, new_roots]
+    properties:
+      group_id: {type: string, minLength: 1}
+      commit_fingerprint: {$ref: '#/$defs/fingerprint'}
+      dirty_units: {type: array}
+      reused_units: {type: array}
+      direct_dependency_closure: {type: array}
+      new_roots: {type: object}
+    additionalProperties: true
+  record_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

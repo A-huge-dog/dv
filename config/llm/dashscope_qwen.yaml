@@ -1,0 +1,13 @@
+schema_version: "1.0"
+provider_kind: DASHSCOPE
+provider_id: dashscope-qwen
+# Beijing-compatible Max default; availability is established by provider probe.
+model_id: qwen3.7-max
+endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1
+auth_env: DASHSCOPE_API_KEY
+api_version: chat-completions-v1
+tool_calls_required: true
+store: false
+timeout_seconds: 600
+max_retries: 2
+max_output_tokens: 65536

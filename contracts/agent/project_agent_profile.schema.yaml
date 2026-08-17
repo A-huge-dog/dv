@@ -1,0 +1,38 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, profile_id, initial, repair, review]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  profile_id:
+    {type: string, pattern: '^PROJECT_AGENT_PROFILE\.[A-Z0-9_.-]+$'}
+  initial:
+    type: object
+    additionalProperties: false
+    required: [stage1, stage2, stage3]
+    properties:
+      stage1: {$ref: '#/$defs/provider_path'}
+      stage2: {$ref: '#/$defs/provider_path'}
+      stage3: {$ref: '#/$defs/provider_path'}
+  repair:
+    type: object
+    additionalProperties: false
+    required: [orchestrator, stage1, stage2, stage3]
+    properties:
+      orchestrator: {$ref: '#/$defs/provider_path'}
+      stage1: {$ref: '#/$defs/provider_path'}
+      stage2: {$ref: '#/$defs/provider_path'}
+      stage3: {$ref: '#/$defs/provider_path'}
+  review:
+    type: object
+    additionalProperties: false
+    required: [initial, final]
+    properties:
+      initial: {$ref: '#/$defs/provider_path'}
+      final: {$ref: '#/$defs/provider_path'}
+$defs:
+  provider_path:
+    type: string
+    minLength: 1
+    maxLength: 512
+    pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.ya?ml$'

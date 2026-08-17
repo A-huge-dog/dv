@@ -1,0 +1,26 @@
+type: object
+additionalProperties: false
+required: [replacements]
+properties:
+  replacements:
+    type: array
+    minItems: 1
+    maxItems: 256
+    items: {$ref: '#/$defs/replacement'}
+$defs:
+  replacement:
+    type: object
+    additionalProperties: false
+    required: [unit_id, semantic_body]
+    properties:
+      unit_id: {type: string, pattern: '^CODE\.[A-Z0-9_.-]+$'}
+      semantic_body:
+        type: object
+        additionalProperties: false
+        required: [segments]
+        properties:
+          segments:
+            type: array
+            minItems: 1
+            maxItems: 1
+            items: {type: string, minLength: 1}

@@ -1,0 +1,23 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, view, job_id, entries,
+  index_fingerprint]
+properties:
+  schema_version: {const: "1.0"}
+  artifact_kind: {const: PROJECT_REPAIR_INDEX}
+  view: {enum: [WORKING, EPISODIC, SEMANTIC, PROCEDURAL]}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  entries:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [path, fingerprint]
+      properties:
+        key: {type: string, minLength: 1}
+        path: {type: string, minLength: 1}
+        fingerprint: {$ref: '#/$defs/fingerprint'}
+  index_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dv-agent-provider-config-2.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "provider_kind", "provider_id", "model_id",
+    "endpoint", "auth_env", "api_version", "tool_calls_required", "store",
+    "timeout_seconds", "max_retries", "max_output_tokens"],
+  "properties": {
+    "schema_version": {"enum": ["1.0", "2.0"]},
+    "provider_kind": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_.-]{0,63}$"
+    },
+    "provider_id": {"type": "string", "minLength": 1},
+    "model_id": {"type": "string", "minLength": 1},
+    "endpoint": {"type": "string", "minLength": 1},
+    "auth_env": {"type": "string", "pattern": "[A-Z][A-Z0-9_]*"},
+    "api_version": {"type": "string", "minLength": 1},
+    "tool_calls_required": {"const": true},
+    "store": {"const": false},
+    "timeout_seconds": {"type": "integer", "minimum": 1},
+    "max_retries": {"type": "integer", "minimum": 0},
+    "max_output_tokens": {"type": "integer", "minimum": 1},
+    "reasoning_effort": {
+      "enum": ["none", "low", "medium", "high", "xhigh", "max"]
+    },
+    "enable_thinking": {"type": "boolean"}
+  }
+}

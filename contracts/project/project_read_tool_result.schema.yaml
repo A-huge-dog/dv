@@ -1,0 +1,29 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, tool_name, job_id, artifact_root, items,
+  diagnostics, result_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  tool_name:
+    enum: [get_issue, get_unit, get_direct_dependencies, get_dependents,
+      get_spec_evidence, get_repair_history, compare_unit_revisions,
+      estimate_repair_impact, get_budget_status]
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  artifact_root: {$ref: '#/$defs/fingerprint'}
+  items:
+    type: array
+    items: {type: object}
+  diagnostics:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [code, item_key, message]
+      properties:
+        code: {enum: [NOT_FOUND, STALE_EVIDENCE]}
+        item_key: {type: string, minLength: 1}
+        message: {type: string, minLength: 1}
+  result_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

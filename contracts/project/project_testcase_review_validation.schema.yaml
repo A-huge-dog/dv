@@ -1,0 +1,38 @@
+schema_version: "6.0"
+type: object
+additionalProperties: false
+required: [schema_version, validation_id, job_id, review_id, report_id,
+  review_round, review_phase, artifact_roots, review_request_fingerprint,
+  provider_response_fingerprint, routing_fingerprint, status, checks,
+  diagnostics, validation_fingerprint]
+properties:
+  schema_version: {type: string, const: "6.0"}
+  validation_id: {type: string, pattern: '^TESTREVIEWVALIDATION\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  review_id: {type: string, pattern: '^REVIEW\.PROJECT\.[A-Z0-9_.-]+$'}
+  report_id: {type: string, pattern: '^TESTREVIEWREPORT\.[A-Z0-9_.-]+$'}
+  review_round: {type: integer, minimum: 1, maximum: 2}
+  review_phase: {enum: [INITIAL, FINAL]}
+  artifact_roots:
+    type: object
+    additionalProperties: false
+    required: [scenario_ac_map, ac_testcase_map, testcase]
+    properties:
+      scenario_ac_map: {$ref: '#/$defs/fingerprint'}
+      ac_testcase_map: {$ref: '#/$defs/fingerprint'}
+      testcase: {$ref: '#/$defs/fingerprint'}
+  review_request_fingerprint: {$ref: '#/$defs/fingerprint'}
+  provider_response_fingerprint: {$ref: '#/$defs/fingerprint'}
+  routing_fingerprint: {$ref: '#/$defs/fingerprint'}
+  status: {enum: [PASS, FAIL]}
+  checks:
+    type: array
+    uniqueItems: true
+    items: {type: string, minLength: 1}
+  diagnostics:
+    type: array
+    maxItems: 128
+    items: {type: string, minLength: 1, maxLength: 512}
+  validation_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
