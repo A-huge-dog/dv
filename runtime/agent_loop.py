@@ -43,12 +43,12 @@ class AgentLoopPolicy:
 
     role: str
     retrieval_tools: frozenset[str]
-    submission_tool: str
+    submission_tools: frozenset[str]
     max_retrieval_turns: int = 3
 
     def __post_init__(self) -> None:
-        if (not self.role or not self.submission_tool or
-                self.submission_tool in self.retrieval_tools or
+        if (not self.role or not self.submission_tools or
+                self.submission_tools & self.retrieval_tools or
                 not 0 <= self.max_retrieval_turns <= 3):
             raise AgentLoopError(
                 "INVALID_TOOL_CALL", "Agent loop policy is invalid")
@@ -58,15 +58,18 @@ class AgentLoop:
     """Run one request/tool/observation sequence to one final submission."""
 
     def __init__(
-            self, *, provider: Any, transcript_store: Transcript,
+            self, *, provider: Any | None, transcript_store: Transcript,
             job_id: str, session_id: str,
             initial_messages: list[dict[str, str]],
             tools: list[dict[str, Any]],
             retrieval_handlers: Mapping[str, Callable[[dict[str, Any]], Any]],
-            submission_handler: Callable[[dict[str, Any], dict[str, Any]], Any],
+            submission_handlers: Mapping[
+                str, Callable[[dict[str, Any], dict[str, Any]], Any]],
             provider_binding: Mapping[str, str], policy: AgentLoopPolicy,
             request_metadata: Mapping[str, Any] | None = None,
-            cancel_requested: Callable[[], bool] | None = None):
+            cancel_requested: Callable[[], bool] | None = None,
+            single_turn_request: Mapping[str, Any] | None = None,
+            provider_call: Callable[[dict[str, Any]], dict[str, Any]] | None = None):
         if not initial_messages:
             raise AgentLoopError(
                 "INVALID_TOOL_CALL", "Agent loop requires initial messages")
@@ -78,11 +81,12 @@ class AgentLoop:
                 "transcript store authority differs from the Agent loop")
         names = [item.get("name") for item in tools]
         retrieval_names = set(retrieval_handlers)
+        submission_names = set(submission_handlers)
         if (retrieval_names != set(policy.retrieval_tools) or
+                submission_names != set(policy.submission_tools) or
                 any(not isinstance(name, str) or not name for name in names) or
                 len(names) != len(set(names)) or
-                policy.submission_tool not in names or
-                not retrieval_names.issubset(set(names))):
+                not (retrieval_names | submission_names).issubset(set(names))):
             raise AgentLoopError(
                 "INVALID_TOOL_CALL", "Agent loop tool registration is invalid")
         if (set(provider_binding) != {"provider_id", "model_id"} or
@@ -90,18 +94,23 @@ class AgentLoop:
                     for value in provider_binding.values())):
             raise AgentLoopError(
                 "INVALID_TOOL_CALL", "Agent loop provider binding is invalid")
-        self.provider = provider
+        if (provider is None) == (provider_call is None):
+            raise AgentLoopError(
+                "INVALID_TOOL_CALL",
+                "Agent loop requires exactly one Provider invocation boundary")
+        self.provider_call = (
+            provider_call if provider_call is not None else
+            provider.select_tools)
         self.transcript_store = transcript_store
         self.job_id = job_id
         self.role = policy.role
         self.session_id = session_id
         self.initial_messages = copy.deepcopy(initial_messages)
-        allowed = retrieval_names | {policy.submission_tool}
+        allowed = retrieval_names | submission_names
         self.tools = [copy.deepcopy(item) for item in tools
                       if item["name"] in allowed]
         self.retrieval_handlers = dict(retrieval_handlers)
-        self.submission_tool = policy.submission_tool
-        self.submission_handler = submission_handler
+        self.submission_handlers = dict(submission_handlers)
         self.provider_binding = dict(provider_binding)
         self.policy = policy
         self.request_metadata = copy.deepcopy(dict(request_metadata or {}))
@@ -111,6 +120,19 @@ class AgentLoop:
             raise AgentLoopError(
                 "INVALID_TOOL_CALL", "Agent loop request metadata is reserved")
         self.cancel_requested = cancel_requested or (lambda: False)
+        self.single_turn_request = (
+            copy.deepcopy(dict(single_turn_request))
+            if single_turn_request is not None else None)
+        if self.single_turn_request is not None:
+            if (policy.max_retrieval_turns != 0 or
+                    self.single_turn_request.get("messages") !=
+                        self.initial_messages or
+                    self.single_turn_request.get("tools") != self.tools or
+                    sorted(self.single_turn_request.get(
+                        "legal_tool_names", [])) != sorted(allowed)):
+                raise AgentLoopError(
+                    "INVALID_TOOL_CALL",
+                    "single-turn Agent request does not match its policy")
         self.retrieval_count = 0
         self._terminal = False
 
@@ -129,7 +151,14 @@ class AgentLoop:
 
     def _request(
             self, turn: int, messages: list[dict[str, str]]) -> dict[str, Any]:
-        legal = sorted(list(self.retrieval_handlers) + [self.submission_tool])
+        if self.single_turn_request is not None:
+            if turn != 1:
+                raise AgentLoopError(
+                    "TOOL_PROTOCOL_VIOLATION",
+                    "single-turn Agent requested an additional Provider turn")
+            return copy.deepcopy(self.single_turn_request)
+        legal = sorted(list(self.retrieval_handlers) +
+                       list(self.submission_handlers))
         return {
             "schema_version": "1.0",
             "request_id": "{}.TURN.{:03d}".format(self.session_id, turn),
@@ -149,8 +178,11 @@ class AgentLoop:
     def _validate_response(
             self, request: Mapping[str, Any], response: Mapping[str, Any]
             ) -> None:
-        if (not accepted(validate("provider_response", response)) or
-                response.get("request_id") != request["request_id"] or
+        if not accepted(validate("provider_response", response)):
+            raise AgentLoopError(
+                "MALFORMED_MODEL_OUTPUT",
+                "Provider response violates the response contract")
+        if (response.get("request_id") != request["request_id"] or
                 response.get("operation") != "SELECT_TOOLS" or
                 response.get("model_id") != self.provider_binding["model_id"] or
                 response.get("provider_metadata", {}).get("provider_id") !=
@@ -198,10 +230,16 @@ class AgentLoop:
                 response = transcript.value(cursor, "RESPONSE")
                 if response is None:
                     try:
-                        response = self.provider.select_tools(request)
+                        response = self.provider_call(request)
                     except Exception as provider_error:
                         if isinstance(provider_error, AgentLoopError):
                             raise
+                        error_code = getattr(provider_error, "code", "")
+                        error_message = getattr(
+                            provider_error, "message", str(provider_error))
+                        if isinstance(error_code, str) and error_code:
+                            raise AgentLoopError(
+                                error_code, str(error_message)) from provider_error
                         if getattr(provider_error, "code", "") == \
                                 "INVALID_PROVIDER_REQUEST":
                             raise AgentLoopError(
@@ -225,7 +263,7 @@ class AgentLoop:
                         if response.get("finish_reason") == "ERROR" else None),
                     tool_calls=calls,
                     legal_tools=self.retrieval_handlers,
-                    submission_tool=self.submission_tool,
+                    submission_tools=self.submission_handlers,
                     used_retrievals=used_names,
                     retrieval_count=self.retrieval_count,
                     arguments_valid=(len(calls) == 1 and isinstance(
@@ -258,10 +296,10 @@ class AgentLoop:
                     raise AgentLoopError(
                         "CANCELLED", "Agent loop was cancelled before tool execution")
 
-                if name == self.submission_tool:
+                if name in self.submission_handlers:
                     result = persisted_result
                     if result is None:
-                        result = self.submission_handler(
+                        result = self.submission_handlers[str(name)](
                             copy.deepcopy(arguments), {
                                 "request": copy.deepcopy(request),
                                 "response": copy.deepcopy(response),

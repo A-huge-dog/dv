@@ -365,13 +365,13 @@ class ProjectRepairRuntime:
             job_id=self.model.job_id, session_id=session_id,
             initial_messages=messages, tools=tools,
             retrieval_handlers=self.model.handlers(ORCHESTRATOR_READ_TOOLS),
-            submission_handler=submit,
+            submission_handlers={"submit_repair_plan": submit},
             provider_binding=self._provider_identity(self._role_binding(
                 "repair", "orchestrator", "ORCHESTRATOR", "PROFILED")),
             policy=AgentLoopPolicy(
                 role="ORCHESTRATOR",
                 retrieval_tools=frozenset(ORCHESTRATOR_READ_TOOLS),
-                submission_tool="submit_repair_plan"),
+                submission_tools=frozenset({"submit_repair_plan"})),
             cancel_requested=cancel_requested)
         return session.run()
 
@@ -533,13 +533,13 @@ class ProjectRepairRuntime:
             job_id=self.model.job_id, session_id=session_id,
             initial_messages=messages, tools=tools,
             retrieval_handlers=self._scoped_handlers(dispatch),
-            submission_handler=submit,
+            submission_handlers={submit_name: submit},
             provider_binding=self._provider_identity(self._role_binding(
                 "repair", stage.replace("STAGE_", "stage"),
                 "STAGE_AGENT", "PROFILED")),
             policy=AgentLoopPolicy(
                 role=stage, retrieval_tools=frozenset(STAGE_READ_TOOLS),
-                submission_tool=submit_name),
+                submission_tools=frozenset({submit_name})),
             cancel_requested=cancel_requested)
         try:
             return session.run()

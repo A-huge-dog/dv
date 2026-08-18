@@ -80,8 +80,9 @@ pass marker。Derived mappings 只写 `staging/`，不得回写 `input_baseline/
   Reviewer、Human gate 和精确 replay；每个编号化 commit manifest 是对应 group 的唯一 authority switch，失败组
   不改变 current roots，已成功的先前 group 不回滚。
 - `runtime/agent_loop.py`：唯一的单 Agent 协议循环；每轮只接受一个调用，按角色工具允许名单执行最多 3 次
-  不同名只读检索和一次 final submission，并在 cancel（取消）、Provider 失败或进程重启后保持 typed stop
-  与 exact replay 行为。
+  不同名只读检索，并从角色明确声明的终止提交工具中选择一次 final submission。initial Stage 1/2/3、
+  initial/final Reviewer、standalone Reviewer、Orchestrator 和 shared repair Stage 全部经过该循环；cancel（取消）、
+  Provider 失败、进程重启、tamper（篡改）与 exact replay 行为由同一实现控制。
 - `infrastructure/persistence/transcript_store.py`：append-only transcript（只追加对话记录）的唯一文件持久化实现；
   它只负责事件、manifest、序号和指纹的安全写入与读取，不决定工具权限、业务流程、commit 或 Human authority。
 - `core/project_tools.py`：从一个经过 fingerprint/lineage 校验的 exact current Job snapshot 提供 9 个只读工具；

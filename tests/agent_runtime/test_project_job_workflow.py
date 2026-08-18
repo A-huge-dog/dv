@@ -1069,6 +1069,24 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         self.assertEqual(checkpoint, workflow.start(self.project_input()))
         self.assertEqual(3, generator.calls)
         self.assertEqual(1, reviewer.calls)
+        job = self.root / "result/jobs/JOB.PROJECT.TINY.001"
+        manifests = sorted(job.glob("transcripts/*/*/manifest.json"))
+        self.assertEqual(4, len(manifests))
+        self.assertEqual(
+            {"STAGE_1", "STAGE_2", "STAGE_3", "REVIEWER"},
+            {load_document(path)["role"] for path in manifests})
+        before = {
+            path.relative_to(job).as_posix():
+                (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in sorted((job / "transcripts").rglob("*.json"))}
+        self.assertEqual(checkpoint, workflow.start(self.project_input()))
+        after = {
+            path.relative_to(job).as_posix():
+                (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in sorted((job / "transcripts").rglob("*.json"))}
+        self.assertEqual(before, after)
+        self.assertEqual(3, generator.calls)
+        self.assertEqual(1, reviewer.calls)
         expected_tools = {
             "SCENARIO_AC_MAP": "submit_scenario_ac_candidate",
             "AC_TESTCASE_MAP": "submit_ac_testcase_candidate",
@@ -1731,6 +1749,30 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         response_path.write_text(
             json.dumps(response, sort_keys=True, indent=2) + "\n",
             encoding="utf-8")
+        with self.assertRaises(ProjectJobError) as caught:
+            workflow.start(self.project_input())
+
+        self.assertEqual("STALE_EVIDENCE", caught.exception.code)
+        self.assertEqual(1, generator.calls)
+
+    def test_post_response_recovery_rejects_transcript_event_tamper(self):
+        generator = FakeProvider()
+        workflow = ProjectJobWorkflow(
+            self.root, self.root / "result", generator,
+            FakeReviewerProvider())
+
+        with patch(
+                "core.project_staged._raw_generation",
+                side_effect=ProjectJobError(
+                    "DEVELOPER_LOGIC_ERROR",
+                    "simulated failure after immutable provider response")):
+            with self.assertRaises(ProjectJobError):
+                workflow.start(self.project_input())
+
+        response_path = self.root / (
+            "result/jobs/JOB.PROJECT.TINY.001/transcripts/stage1/"
+            "INITIAL.STAGE1.R000/0002.response.json")
+        response_path.write_text("{}\n", encoding="utf-8")
         with self.assertRaises(ProjectJobError) as caught:
             workflow.start(self.project_input())
 

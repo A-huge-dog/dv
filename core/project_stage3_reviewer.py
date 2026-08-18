@@ -18,7 +18,7 @@ from core.project_stage3 import (
     load_stage3_provider_config,
 )
 from core.project_staged import (
-    StagedProjectWorkflow, artifact_fingerprint, build_review_report,
+    REVIEW_TOOL, StagedProjectWorkflow, artifact_fingerprint, build_review_report,
     build_review_request, provider_review_request, validate_review_report,
     validate_testcase_candidate,
 )
@@ -331,54 +331,91 @@ class StandaloneStage3ReviewerWorkflow(StandaloneStage3Workflow):
         self.staged._persist_artifact(job_root, request_path, request)
         base = provider_review_request(request)
         budget = self.staged._existing_usage(job_root)
-        attempt = 0
-        rejection = None
-        while True:
-            provider_request = copy.deepcopy(base)
-            tag = "review.r001"
-            if attempt:
-                tag = "review.r001.retry{:03d}".format(attempt)
-                provider_request["metadata"]["retry_attempt"] = attempt
-                provider_request["metadata"]["review_attempt"] = attempt
-                provider_request["messages"].append({
-                    "role": "USER",
-                    "content": json.dumps({
-                        "review_correction_feedback": rejection,
-                        "required_action": (
-                            "Submit a new complete Reviewer candidate that "
-                            "corrects the typed validation failures."),
-                    }, sort_keys=True, ensure_ascii=False),
-                })
+        rejections: dict[int, dict[str, Any]] = {}
+        for path in sorted(job_root.glob(
+                "audit/pj002_rejected_review_response.*.json")):
+            item = load_document(path)
+            attempt_value = item.get("attempt")
+            if (item.get("review_round") != 1 or
+                    type(attempt_value) is not int or attempt_value < 0 or
+                    item.get("record_fingerprint") != artifact_fingerprint(
+                        item, "record_fingerprint") or
+                    item.get("review_request_fingerprint") !=
+                        request["request_fingerprint"] or
+                    attempt_value in rejections):
+                raise ProjectJobError(
+                    "STALE_EVIDENCE",
+                    "standalone Reviewer rejection sequence is invalid")
+            rejections[attempt_value] = item
+        if sorted(rejections) != list(range(len(rejections))):
+            raise ProjectJobError(
+                "STALE_EVIDENCE",
+                "standalone Reviewer rejection sequence has a gap")
+        attempt = len(rejections)
+        rejection = rejections.get(attempt - 1)
+        provider_request = copy.deepcopy(base)
+        tag = "review.r001"
+        if attempt:
+            tag = "review.r001.retry{:03d}".format(attempt)
+            provider_request["metadata"]["retry_attempt"] = attempt
+            provider_request["metadata"]["review_attempt"] = attempt
+            provider_request["messages"].append({
+                "role": "USER",
+                "content": json.dumps({
+                    "review_correction_feedback": rejection,
+                    "required_action": (
+                        "Submit a new complete Reviewer candidate that "
+                        "corrects the typed validation failures."),
+                }, sort_keys=True, ensure_ascii=False),
+            })
+        session_id = "REVIEWSESSION.R001.{}.ATTEMPT{:03d}".format(
+            request["request_fingerprint"][:16].upper(), attempt)
+
+        def submit_review(
+                _arguments: dict[str, Any], context: dict[str, Any]
+                ) -> dict[str, Any]:
+            submitted_report = build_review_report(
+                request, candidate, context["response"], sources,
+                ProjectJobError, attempt)
+            validate_review_report(
+                submitted_report, request, map1, map2, candidate, sources,
+                ProjectJobError)
+            return submitted_report
+
+        try:
+            report = self.staged._invoke(
+                execution, job_root, "REVIEWER", provider_request,
+                budget, tag,
+                submission_handlers={REVIEW_TOOL: submit_review},
+                session_id=session_id,
+                transcript_job_id=submission["job_id"])
+            validation = validate_review_report(
+                report, request, map1, map2, candidate, sources,
+                ProjectJobError)
+        except ProjectJobError as caught:
             response_path = job_root / (
                 "audit/pj002_provider_response.{}.json".format(tag))
-            persisted_before_run = response_path.exists()
-            response = self.staged._invoke(
-                execution, job_root, "REVIEWER", provider_request,
-                budget, tag)
+            if not response_path.is_file() or response_path.is_symlink():
+                raise
+            response = load_document(response_path)
             try:
-                report = build_review_report(
+                build_review_report(
                     request, candidate, response, sources,
                     ProjectJobError, attempt)
-                validation = validate_review_report(
-                    report, request, map1, map2, candidate, sources,
-                    ProjectJobError)
-                break
-            except ProjectJobError as caught:
-                try:
-                    prior_candidate = self.staged._response_stage_candidate(
-                        response)
-                except ProjectJobError:
-                    prior_candidate = {}
-                rejection = self.staged._persist_review_rejection(
-                    job_root, execution, tag, request, request_path,
-                    1, attempt,
-                    response, prior_candidate, caught)
-                if not persisted_before_run:
-                    raise ProjectJobError(
-                        "ATTEMPT_PAUSED",
-                        "Reviewer candidate attempt failed; rerun the same "
-                        "test Job to create a new attempt") from caught
-                attempt += 1
+            except ProjectJobError as validation_error:
+                caught = validation_error
+            try:
+                prior_candidate = self.staged._response_stage_candidate(
+                    response)
+            except ProjectJobError:
+                prior_candidate = {}
+            self.staged._persist_review_rejection(
+                job_root, execution, tag, request, request_path,
+                1, attempt, response, prior_candidate, caught)
+            raise ProjectJobError(
+                "ATTEMPT_PAUSED",
+                "Reviewer candidate attempt failed; rerun the same "
+                "test Job to create a new attempt") from caught
         self.staged._persist_artifact(job_root, report_path, report)
         self.staged._persist_artifact(job_root, validation_path, validation)
         review_bundle = unit_store.persist_review(

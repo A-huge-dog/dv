@@ -113,7 +113,9 @@ class AgentLoopTests(unittest.TestCase):
             initial_messages=self.initial_messages,
             tools=self.tools,
             retrieval_handlers=handlers,
-            submission_handler=lambda arguments, _context: submitted(arguments),
+            submission_handlers={
+                "submit_repair_plan":
+                    lambda arguments, _context: submitted(arguments)},
             provider_binding={
                 "provider_id": "scripted-provider",
                 "model_id": "scripted-sol",
@@ -121,7 +123,7 @@ class AgentLoopTests(unittest.TestCase):
             policy=AgentLoopPolicy(
                 role="ORCHESTRATOR",
                 retrieval_tools=frozenset(handlers),
-                submission_tool="submit_repair_plan"),
+                submission_tools=frozenset({"submit_repair_plan"})),
             cancel_requested=cancel_requested,
         )
 
@@ -327,6 +329,57 @@ class AgentLoopTests(unittest.TestCase):
             self.job_root /
             "transcripts/orchestrator/PLANNING.CANCEL.001/manifest.json")
         self.assertEqual("CANCELLED", manifest["terminal"]["status"])
+
+    def test_single_turn_role_accepts_one_of_two_terminal_tools(self):
+        session_id = "STAGE.MULTI.SUBMISSION.001"
+        tools = [tool("submit_candidate"), tool("submit_blocked")]
+        request = {
+            "schema_version": "1.0",
+            "request_id": "REQUEST.STAGE.MULTI.SUBMISSION.001",
+            "operation": "SELECT_TOOLS",
+            "messages": copy.deepcopy(self.initial_messages),
+            "tools": copy.deepcopy(tools),
+            "tool_choice_policy": "REQUIRED",
+            "legal_tool_names": ["submit_candidate", "submit_blocked"],
+            "metadata": {"job_id": self.job_id, "stage": "TESTCASE"},
+        }
+        selected = []
+        provider = ScriptedProvider([[
+            call(1, "submit_blocked", ["SPEC_AMBIGUITY"]),
+        ]])
+        loop = AgentLoop(
+            provider=provider,
+            transcript_store=create_transcript_store(
+                job_root=self.job_root, job_id=self.job_id,
+                role="STAGE_3", session_id=session_id,
+                lineage={"input_fingerprint": "a" * 64}),
+            job_id=self.job_id, session_id=session_id,
+            initial_messages=self.initial_messages, tools=tools,
+            retrieval_handlers={},
+            submission_handlers={
+                "submit_candidate": lambda _arguments, _context:
+                    self.fail("candidate handler must not run"),
+                "submit_blocked": lambda arguments, _context:
+                    selected.append(arguments) or {"status": "BLOCKED"},
+            },
+            provider_binding={
+                "provider_id": "scripted-provider",
+                "model_id": "scripted-sol",
+            },
+            policy=AgentLoopPolicy(
+                role="STAGE_3", retrieval_tools=frozenset(),
+                submission_tools=frozenset({
+                    "submit_candidate", "submit_blocked"}),
+                max_retrieval_turns=0),
+            single_turn_request=request)
+
+        self.assertEqual({"status": "BLOCKED"}, loop.run())
+        self.assertEqual(
+            [{"ids": ["SPEC_AMBIGUITY"]}], selected)
+        manifest = load_document(
+            self.job_root / "transcripts/stage3" / session_id /
+            "manifest.json")
+        self.assertEqual("COMPLETED", manifest["terminal"]["status"])
 
     def test_local_provider_request_error_is_not_reported_as_unavailable(self):
         class InvalidRequestProvider:

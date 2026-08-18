@@ -198,37 +198,6 @@ def create_transcript_store(
         role=role, session_id=session_id, lineage=lineage)
 
 
-def persist_single_submission_transcript(
-        *, job_root: Path, job_id: str, role: str, session_id: str,
-        lineage: dict[str, Any], request: dict[str, Any],
-        response: dict[str, Any], result: Any | None,
-        status: str = "COMPLETED", code: str = "COMPLETED"
-        ) -> dict[str, Any]:
-    """Persist one exact-one Provider submission without invoking Provider."""
-    transcript = create_transcript_store(
-        job_root=job_root, job_id=job_id, role=role,
-        session_id=session_id, lineage=lineage)
-    calls = response.get("tool_calls", [])
-    if status == "COMPLETED" and len(calls) != 1:
-        raise AgentLoopError(
-            "MALFORMED_MODEL_OUTPUT",
-            "single-submission transcript requires exactly one tool call")
-    values = [("REQUEST", request), ("RESPONSE", response)]
-    if len(calls) == 1:
-        values.append(("TOOL_CALL", calls[0]))
-    if result is not None:
-        values.append(("TOOL_RESULT", result))
-    for index, (kind, value) in enumerate(values):
-        existing = transcript.value(index, kind)
-        if existing is None:
-            transcript.record(kind, value)
-        elif existing != value:
-            raise AgentLoopError(
-                "CONFLICTING_REPLAY", "single-turn transcript replay conflicts")
-    result_sequence = len(values) if result is not None else None
-    return transcript.finalize(status, code, result_sequence)
-
-
 def load_terminal_transcript(
         *, job_root: Path, job_id: str, role: str, session_id: str,
         lineage: dict[str, Any]) -> dict[str, Any]:
@@ -273,5 +242,5 @@ def load_terminal_transcript_events(
 __all__ = [
     "ROLE_DIRECTORIES", "TranscriptStore", "create_transcript_store",
     "load_terminal_transcript", "load_terminal_transcript_events",
-    "persist_single_submission_transcript", "transcript_session_dir",
+    "transcript_session_dir",
 ]

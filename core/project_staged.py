@@ -24,8 +24,9 @@ from core.project_incremental import (
     unrouted_owner_scope,
 )
 from infrastructure.persistence.transcript_store import (
-    persist_single_submission_transcript,
+    create_transcript_store,
 )
+from runtime.agent_loop import AgentLoop, AgentLoopError, AgentLoopPolicy
 from scripts.dvlib import canonical_hash
 
 
@@ -2529,7 +2530,10 @@ class StagedProjectWorkflow:
     def _invoke(
             self, value: dict[str, Any], job_root: Path, role: str,
             request: dict[str, Any], budget: dict[str, Any],
-            tag: str) -> dict[str, Any]:
+            tag: str, submission_handlers: dict[
+                str, Callable[[dict[str, Any], dict[str, Any]], Any]
+            ] | None = None, session_id: str | None = None,
+            transcript_job_id: str | None = None) -> Any:
         if role == "GENERATOR":
             stage_roles = {
                 STAGE1: "stage1", STAGE2: "stage2", STAGE3: "stage3"}
@@ -2605,58 +2609,111 @@ class StagedProjectWorkflow:
                 active_request, value, self.root, self.error)
         else:
             self._immutable_json(request_path, request)
-        if response_path.exists():
-            if not response_path.is_file() or response_path.is_symlink():
-                raise self.error(
-                    "STALE_EVIDENCE",
-                    "persisted PJ-002 provider response is not a regular file")
-            try:
-                response = load_document(response_path)
-            except Exception as caught:
-                raise self.error(
-                    "STALE_EVIDENCE",
-                    "persisted PJ-002 provider response is invalid") from caught
-            if (
-                not accepted(validate("provider_response", response)) or
-                response.get("request_id") != active_request["request_id"] or
-                response.get("operation") != active_request["operation"] or
-                any(
-                    call.get("name") not in
-                        active_request["legal_tool_names"]
-                    for call in response.get("tool_calls", [])) or
-                response.get("model_id") != expected_binding["model_id"] or
-                response.get("provider_metadata", {}).get("provider_id") !=
-                    expected_binding["provider_id"]
-            ):
-                raise self.error(
-                    "STALE_EVIDENCE",
-                    "persisted PJ-002 provider response has stale identity")
+        transcript_role = (
+            {STAGE1: "STAGE_1", STAGE2: "STAGE_2", STAGE3: "STAGE_3"}[
+                request["metadata"]["stage"]]
+            if role == "GENERATOR" else "REVIEWER")
+        active_session_id = session_id or "INITIAL.{}".format(tag.upper())
+        active_job_id = transcript_job_id or value["job_id"]
+        lineage = {
+            "input_fingerprint": value["input_fingerprint"],
+            "request_fingerprint": canonical_hash(active_request),
+            "provider_evidence_tag": tag,
+            **binding_lineage(value, section, selected_role),
+        }
+        if active_job_id != value["job_id"]:
+            lineage["source_job_id"] = value["job_id"]
+        try:
+            transcript = create_transcript_store(
+                job_root=job_root, job_id=active_job_id,
+                role=transcript_role, session_id=active_session_id,
+                lineage=lineage)
+        except AgentLoopError as caught:
+            raise self.error(caught.code, caught.message) from caught
+
+        def completed(
+                _arguments: dict[str, Any], context: dict[str, Any]
+                ) -> dict[str, Any]:
+            return copy.deepcopy(context["response"])
+
+        handlers = dict(submission_handlers or {})
+        if not handlers:
+            if role == "REVIEWER":
+                handlers[REVIEW_TOOL] = completed
+            else:
+                handlers[STAGE_TOOL[request["metadata"]["stage"]]] = completed
+
+                def blocked(arguments: dict[str, Any], _context: dict[str, Any]
+                            ) -> Any:
+                    raise self.error(arguments["outcome"], arguments["reason"])
+
+                handlers[BLOCKED_STAGE_TOOL] = blocked
+        loop = AgentLoop(
+            provider=None, provider_call=lambda provider_request:
+                self.workflow._complete(profile_role, provider_request, budget),
+            transcript_store=transcript,
+            job_id=active_job_id, session_id=active_session_id,
+            initial_messages=active_request["messages"],
+            tools=active_request["tools"], retrieval_handlers={},
+            submission_handlers=handlers,
+            provider_binding={
+                "provider_id": expected_binding["provider_id"],
+                "model_id": expected_binding["model_id"],
+            },
+            policy=AgentLoopPolicy(
+                role=transcript_role, retrieval_tools=frozenset(),
+                submission_tools=frozenset(handlers),
+                max_retrieval_turns=0),
+            cancel_requested=lambda: False,
+            single_turn_request=active_request)
+        result: Any = None
+        failure: Exception | None = None
+        try:
+            result = loop.run()
+        except Exception as caught:
+            failure = caught
+        response = transcript.value(1, "RESPONSE")
+        if response is not None:
             if len(json.dumps(
                     response, sort_keys=True,
                     ensure_ascii=False).encode("utf-8")) > self.max_file_bytes:
                 raise self.error(
                     "FILE_LIMIT_EXCEEDED",
-                    "persisted {} provider response exceeds file budget"
-                    .format(role))
-            return response
-        response = self.workflow._complete(
-            profile_role, active_request, budget)
-        if (
-            response.get("model_id") != expected_binding["model_id"] or
-            response.get("provider_metadata", {}).get("provider_id") !=
-                expected_binding["provider_id"]
-        ):
+                    "{} provider response exceeds file budget".format(role))
+            if response_path.exists():
+                if (not response_path.is_file() or response_path.is_symlink() or
+                        load_document(response_path) != response):
+                    raise self.error(
+                        "STALE_EVIDENCE",
+                        "persisted PJ-002 provider response conflicts with "
+                        "the authoritative transcript")
+            else:
+                self._immutable_json(response_path, response)
+        elif response_path.exists():
             raise self.error(
-                "INVALID_AGENT_BINDING",
-                "Provider response identity does not match the profile role")
-        if len(json.dumps(
-                response, sort_keys=True,
-                ensure_ascii=False).encode("utf-8")) > self.max_file_bytes:
-            raise self.error(
-                "FILE_LIMIT_EXCEEDED",
-                "{} provider response exceeds file budget".format(role))
-        self._immutable_json(response_path, response)
-        return response
+                "STALE_EVIDENCE",
+                "Provider response exists without its authoritative transcript")
+        if failure is not None:
+            if role == "GENERATOR" and response is not None:
+                calls = response.get("tool_calls", [])
+                if (len(calls) == 1 and
+                        calls[0].get("name") == BLOCKED_STAGE_TOOL and
+                        isinstance(calls[0].get("arguments"), dict)):
+                    blocked = calls[0]["arguments"]
+                    raise self.error(
+                        str(blocked.get("outcome", "BLOCKED_INPUT")),
+                        str(blocked.get("reason", "Stage is blocked")))
+                if isinstance(failure, AgentLoopError) and failure.code in {
+                        "MALFORMED_MODEL_OUTPUT",
+                        "TOOL_PROTOCOL_VIOLATION"}:
+                    # The failed transcript remains authoritative.  The
+                    # business validator consumes its raw rejected response
+                    # only to construct the bounded correction attempt.
+                    return response
+            if isinstance(failure, AgentLoopError):
+                raise self.error(failure.code, failure.message) from failure
+            raise failure
+        return result
 
     def _enrich_stage1(
             self, raw: dict[str, Any], value: dict[str, Any],
@@ -3611,54 +3668,69 @@ class StagedProjectWorkflow:
             "DETERMINISTIC_ID_COLLISION", "MAPPING_SCOPE_VIOLATION",
             "UNRESOLVED_OWNER_ROUTING",
         }
-        correction = None
-        response = None
-        attempt = 0
-        while True:
-            request = copy.deepcopy(base_request)
-            tag = "stage1.owner.r001"
-            if attempt:
-                request["request_id"] = "{}.RETRY{:03d}".format(
-                    base_request["request_id"], attempt)
-                request["metadata"]["retry_attempt"] = attempt
-                tag = "{}.retry{:03d}".format(tag, attempt)
-            response_path = job_root / (
-                "audit/pj002_provider_response.{}.json".format(tag))
-            persisted_before_run = response_path.exists()
-            response = self._invoke(
-                value, job_root, "GENERATOR", request, budget, tag)
-            try:
-                raw = _raw_generation(response, STAGE1, self.error)
-                correction = self._enrich_stage1(
-                    raw, value, sources, spec_fp, 1, response)
-                corrected_scenario_ids = {
-                    item["scenario_id"] for item in correction["scenarios"]}
-                if corrected_scenario_ids != commented_ids:
-                    raise self.error(
-                        "MAPPING_SCOPE_VIOLATION",
-                        "r001 must replace exactly the commented Scenarios")
-                if correction["completeness"]["omitted_behaviors"] or any(
-                        item["status"] != "CHECKABLE"
-                        for item in [*correction["scenarios"],
-                                     *correction["acceptance_criteria"]]):
-                    raise self.error(
-                        "UNRESOLVED_OWNER_ROUTING",
-                        "the single mapper correction must resolve to CHECKABLE")
-                break
-            except self.error as caught:
-                if caught.code not in retryable:
-                    raise
-                self._persist_generation_rejection(
-                    job_root, value, STAGE1, tag, response, caught)
-                if not persisted_before_run:
-                    raise self.error(
-                        "ATTEMPT_PAUSED",
-                        "Owner-authorized mapper attempt failed; rerun the "
-                        "same Job to create a new attempt") from caught
-                attempt += 1
-        if correction is None or response is None:
-            raise self.error("ATTEMPT_PAUSED",
-                             "Owner-authorized mapper attempt is paused")
+        base_tag = "stage1.owner.r001"
+        rejected_attempts: dict[int, dict[str, Any]] = {}
+        for path in sorted(job_root.glob(
+                "audit/pj002_rejected_stage_response.*.json")):
+            item = load_document(path)
+            tag = item.get("request_tag")
+            match = re.fullmatch(
+                re.escape(base_tag) + r"(?:\.retry([0-9]{3}))?",
+                str(tag))
+            if match is None:
+                continue
+            attempt_value = int(match.group(1) or 0)
+            if (item.get("stage") != STAGE1 or
+                    item.get("job_id") != value["job_id"] or
+                    item.get("input_fingerprint") !=
+                        value["input_fingerprint"] or
+                    item.get("record_fingerprint") != artifact_fingerprint(
+                        item, "record_fingerprint") or
+                    attempt_value in rejected_attempts):
+                raise self.error(
+                    "STALE_EVIDENCE",
+                    "Owner-authorized mapper rejection sequence is invalid")
+            rejected_attempts[attempt_value] = item
+        if sorted(rejected_attempts) != list(range(len(rejected_attempts))):
+            raise self.error(
+                "STALE_EVIDENCE",
+                "Owner-authorized mapper rejection sequence has a gap")
+        attempt = len(rejected_attempts)
+        request = copy.deepcopy(base_request)
+        tag = base_tag
+        if attempt:
+            request["request_id"] = "{}.RETRY{:03d}".format(
+                base_request["request_id"], attempt)
+            request["metadata"]["retry_attempt"] = attempt
+            tag = "{}.retry{:03d}".format(tag, attempt)
+        response = self._invoke(
+            value, job_root, "GENERATOR", request, budget, tag)
+        try:
+            raw = _raw_generation(response, STAGE1, self.error)
+            correction = self._enrich_stage1(
+                raw, value, sources, spec_fp, 1, response)
+            corrected_scenario_ids = {
+                item["scenario_id"] for item in correction["scenarios"]}
+            if corrected_scenario_ids != commented_ids:
+                raise self.error(
+                    "MAPPING_SCOPE_VIOLATION",
+                    "r001 must replace exactly the commented Scenarios")
+            if correction["completeness"]["omitted_behaviors"] or any(
+                    item["status"] != "CHECKABLE"
+                    for item in [*correction["scenarios"],
+                                 *correction["acceptance_criteria"]]):
+                raise self.error(
+                    "UNRESOLVED_OWNER_ROUTING",
+                    "the single mapper correction must resolve to CHECKABLE")
+        except self.error as caught:
+            if caught.code not in retryable:
+                raise
+            self._persist_generation_rejection(
+                job_root, value, STAGE1, tag, response, caught)
+            raise self.error(
+                "ATTEMPT_PAUSED",
+                "Owner-authorized mapper attempt failed; rerun the "
+                "same Job to create a new attempt") from caught
         carried_scenarios = [
             copy.deepcopy(item) for item in original["scenarios"]
             if item["scenario_id"] not in commented_ids]
@@ -5378,84 +5450,96 @@ class StagedProjectWorkflow:
         inspect_no_rtl_request(
             base_provider_request, value, self.root, self.error)
         base_tag = "review.{}".format(artifact_tag)
-        attempt = 0
-        rejection: dict[str, Any] | None = None
-        while True:
-            provider_request = copy.deepcopy(base_provider_request)
-            tag = base_tag
-            rejection_request_path = request_path
-            if attempt == 0 and recovered_attempt_zero:
-                tag = str(attempt_zero_provider_tag)
-                rejection_request_path = str(attempt_zero_request_path)
-            elif attempt:
-                tag = "{}.retry{:03d}".format(base_tag, attempt)
-                provider_request["metadata"]["retry_attempt"] = attempt
-                provider_request["metadata"]["review_attempt"] = attempt
-                provider_request["messages"].append({
-                    "role": "USER",
-                    "content": json.dumps({
-                        "review_correction_feedback": rejection,
-                        "required_action": (
-                            "Submit a new complete Reviewer candidate. Correct "
-                            "the recorded typed validation failures without "
-                            "expanding Owner scope or changing upstream data."),
-                    }, sort_keys=True, ensure_ascii=False),
-                })
+        rejections: dict[int, dict[str, Any]] = {}
+        for path in sorted(job_root.glob(
+                "audit/pj002_rejected_review_response.*.json")):
+            item = load_document(path)
+            if item.get("review_round") != review_round:
+                continue
+            attempt_value = item.get("attempt")
+            if (type(attempt_value) is not int or attempt_value < 0 or
+                    item.get("record_fingerprint") != artifact_fingerprint(
+                        item, "record_fingerprint") or
+                    item.get("review_request_fingerprint") !=
+                        review_request["request_fingerprint"] or
+                    attempt_value in rejections):
+                raise self.error(
+                    "STALE_EVIDENCE",
+                    "persisted Reviewer rejection sequence is invalid")
+            rejections[attempt_value] = item
+        if sorted(rejections) != list(range(len(rejections))):
+            raise self.error(
+                "STALE_EVIDENCE",
+                "persisted Reviewer rejection sequence has a gap")
+        attempt = len(rejections)
+        rejection = rejections.get(attempt - 1)
+        provider_request = copy.deepcopy(base_provider_request)
+        tag = base_tag
+        rejection_request_path = request_path
+        if attempt == 0 and recovered_attempt_zero:
+            tag = str(attempt_zero_provider_tag)
+            rejection_request_path = str(attempt_zero_request_path)
+        elif attempt:
+            tag = "{}.retry{:03d}".format(base_tag, attempt)
+            provider_request["metadata"]["retry_attempt"] = attempt
+            provider_request["metadata"]["review_attempt"] = attempt
+            provider_request["messages"].append({
+                "role": "USER",
+                "content": json.dumps({
+                    "review_correction_feedback": rejection,
+                    "required_action": (
+                        "Submit a new complete Reviewer candidate. Correct "
+                        "the recorded typed validation failures without "
+                        "expanding Owner scope or changing upstream data."),
+                }, sort_keys=True, ensure_ascii=False),
+            })
+        session_id = "REVIEWSESSION.R{:03d}.{}.ATTEMPT{:03d}".format(
+            review_round,
+            review_request["request_fingerprint"][:16].upper(), attempt)
+
+        def submit_review(
+                _arguments: dict[str, Any], context: dict[str, Any]
+                ) -> dict[str, Any]:
+            submitted_report = build_review_report(
+                review_request, candidate, context["response"], sources,
+                self.error, attempt)
+            validate_review_report(
+                submitted_report, review_request, map1, map2,
+                candidate, sources, self.error)
+            return submitted_report
+
+        try:
+            report = self._invoke(
+                value, job_root, "REVIEWER", provider_request, budget, tag,
+                submission_handlers={REVIEW_TOOL: submit_review},
+                session_id=session_id)
+            validation = validate_review_report(
+                report, review_request, map1, map2,
+                candidate, sources, self.error)
+        except self.error as caught:
             response_path = job_root / (
                 "audit/pj002_provider_response.{}.json".format(tag))
-            persisted_before_run = response_path.exists()
-            response = self._invoke(
-                value, job_root, "REVIEWER", provider_request, budget, tag)
-            session_id = "REVIEWSESSION.R{:03d}.{}.ATTEMPT{:03d}".format(
-                review_round,
-                review_request["request_fingerprint"][:16].upper(), attempt)
+            if not response_path.is_file() or response_path.is_symlink():
+                raise
+            response = load_document(response_path)
             try:
-                report = build_review_report(
+                build_review_report(
                     review_request, candidate, response, sources,
                     self.error, attempt)
-                validation = validate_review_report(
-                    report, review_request, map1, map2,
-                    candidate, sources, self.error)
-                break
-            except self.error as caught:
-                persist_single_submission_transcript(
-                    job_root=job_root, job_id=value["job_id"], role="REVIEWER",
-                    session_id=session_id,
-                    lineage={
-                        "review_request_fingerprint":
-                            review_request["request_fingerprint"],
-                        "review_attempt": attempt,
-                        **binding_lineage(
-                            value, "review",
-                            "initial" if review_round == 1 else "final"),
-                    }, request=provider_request, response=response,
-                    result=None, status="FAILED", code=caught.code)
-                try:
-                    prior_candidate = self._response_stage_candidate(response)
-                except self.error:
-                    prior_candidate = {}
-                rejection = self._persist_review_rejection(
-                    job_root, value, tag, review_request,
-                    rejection_request_path, review_round, attempt,
-                    response, prior_candidate, caught)
-                if not persisted_before_run:
-                    raise self.error(
-                        "ATTEMPT_PAUSED",
-                        "Reviewer candidate attempt failed; rerun the same "
-                        "Job to create a new Reviewer attempt") from caught
-                attempt += 1
-        persist_single_submission_transcript(
-            job_root=job_root, job_id=value["job_id"], role="REVIEWER",
-            session_id=session_id,
-            lineage={
-                "review_request_fingerprint":
-                    review_request["request_fingerprint"],
-                "review_attempt": attempt,
-                **binding_lineage(
-                    value, "review",
-                    "initial" if review_round == 1 else "final"),
-            }, request=provider_request, response=response,
-            result=report)
+            except self.error as validation_error:
+                caught = validation_error
+            try:
+                prior_candidate = self._response_stage_candidate(response)
+            except self.error:
+                prior_candidate = {}
+            self._persist_review_rejection(
+                job_root, value, tag, review_request,
+                rejection_request_path, review_round, attempt,
+                response, prior_candidate, caught)
+            raise self.error(
+                "ATTEMPT_PAUSED",
+                "Reviewer candidate attempt failed; rerun the same "
+                "Job to create a new Reviewer attempt") from caught
         self._persist_artifact(job_root, report_path, report)
         self._persist_artifact(job_root, validation_path, validation)
         store = self._incremental_store(job_root)

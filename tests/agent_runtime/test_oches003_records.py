@@ -102,7 +102,7 @@ class Oches003RecordTests(unittest.TestCase):
             self.assertIn("Never invent", prompt["instructions"])
         base = {"finish_reason": "TOOL_CALLS",
                 "tool_calls": [{"name": "read", "arguments": {}}],
-                "legal_tools": ["read"], "submission_tool": "submit"}
+                "legal_tools": ["read"], "submission_tools": {"submit"}}
         self.assertEqual("TOOL_RESULT_REQUIRED", map_provider_stop(**base))
         self.assertEqual("COMPLETED", map_provider_stop(
             **{**base, "tool_calls": [{"name": "submit", "arguments": {}}]}))

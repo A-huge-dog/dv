@@ -130,7 +130,8 @@ def canonical_repair_groups(
 def map_provider_stop(
         *, finish_reason: str | None = None, exception_code: str | None = None,
         tool_calls: Iterable[Mapping[str, Any]] = (), legal_tools: Iterable[str] = (),
-        submission_tool: str = "", used_retrievals: Iterable[str] = (),
+        submission_tools: Iterable[str] = (),
+        used_retrievals: Iterable[str] = (),
         retrieval_count: int = 0, arguments_valid: bool = True,
         cancel_requested: bool = False) -> str:
     """Map every Provider termination to the OCHES003 public stop vocabulary."""
@@ -161,8 +162,9 @@ def map_provider_stop(
     name = call.get("name")
     if not arguments_valid or not isinstance(call.get("arguments"), dict):
         return "MALFORMED_MODEL_OUTPUT"
-    legal, used = set(legal_tools), set(used_retrievals)
-    if name == submission_tool:
+    legal, submissions = set(legal_tools), set(submission_tools)
+    used = set(used_retrievals)
+    if name in submissions:
         return "COMPLETED"
     if name not in legal or name in used or retrieval_count >= 3:
         return "TOOL_PROTOCOL_VIOLATION"
