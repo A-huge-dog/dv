@@ -16,8 +16,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SELF = Path(__file__).resolve()
-PRODUCTION_ROOTS = ("core", "adapters", "contracts", "scripts")
 TARGET_PACKAGES = ("domain", "agents", "runtime", "application", "infrastructure")
+PRODUCTION_ROOTS = (
+    "core", "adapters", "contracts", "scripts",
+    *(name for name in TARGET_PACKAGES if (ROOT / name).exists()),
+)
 HOTSPOT_PATHS = (
     "core/project_staged.py",
     "core/project_job.py",
@@ -248,8 +251,10 @@ def capture() -> dict:
         path.relative_to(ROOT).as_posix()
         for path in (ROOT / "tests").rglob("*")
         if path.is_file() and path.suffix not in {".py", ".pyc"}
-        and path.relative_to(ROOT).as_posix()
-        != "tests/baselines/refactor_architecture.json"
+        and path.relative_to(ROOT).as_posix() not in {
+            "tests/baselines/refactor_architecture.json",
+            "tests/baselines/ref001_architecture.json",
+        }
     )
     target_packages_present = sorted(
         name for name in TARGET_PACKAGES if (ROOT / name).exists())

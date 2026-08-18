@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""OCHES002 minimal sequential-tool and raw-transcript qualification."""
+"""REF-001 Agent loop and transcript-store qualification."""
 from __future__ import annotations
 
 import copy
@@ -10,7 +10,11 @@ import unittest
 from pathlib import Path
 
 from contracts.validator import accepted, load_document, validate
-from core.tool_session import SequentialToolSession, ToolSessionError
+from infrastructure.persistence.transcript_store import (
+    TranscriptStore, create_transcript_store, transcript_session_dir,
+)
+from runtime.agent_loop import AgentLoop, AgentLoopError, AgentLoopPolicy
+from scripts.dvlib import canonical_hash
 
 
 def tool(name):
@@ -74,7 +78,7 @@ def call(number, name, ids=None):
     }
 
 
-class Oches002ToolSessionTests(unittest.TestCase):
+class AgentLoopTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.job_root = Path(self.temp.name) / "JOB.PROJECT.TOOL.001"
@@ -97,22 +101,27 @@ class Oches002ToolSessionTests(unittest.TestCase):
     def session(
             self, session_id, provider, handlers, submitted,
             cancel_requested=None):
-        return SequentialToolSession(
+        lineage = {"source_report_fingerprint": "a" * 64}
+        return AgentLoop(
             provider=provider,
-            job_root=self.job_root,
+            transcript_store=create_transcript_store(
+                job_root=self.job_root, job_id=self.job_id,
+                role="ORCHESTRATOR", session_id=session_id,
+                lineage=lineage),
             job_id=self.job_id,
-            role="ORCHESTRATOR",
             session_id=session_id,
-            lineage={"source_report_fingerprint": "a" * 64},
             initial_messages=self.initial_messages,
             tools=self.tools,
             retrieval_handlers=handlers,
-            submission_tool="submit_repair_plan",
             submission_handler=lambda arguments, _context: submitted(arguments),
             provider_binding={
                 "provider_id": "scripted-provider",
                 "model_id": "scripted-sol",
             },
+            policy=AgentLoopPolicy(
+                role="ORCHESTRATOR",
+                retrieval_tools=frozenset(handlers),
+                submission_tool="submit_repair_plan"),
             cancel_requested=cancel_requested,
         )
 
@@ -177,7 +186,7 @@ class Oches002ToolSessionTests(unittest.TestCase):
         self.assertEqual(
             "完整模型原文 PLANNING.TOOL.001.TURN.001",
             first_response["content"])
-        with self.assertRaises(ToolSessionError) as caught:
+        with self.assertRaises(AgentLoopError) as caught:
             session.run()
         self.assertEqual("INVALID_TOOL_CALL", caught.exception.code)
         self.assertEqual(4, len(provider.requests))
@@ -206,7 +215,7 @@ class Oches002ToolSessionTests(unittest.TestCase):
             session = self.session(
                 session_id, ScriptedProvider(turns), handlers,
                 lambda arguments: self.fail("submission must not run"))
-            with self.assertRaises(ToolSessionError) as caught:
+            with self.assertRaises(AgentLoopError) as caught:
                 session.run()
             self.assertEqual(expected_code, caught.exception.code)
             self.assertEqual(
@@ -228,7 +237,7 @@ class Oches002ToolSessionTests(unittest.TestCase):
                 session_id, ScriptedProvider(turns),
                 {"get_issue": lambda arguments: executed.append(arguments)},
                 lambda arguments: self.fail("submission must not run"))
-            with self.assertRaises(ToolSessionError) as caught:
+            with self.assertRaises(AgentLoopError) as caught:
                 session.run()
             self.assertEqual(expected_code, caught.exception.code)
             self.assertEqual([], executed)
@@ -257,10 +266,29 @@ class Oches002ToolSessionTests(unittest.TestCase):
         reordered["entries"][0]["sequence"] = 2
         projected = copy.deepcopy(reordered)
         projected.pop("manifest_fingerprint")
-        from scripts.dvlib import canonical_hash
         reordered["manifest_fingerprint"] = canonical_hash(projected)
         self.assertFalse(accepted(validate(
             "project_transcript_manifest", reordered)))
+
+        response_path = path.parent / "0002.response.json"
+        response_path.write_text("{}\n", encoding="utf-8")
+        with self.assertRaises(AgentLoopError) as caught:
+            self.session(
+                "PLANNING.MANIFEST.001", ScriptedProvider([]), {},
+                lambda arguments: self.fail("submission must not run"))
+        self.assertEqual("STALE_EVIDENCE", caught.exception.code)
+
+        gap_id = "PLANNING.SEQUENCE.GAP.001"
+        gap_dir = transcript_session_dir(
+            self.job_root, "ORCHESTRATOR", gap_id)
+        gap_dir.mkdir(parents=True)
+        (gap_dir / "0002.response.json").write_text("{}\n", encoding="utf-8")
+        with self.assertRaises(AgentLoopError) as caught:
+            TranscriptStore(
+                gap_dir, job_id=self.job_id, role="ORCHESTRATOR",
+                session_id=gap_id,
+                lineage={"source_report_fingerprint": "a" * 64})
+        self.assertEqual("STALE_EVIDENCE", caught.exception.code)
 
     def test_restart_reuses_persisted_provider_response(self):
         provider = ScriptedProvider([[
@@ -274,17 +302,10 @@ class Oches002ToolSessionTests(unittest.TestCase):
             lambda arguments: {"status": "ACCEPTED"})
         request = session._request(1, self.initial_messages)
         persisted_response = response(request, [call(1, "get_issue")])
-        directory = (
-            self.job_root / "transcripts/orchestrator/PLANNING.RESUME.001")
-        directory.mkdir(parents=True)
-        for name, value in (
-            ("0001.request.json", request),
-            ("0002.response.json", persisted_response),
-            ("0003.tool_call.json", persisted_response["tool_calls"][0]),
-        ):
-            (directory / name).write_text(
-                json.dumps(value, ensure_ascii=False, indent=2,
-                           sort_keys=True) + "\n", encoding="utf-8")
+        session.transcript_store.record("REQUEST", request)
+        session.transcript_store.record("RESPONSE", persisted_response)
+        session.transcript_store.record(
+            "TOOL_CALL", persisted_response["tool_calls"][0])
         result = session.run()
         self.assertEqual("ACCEPTED", result["status"])
         self.assertEqual(1, len(executed))
@@ -298,7 +319,7 @@ class Oches002ToolSessionTests(unittest.TestCase):
             {"get_issue": lambda arguments: executed.append(arguments)},
             lambda arguments: self.fail("submission must not execute"),
             cancel_requested=lambda: True)
-        with self.assertRaises(ToolSessionError) as caught:
+        with self.assertRaises(AgentLoopError) as caught:
             session.run()
         self.assertEqual("CANCELLED", caught.exception.code)
         self.assertEqual([], executed)
@@ -318,7 +339,7 @@ class Oches002ToolSessionTests(unittest.TestCase):
             "PLANNING.INVALID.PROVIDER.REQUEST.001",
             InvalidRequestProvider(), {},
             lambda arguments: self.fail("submission must not execute"))
-        with self.assertRaises(ToolSessionError) as caught:
+        with self.assertRaises(AgentLoopError) as caught:
             session.run()
         self.assertEqual("INVALID_PROVIDER_REQUEST", caught.exception.code)
         manifest = load_document(
@@ -327,10 +348,105 @@ class Oches002ToolSessionTests(unittest.TestCase):
         self.assertEqual(
             "INVALID_PROVIDER_REQUEST", manifest["terminal"]["code"])
 
+    def test_provider_unavailable_has_distinct_typed_mapping(self):
+        class UnavailableProvider:
+            def select_tools(self, _request):
+                raise RuntimeError("test-only transport outage")
+
+        session = self.session(
+            "PLANNING.PROVIDER.UNAVAILABLE.001",
+            UnavailableProvider(), {},
+            lambda arguments: self.fail("submission must not execute"))
+        with self.assertRaises(AgentLoopError) as caught:
+            session.run()
+        self.assertEqual("PROVIDER_UNAVAILABLE", caught.exception.code)
+        manifest = load_document(
+            self.job_root / "transcripts/orchestrator" /
+            "PLANNING.PROVIDER.UNAVAILABLE.001/manifest.json")
+        self.assertEqual("PROVIDER_UNAVAILABLE", manifest["terminal"]["code"])
+
+    def test_terminal_exact_replay_has_zero_side_effects(self):
+        session_id = "PLANNING.TERMINAL.REPLAY.001"
+        provider = ScriptedProvider([[
+            call(1, "submit_repair_plan", ["PLAN.A"]),
+        ]])
+        submissions = []
+        first = self.session(
+            session_id, provider, {},
+            lambda arguments: submissions.append(copy.deepcopy(arguments)) or {
+                "status": "ACCEPTED", "arguments": arguments,
+            })
+        expected = first.run()
+        directory = transcript_session_dir(
+            self.job_root, "ORCHESTRATOR", session_id)
+        before = {
+            path.name: (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in directory.iterdir()
+        }
+
+        replay_provider = ScriptedProvider([])
+        replay = self.session(
+            session_id, replay_provider, {},
+            lambda arguments: submissions.append(arguments))
+        self.assertEqual(expected, replay.run())
+        after = {
+            path.name: (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in directory.iterdir()
+        }
+        self.assertEqual(before, after)
+        self.assertEqual([], replay_provider.requests)
+        self.assertEqual(1, len(submissions))
+
+    def test_cross_role_transcript_substitution_fails_closed(self):
+        session_id = "PLANNING.CROSS.ROLE.001"
+        self.session(
+            session_id, ScriptedProvider([[
+                call(1, "submit_repair_plan", ["PLAN.A"]),
+            ]]), {}, lambda arguments: {"status": "ACCEPTED"}).run()
+        directory = transcript_session_dir(
+            self.job_root, "ORCHESTRATOR", session_id)
+        with self.assertRaises(AgentLoopError) as caught:
+            TranscriptStore(
+                directory, job_id=self.job_id, role="STAGE_2",
+                session_id=session_id,
+                lineage={"source_report_fingerprint": "a" * 64})
+        self.assertEqual("STALE_EVIDENCE", caught.exception.code)
+        for job_id, substituted_session in (
+                ("JOB.PROJECT.OTHER.001", session_id),
+                (self.job_id, "PLANNING.OTHER.SESSION.001")):
+            with self.assertRaises(AgentLoopError) as caught:
+                TranscriptStore(
+                    directory, job_id=job_id, role="ORCHESTRATOR",
+                    session_id=substituted_session,
+                    lineage={"source_report_fingerprint": "a" * 64})
+            self.assertEqual("STALE_EVIDENCE", caught.exception.code)
+
+    def test_manifest_authority_tamper_fails_closed(self):
+        session_id = "PLANNING.MANIFEST.AUTHORITY.001"
+        self.session(
+            session_id, ScriptedProvider([[
+                call(1, "submit_repair_plan", ["PLAN.A"]),
+            ]]), {}, lambda arguments: {"status": "ACCEPTED"}).run()
+        manifest_path = transcript_session_dir(
+            self.job_root, "ORCHESTRATOR", session_id) / "manifest.json"
+        manifest = load_document(manifest_path)
+        manifest["lineage"]["source_report_fingerprint"] = "b" * 64
+        projected = copy.deepcopy(manifest)
+        projected.pop("manifest_fingerprint")
+        manifest["manifest_fingerprint"] = canonical_hash(projected)
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) +
+            "\n", encoding="utf-8")
+        with self.assertRaises(AgentLoopError) as caught:
+            self.session(
+                session_id, ScriptedProvider([]), {},
+                lambda arguments: self.fail("submission must not run"))
+        self.assertEqual("STALE_EVIDENCE", caught.exception.code)
+
 
 if __name__ == "__main__":
     unittest.main()
 
 
 def load_tests(loader, tests, pattern):
-    return loader.loadTestsFromTestCase(Oches002ToolSessionTests)
+    return loader.loadTestsFromTestCase(AgentLoopTests)

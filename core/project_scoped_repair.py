@@ -681,7 +681,9 @@ def validate_scoped_replacement_lineage(
         **copy.deepcopy(dict(expected_stage_binding)),
     }
     try:
-        from core.tool_session import load_terminal_transcript_events
+        from infrastructure.persistence.transcript_store import (
+            load_terminal_transcript_events,
+        )
         transcript = load_terminal_transcript_events(
             job_root=Path(job_root), job_id=model.job_id, role=stage,
             session_id=session_id, lineage=lineage)

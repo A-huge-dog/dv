@@ -79,8 +79,11 @@ pass marker。Derived mappings 只写 `staging/`，不得回写 `input_baseline/
 - `core/project_commit_runtime.py`：OCHES003 的 compile-first canonical serial group commit、逐组 impact、单次 final
   Reviewer、Human gate 和精确 replay；每个编号化 commit manifest 是对应 group 的唯一 authority switch，失败组
   不改变 current roots，已成功的先前 group 不回滚。
-- `core/tool_session.py`：角色级顺序工具会话；每轮只接受一个调用，最多执行 3 次不同名只读检索和一次
-  final submission，并把完整请求、响应、参数和结果按角色保存为 append-only transcript。
+- `runtime/agent_loop.py`：唯一的单 Agent 协议循环；每轮只接受一个调用，按角色工具允许名单执行最多 3 次
+  不同名只读检索和一次 final submission，并在 cancel（取消）、Provider 失败或进程重启后保持 typed stop
+  与 exact replay 行为。
+- `infrastructure/persistence/transcript_store.py`：append-only transcript（只追加对话记录）的唯一文件持久化实现；
+  它只负责事件、manifest、序号和指纹的安全写入与读取，不决定工具权限、业务流程、commit 或 Human authority。
 - `core/project_tools.py`：从一个经过 fingerprint/lineage 校验的 exact current Job snapshot 提供 9 个只读工具；
   复用现有 unit/index、Reviewer report、Spec baseline 和 repair records，不建立第二套 evidence authority；accepted
   formal plan 可成为 authority，rejected plan 仅在 exact receipt + transcript 配对后作为 untrusted failure history。

@@ -23,7 +23,9 @@ from core.project_incremental import (
     STAGE1 as UNIT_STAGE1, STAGE2 as UNIT_STAGE2, STAGE3 as UNIT_STAGE3,
     unrouted_owner_scope,
 )
-from core.tool_session import persist_single_submission_transcript
+from infrastructure.persistence.transcript_store import (
+    persist_single_submission_transcript,
+)
 from scripts.dvlib import canonical_hash
 
 

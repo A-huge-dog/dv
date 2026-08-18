@@ -22,10 +22,11 @@ from core.project_tools import (
     ORCHESTRATOR_READ_TOOLS, ProjectReadModel, ProjectToolError,
     STAGE_READ_TOOLS, read_tool_definitions,
 )
-from core.tool_session import SequentialToolSession
 from core.project_oches003 import (
     RepairRecordStore, build_prompt_contract, canonical_repair_groups,
 )
+from infrastructure.persistence.transcript_store import create_transcript_store
+from runtime.agent_loop import AgentLoop, AgentLoopError, AgentLoopPolicy
 from scripts.dvlib import canonical_hash
 
 
@@ -349,22 +350,28 @@ class ProjectRepairRuntime:
                 "review_report": report,
             }),
         }]
-        session = SequentialToolSession(
-            provider=provider, job_root=self.job_root,
-            job_id=self.model.job_id, role="ORCHESTRATOR",
-            session_id=session_id,
-            lineage={
+        lineage = {
                 "input_fingerprint": self.model.input_fingerprint,
                 "source_report_fingerprint": report["report_fingerprint"],
                 "artifact_root": self.model.artifact_root,
                 **self._role_binding(
                     "repair", "orchestrator", "ORCHESTRATOR", "PROFILED"),
-            },
+            }
+        session = AgentLoop(
+            provider=provider,
+            transcript_store=create_transcript_store(
+                job_root=self.job_root, job_id=self.model.job_id,
+                role="ORCHESTRATOR", session_id=session_id, lineage=lineage),
+            job_id=self.model.job_id, session_id=session_id,
             initial_messages=messages, tools=tools,
             retrieval_handlers=self.model.handlers(ORCHESTRATOR_READ_TOOLS),
-            submission_tool="submit_repair_plan", submission_handler=submit,
+            submission_handler=submit,
             provider_binding=self._provider_identity(self._role_binding(
                 "repair", "orchestrator", "ORCHESTRATOR", "PROFILED")),
+            policy=AgentLoopPolicy(
+                role="ORCHESTRATOR",
+                retrieval_tools=frozenset(ORCHESTRATOR_READ_TOOLS),
+                submission_tool="submit_repair_plan"),
             cancel_requested=cancel_requested)
         return session.run()
 
@@ -509,10 +516,7 @@ class ProjectRepairRuntime:
                 "formal_dispatch": dispatch, "findings": findings,
             }),
         }]
-        session = SequentialToolSession(
-            provider=provider, job_root=self.job_root,
-            job_id=self.model.job_id, role=stage, session_id=session_id,
-            lineage={
+        lineage = {
                 "dispatch_id": dispatch["dispatch_id"],
                 "dispatch_fingerprint": dispatch["dispatch_fingerprint"],
                 "scope_fingerprint": dispatch["scope_fingerprint"],
@@ -520,19 +524,27 @@ class ProjectRepairRuntime:
                 **self._role_binding(
                     "repair", stage.replace("STAGE_", "stage"),
                     "STAGE_AGENT", "PROFILED"),
-            },
+            }
+        session = AgentLoop(
+            provider=provider,
+            transcript_store=create_transcript_store(
+                job_root=self.job_root, job_id=self.model.job_id,
+                role=stage, session_id=session_id, lineage=lineage),
+            job_id=self.model.job_id, session_id=session_id,
             initial_messages=messages, tools=tools,
             retrieval_handlers=self._scoped_handlers(dispatch),
-            submission_tool=submit_name, submission_handler=submit,
+            submission_handler=submit,
             provider_binding=self._provider_identity(self._role_binding(
                 "repair", stage.replace("STAGE_", "stage"),
                 "STAGE_AGENT", "PROFILED")),
+            policy=AgentLoopPolicy(
+                role=stage, retrieval_tools=frozenset(STAGE_READ_TOOLS),
+                submission_tool=submit_name),
             cancel_requested=cancel_requested)
         try:
             return session.run()
         except Exception as caught:
-            from core.tool_session import ToolSessionError
-            if isinstance(caught, ToolSessionError) and caught.code in {
+            if isinstance(caught, AgentLoopError) and caught.code in {
                     "TOOL_PROTOCOL_VIOLATION", "MALFORMED_MODEL_OUTPUT",
                     "CONTENT_FILTERED", "MODEL_REFUSAL",
                     "OUTPUT_LIMIT_EXCEEDED", "PROVIDER_UNAVAILABLE",
@@ -588,8 +600,7 @@ class ProjectRepairRuntime:
         if planned["status"] != "ACCEPTED" or planned["dispatch"] is None:
             return planned
         if cancelled():
-            from core.tool_session import ToolSessionError
-            raise ToolSessionError(
+            raise AgentLoopError(
                 "CANCELLED", "Job was cancelled before Stage session")
         self.validate_stage_authority(planned["dispatch"])
         stage_result = self.run_stage(

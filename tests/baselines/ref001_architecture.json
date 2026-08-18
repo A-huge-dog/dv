@@ -1,0 +1,6927 @@
+{
+  "access_locations": {
+    "checkpoint": [
+      {
+        "call": "checkpoint.get",
+        "line": 353,
+        "owner": "validate_commit_manifest",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 355,
+        "owner": "validate_commit_manifest",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 356,
+        "owner": "validate_commit_manifest",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 358,
+        "owner": "validate_commit_manifest",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 478,
+        "owner": "ProjectCommitRuntime._entry",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "checkpoint.update",
+        "line": 608,
+        "owner": "ProjectCommitRuntime._authority_checkpoint",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 623,
+        "owner": "ProjectCommitRuntime._authority_checkpoint",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "checkpoint.items",
+        "line": 1189,
+        "owner": "ProjectCommitRuntime._resume_existing_group",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 1269,
+        "owner": "ProjectCommitRuntime._next_group_replacement",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "checkpoint.update",
+        "line": 1324,
+        "owner": "ProjectCommitRuntime._next_group_replacement",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 1364,
+        "owner": "ProjectCommitRuntime._final_review_current_authority",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 1457,
+        "owner": "ProjectCommitRuntime._final_review_recovered",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "initial_checkpoint.get",
+        "line": 1685,
+        "owner": "ProjectCommitRuntime.advance",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "self._authority_checkpoint",
+        "line": 1708,
+        "owner": "ProjectCommitRuntime.advance",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "self._authority_checkpoint",
+        "line": 1766,
+        "owner": "ProjectCommitRuntime.advance",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "self.checkpoint_hook",
+        "line": 1770,
+        "owner": "ProjectCommitRuntime.advance",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "self._authority_checkpoint",
+        "line": 1859,
+        "owner": "ProjectCommitRuntime.advance",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "self.checkpoint_hook",
+        "line": 1862,
+        "owner": "ProjectCommitRuntime.advance",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 1199,
+        "owner": "ProjectJobWorkflow._latest_checkpoint",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 1200,
+        "owner": "ProjectJobWorkflow._latest_checkpoint",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoints.append",
+        "line": 1206,
+        "owner": "ProjectJobWorkflow._latest_checkpoint",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._terminal_review_checkpoint",
+        "line": 1698,
+        "owner": "ProjectJobWorkflow._review_until_human_gate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._terminal_review_checkpoint",
+        "line": 1706,
+        "owner": "ProjectJobWorkflow._review_until_human_gate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._terminal_review_checkpoint",
+        "line": 1724,
+        "owner": "ProjectJobWorkflow._review_until_human_gate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._terminal_review_checkpoint",
+        "line": 1736,
+        "owner": "ProjectJobWorkflow._review_until_human_gate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._terminal_review_checkpoint",
+        "line": 1748,
+        "owner": "ProjectJobWorkflow._review_until_human_gate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._terminal_review_checkpoint",
+        "line": 1770,
+        "owner": "ProjectJobWorkflow._review_until_human_gate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 1781,
+        "owner": "ProjectJobWorkflow._checkpoint_candidate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._latest_checkpoint",
+        "line": 1826,
+        "owner": "ProjectJobWorkflow.start",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 1829,
+        "owner": "ProjectJobWorkflow.start",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._latest_checkpoint",
+        "line": 1868,
+        "owner": "ProjectJobWorkflow.submit_repair_plan",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 1872,
+        "owner": "ProjectJobWorkflow.submit_repair_plan",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 1873,
+        "owner": "ProjectJobWorkflow.submit_repair_plan",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 1874,
+        "owner": "ProjectJobWorkflow.submit_repair_plan",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._checkpoint_candidate",
+        "line": 1882,
+        "owner": "ProjectJobWorkflow.submit_repair_plan",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._latest_checkpoint",
+        "line": 2036,
+        "owner": "ProjectJobWorkflow.resume",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 2043,
+        "owner": "ProjectJobWorkflow.resume",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 2044,
+        "owner": "ProjectJobWorkflow.resume",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self._checkpoint_candidate",
+        "line": 2050,
+        "owner": "ProjectJobWorkflow.resume",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 2052,
+        "owner": "ProjectJobWorkflow.resume",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 2131,
+        "owner": "ProjectJobWorkflow.resume",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 112,
+        "owner": "ProjectJobRuntimeIntegration._source_checkpoint",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 113,
+        "owner": "ProjectJobRuntimeIntegration._source_checkpoint",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 114,
+        "owner": "ProjectJobRuntimeIntegration._source_checkpoint",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 116,
+        "owner": "ProjectJobRuntimeIntegration._source_checkpoint",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "self._source_checkpoint",
+        "line": 125,
+        "owner": "ProjectJobRuntimeIntegration._checkpoint_authority",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "repair_checkpoint_id",
+        "line": 127,
+        "owner": "ProjectJobRuntimeIntegration._checkpoint_authority",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 211,
+        "owner": "ProjectJobRuntimeIntegration._retry_legacy_rejected_plan",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "self._source_checkpoint",
+        "line": 212,
+        "owner": "ProjectJobRuntimeIntegration._retry_legacy_rejected_plan",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 277,
+        "owner": "ProjectJobRuntimeIntegration._retry_rejected_history_read_model_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "self._source_checkpoint",
+        "line": 278,
+        "owner": "ProjectJobRuntimeIntegration._retry_rejected_history_read_model_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "self._source_checkpoint",
+        "line": 327,
+        "owner": "ProjectJobRuntimeIntegration._retry_provider_contract_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "self._source_checkpoint",
+        "line": 485,
+        "owner": "ProjectJobRuntimeIntegration._execute",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "repair_checkpoint_id",
+        "line": 486,
+        "owner": "ProjectJobRuntimeIntegration._execute",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "self._source_checkpoint",
+        "line": 593,
+        "owner": "ProjectJobRuntimeIntegration._advance",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "repair_checkpoint_id",
+        "line": 594,
+        "owner": "ProjectJobRuntimeIntegration._advance",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "self._source_checkpoint",
+        "line": 667,
+        "owner": "ProjectJobRuntimeIntegration.recover_rejected_plan_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "repair_checkpoint_id",
+        "line": 668,
+        "owner": "ProjectJobRuntimeIntegration.recover_rejected_plan_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "self._source_checkpoint",
+        "line": 684,
+        "owner": "ProjectJobRuntimeIntegration.recover_provider_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "repair_checkpoint_id",
+        "line": 685,
+        "owner": "ProjectJobRuntimeIntegration.recover_provider_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 76,
+        "owner": "ProjectRepairRuntime.__init__",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 152,
+        "owner": "ProjectRepairRuntime.validate_stage_authority",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 154,
+        "owner": "ProjectRepairRuntime.validate_stage_authority",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 156,
+        "owner": "ProjectRepairRuntime.validate_stage_authority",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 335,
+        "owner": "validate_current_dispatch_authority",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 338,
+        "owner": "validate_current_dispatch_authority",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 363,
+        "owner": "validate_current_dispatch_authority",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 364,
+        "owner": "validate_current_dispatch_authority",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 406,
+        "owner": "validate_current_dispatch_authority",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 407,
+        "owner": "validate_current_dispatch_authority",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 408,
+        "owner": "validate_current_dispatch_authority",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 410,
+        "owner": "validate_current_dispatch_authority",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 643,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 644,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 645,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 646,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 650,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 653,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 656,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 659,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 664,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 665,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 667,
+        "owner": "validate_scoped_replacement_lineage",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "checkpoint_path.is_file",
+        "line": 1157,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint_path.is_symlink",
+        "line": 1157,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 1162,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 1168,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "_checkpoint_fingerprint",
+        "line": 3939,
+        "owner": "StagedProjectWorkflow._human_review_gate",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "_checkpoint_fingerprint",
+        "line": 4155,
+        "owner": "StagedProjectWorkflow._approval_gate",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint_path.exists",
+        "line": 4182,
+        "owner": "StagedProjectWorkflow._approval_gate",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4240,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4241,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4242,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4243,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4245,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "_checkpoint_fingerprint",
+        "line": 4246,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4252,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4300,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 4307,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4327,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4328,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4330,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4331,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4333,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4341,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4351,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4352,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4353,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4354,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4356,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4375,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4383,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4393,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4403,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4404,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4405,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4407,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4409,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4441,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4468,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4469,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4470,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4472,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "_checkpoint_fingerprint",
+        "line": 4473,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4477,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4482,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4485,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 4486,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "ProjectReadModel.from_checkpoint",
+        "line": 5809,
+        "owner": "StagedProjectWorkflow.submit_repair_plan",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 263,
+        "owner": "ProjectReadModel.from_checkpoint",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 301,
+        "owner": "ProjectReadModel.from_checkpoint",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 308,
+        "owner": "ProjectReadModel.from_checkpoint",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 318,
+        "owner": "ProjectReadModel.from_checkpoint",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 325,
+        "owner": "ProjectReadModel.from_checkpoint",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "checkpoint.get",
+        "line": 339,
+        "owner": "ProjectReadModel.from_checkpoint",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "self.checkpoint_authority",
+        "line": 187,
+        "owner": "SerialSessionScheduler._assert_checkpoint",
+        "path": "core/session_scheduler.py"
+      },
+      {
+        "call": "self._assert_checkpoint",
+        "line": 196,
+        "owner": "SerialSessionScheduler.enqueue",
+        "path": "core/session_scheduler.py"
+      },
+      {
+        "call": "self._assert_checkpoint",
+        "line": 220,
+        "owner": "SerialSessionScheduler.request_cancel",
+        "path": "core/session_scheduler.py"
+      },
+      {
+        "call": "self._assert_checkpoint",
+        "line": 280,
+        "owner": "SerialSessionScheduler.retry_failed",
+        "path": "core/session_scheduler.py"
+      }
+    ],
+    "eda": [
+      {
+        "call": "re.compile",
+        "line": 13,
+        "owner": "<module>",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "__init__",
+        "line": 26,
+        "owner": "TrustedEdaBoundaryError.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "super",
+        "line": 26,
+        "owner": "TrustedEdaBoundaryError.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "list",
+        "line": 27,
+        "owner": "TrustedEdaBoundaryError.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "TrustedEdaBoundaryError",
+        "line": 31,
+        "owner": "_error",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "diagnostic",
+        "line": 31,
+        "owner": "_error",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "entry.get",
+        "line": 42,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "Path",
+        "line": 43,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "entry.get",
+        "line": 43,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "str",
+        "line": 43,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "entry.get",
+        "line": 44,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "str",
+        "line": 44,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "isinstance",
+        "line": 45,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "reference.startswith",
+        "line": 46,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "path.is_absolute",
+        "line": 48,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "entry.get",
+        "line": 49,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "re.fullmatch",
+        "line": 50,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "_error",
+        "line": 51,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "str",
+        "line": 57,
+        "owner": "TrustedExecutableRegistry.__init__",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "self._entries.get",
+        "line": 62,
+        "owner": "TrustedExecutableRegistry.resolve",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "_error",
+        "line": 64,
+        "owner": "TrustedExecutableRegistry.resolve",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "_error",
+        "line": 70,
+        "owner": "TrustedExecutableRegistry.resolve",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "Path",
+        "line": 80,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "resolve",
+        "line": 80,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "Path",
+        "line": 81,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "resolve",
+        "line": 81,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "path.relative_to",
+        "line": 83,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "_error",
+        "line": 85,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "re.fullmatch",
+        "line": 90,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 92,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "os.access",
+        "line": 93,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "str",
+        "line": 93,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "re.fullmatch",
+        "line": 94,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "_error",
+        "line": 95,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "str",
+        "line": 101,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "os.pathsep.join",
+        "line": 114,
+        "owner": "approved_environment",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "Path",
+        "line": 115,
+        "owner": "approved_environment",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "str",
+        "line": 115,
+        "owner": "approved_environment",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "Path",
+        "line": 116,
+        "owner": "approved_environment",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "str",
+        "line": 116,
+        "owner": "approved_environment",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "Path",
+        "line": 117,
+        "owner": "approved_environment",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "str",
+        "line": 117,
+        "owner": "approved_environment",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "canonical_hash",
+        "line": 122,
+        "owner": "approved_environment",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "sorted",
+        "line": 125,
+        "owner": "approved_environment",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "re.compile",
+        "line": 29,
+        "owner": "<module>",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "datetime.now",
+        "line": 33,
+        "owner": "_utc",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "isoformat",
+        "line": 33,
+        "owner": "_utc",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "replace",
+        "line": 33,
+        "owner": "_utc",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "hashlib.sha256",
+        "line": 37,
+        "owner": "_sha256_file",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.open",
+        "line": 38,
+        "owner": "_sha256_file",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "stream.read",
+        "line": 40,
+        "owner": "_sha256_file",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "digest.update",
+        "line": 43,
+        "owner": "_sha256_file",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "digest.hexdigest",
+        "line": 44,
+        "owner": "_sha256_file",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "TrustedEdaBoundaryError",
+        "line": 49,
+        "owner": "_probe_error",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "diagnostic",
+        "line": 49,
+        "owner": "_probe_error",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "Path",
+        "line": 63,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 63,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "Path",
+        "line": 64,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 64,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 66,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "re.fullmatch",
+        "line": 69,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "re.fullmatch",
+        "line": 70,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 72,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "set",
+        "line": 77,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "all",
+        "line": 78,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "isinstance",
+        "line": 78,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "private_environment.values",
+        "line": 79,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 80,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "copy.deepcopy",
+        "line": 85,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resource.setrlimit",
+        "line": 91,
+        "owner": "TrustedEdaProbeExecutor._preexec.apply_limits",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resource.setrlimit",
+        "line": 94,
+        "owner": "TrustedEdaProbeExecutor._preexec.apply_limits",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "SAFE_VALUE.fullmatch",
+        "line": 98,
+        "owner": "TrustedEdaProbeExecutor._safe_literal",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "any",
+        "line": 99,
+        "owner": "TrustedEdaProbeExecutor._safe_literal",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "Path",
+        "line": 100,
+        "owner": "TrustedEdaProbeExecutor._safe_literal",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "Path",
+        "line": 100,
+        "owner": "TrustedEdaProbeExecutor._safe_literal",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "is_absolute",
+        "line": 100,
+        "owner": "TrustedEdaProbeExecutor._safe_literal",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 101,
+        "owner": "TrustedEdaProbeExecutor._safe_literal",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._safe_literal",
+        "line": 108,
+        "owner": "TrustedEdaProbeExecutor._source",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 109,
+        "owner": "TrustedEdaProbeExecutor._source",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.relative_to",
+        "line": 111,
+        "owner": "TrustedEdaProbeExecutor._source",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 113,
+        "owner": "TrustedEdaProbeExecutor._source",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_sha256_file",
+        "line": 118,
+        "owner": "TrustedEdaProbeExecutor._source",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 118,
+        "owner": "TrustedEdaProbeExecutor._source",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 119,
+        "owner": "TrustedEdaProbeExecutor._source",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "str",
+        "line": 123,
+        "owner": "TrustedEdaProbeExecutor._source",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 126,
+        "owner": "TrustedEdaProbeExecutor._output_dir",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "output.relative_to",
+        "line": 128,
+        "owner": "TrustedEdaProbeExecutor._output_dir",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 130,
+        "owner": "TrustedEdaProbeExecutor._output_dir",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "argv.append",
+        "line": 146,
+        "owner": "TrustedEdaProbeExecutor._materialize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._safe_literal",
+        "line": 146,
+        "owner": "TrustedEdaProbeExecutor._materialize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "argv.append",
+        "line": 148,
+        "owner": "TrustedEdaProbeExecutor._materialize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._source",
+        "line": 148,
+        "owner": "TrustedEdaProbeExecutor._materialize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 151,
+        "owner": "TrustedEdaProbeExecutor._materialize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "argv.append",
+        "line": 155,
+        "owner": "TrustedEdaProbeExecutor._materialize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "str",
+        "line": 155,
+        "owner": "TrustedEdaProbeExecutor._materialize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 157,
+        "owner": "TrustedEdaProbeExecutor._materialize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "text.replace",
+        "line": 163,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "str",
+        "line": 164,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "sanitized.replace",
+        "line": 165,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "str",
+        "line": 166,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "enumerate",
+        "line": 168,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "re.findall",
+        "line": 168,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "format",
+        "line": 171,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "sanitized.replace",
+        "line": 173,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "sorted",
+        "line": 174,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "len",
+        "line": 176,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "str",
+        "line": 177,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "str",
+        "line": 178,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "sanitized.replace",
+        "line": 180,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "ABSOLUTE_PATH.sub",
+        "line": 181,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "protected.items",
+        "line": 182,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "sanitized.replace",
+        "line": 183,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "accepted",
+        "line": 187,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "validate",
+        "line": 187,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 188,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 192,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.relative_to",
+        "line": 194,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 196,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 200,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.stat",
+        "line": 201,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_sha256_file",
+        "line": 202,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 203,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "accepted",
+        "line": 209,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "validate",
+        "line": 209,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 210,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 216,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "source_by_path.items",
+        "line": 224,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._source",
+        "line": 225,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "copy.deepcopy",
+        "line": 227,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._verify_cached",
+        "line": 228,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self.registry.resolve",
+        "line": 231,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "Path",
+        "line": 234,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "executable_path.is_file",
+        "line": 235,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "os.access",
+        "line": 236,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 237,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._output_dir",
+        "line": 241,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "output.exists",
+        "line": 242,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 243,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "output.mkdir",
+        "line": 247,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._materialize",
+        "line": 248,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_utc",
+        "line": 250,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "subprocess.Popen",
+        "line": 255,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "str",
+        "line": 256,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._preexec",
+        "line": 259,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "process.communicate",
+        "line": 262,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "int",
+        "line": 264,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "os.killpg",
+        "line": 269,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "process.communicate",
+        "line": 270,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_utc",
+        "line": 274,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "str",
+        "line": 275,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._environment.values",
+        "line": 276,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "str",
+        "line": 276,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._sanitize",
+        "line": 277,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "stdout.decode",
+        "line": 278,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._sanitize",
+        "line": 279,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "stderr.decode",
+        "line": 280,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "stdout_path.write_text",
+        "line": 283,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "stderr_path.write_text",
+        "line": 284,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "diagnostics.append",
+        "line": 289,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "diagnostics.append",
+        "line": 292,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "diagnostics.append",
+        "line": 297,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "diagnostics.append",
+        "line": 301,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "item.is_file",
+        "line": 305,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "output.rglob",
+        "line": 305,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "len",
+        "line": 306,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "diagnostics.append",
+        "line": 307,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 312,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.relative_to",
+        "line": 314,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 316,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 321,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.stat",
+        "line": 322,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "diagnostics.append",
+        "line": 324,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "as_posix",
+        "line": 328,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.relative_to",
+        "line": 328,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "artifacts.append",
+        "line": 329,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "format",
+        "line": 330,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "hashlib.sha256",
+        "line": 331,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "hexdigest",
+        "line": 331,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "upper",
+        "line": 331,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "encode",
+        "line": 332,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_sha256_file",
+        "line": 336,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.stat",
+        "line": 337,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "logs.append",
+        "line": 342,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "as_posix",
+        "line": 344,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.relative_to",
+        "line": 344,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_sha256_file",
+        "line": 346,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.stat",
+        "line": 347,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "logs.sort",
+        "line": 349,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "artifacts.sort",
+        "line": 350,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "format",
+        "line": 353,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "fingerprint.encode",
+        "line": 354,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "hashlib.sha256",
+        "line": 354,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "hexdigest",
+        "line": 354,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "upper",
+        "line": 354,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "set",
+        "line": 370,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "sorted",
+        "line": 370,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "startswith",
+        "line": 374,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "startswith",
+        "line": 377,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "startswith",
+        "line": 380,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "startswith",
+        "line": 383,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "startswith",
+        "line": 386,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "eda_probe_evidence_fingerprint",
+        "line": 391,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "accepted",
+        "line": 392,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "validate",
+        "line": 392,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 393,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "copy.deepcopy",
+        "line": 397,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "accepted",
+        "line": 404,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "validate",
+        "line": 404,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 405,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "evidence.get",
+        "line": 413,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "evidence.get",
+        "line": 414,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "evidence.get",
+        "line": 416,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "evidence.get",
+        "line": 417,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 420,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._verify_cached",
+        "line": 424,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self._cache.get",
+        "line": 426,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "_probe_error",
+        "line": 428,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "copy.deepcopy",
+        "line": 432,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self.execute",
+        "line": 433,
+        "owner": "TrustedEdaProbeExecutor.replay",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "hashlib.sha256",
+        "line": 28,
+        "owner": "_sha256",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "path.open",
+        "line": 29,
+        "owner": "_sha256",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "iter",
+        "line": 30,
+        "owner": "_sha256",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "stream.read",
+        "line": 30,
+        "owner": "_sha256",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "digest.update",
+        "line": 31,
+        "owner": "_sha256",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "digest.hexdigest",
+        "line": 32,
+        "owner": "_sha256",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "json.dumps",
+        "line": 36,
+        "owner": "_immutable_json",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "publish_immutable_text",
+        "line": 38,
+        "owner": "_immutable_json",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "Path",
+        "line": 49,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "resolve",
+        "line": 49,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "Path",
+        "line": 50,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "resolve",
+        "line": 50,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "shutil.which",
+        "line": 53,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "shutil.which",
+        "line": 54,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "os.environ.get",
+        "line": 55,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "shutil.which",
+        "line": 55,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "all",
+        "line": 56,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "ValueError",
+        "line": 57,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "approved_environment",
+        "line": 59,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "str",
+        "line": 60,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "str",
+        "line": 60,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "str",
+        "line": 60,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "os.environ.get",
+        "line": 61,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "ValueError",
+        "line": 63,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "TrustedExecutableRegistry",
+        "line": 65,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "Path",
+        "line": 67,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "resolve",
+        "line": 67,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "str",
+        "line": 67,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "TrustedEdaProbeExecutor",
+        "line": 72,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "format",
+        "line": 94,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self.job_id.removeprefix",
+        "line": 95,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "copy.deepcopy",
+        "line": 99,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "copy.deepcopy",
+        "line": 103,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "format",
+        "line": 105,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "suffix.casefold",
+        "line": 105,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "copy.deepcopy",
+        "line": 106,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "copy.deepcopy",
+        "line": 107,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "eda_probe_request_fingerprint",
+        "line": 112,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "accepted",
+        "line": 113,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "validate",
+        "line": 113,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "ValueError",
+        "line": 114,
+        "owner": "ProjectVerilatorRunner._request",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "ValueError",
+        "line": 123,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "sorted",
+        "line": 125,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "_sha256",
+        "line": 127,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 130,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 131,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 132,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 133,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 134,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 135,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 136,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 137,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 138,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 139,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 140,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._request",
+        "line": 143,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "max",
+        "line": 150,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "format",
+        "line": 151,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "token.upper",
+        "line": 152,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "format",
+        "line": 153,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "format",
+        "line": 157,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "format",
+        "line": 159,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "evidence_path.exists",
+        "line": 160,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "json.loads",
+        "line": 161,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "request_path.read_text",
+        "line": 161,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "evidence_path.read_text",
+        "line": 162,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "json.loads",
+        "line": 162,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "accepted",
+        "line": 163,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "validate",
+        "line": 163,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "evidence.get",
+        "line": 165,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "ValueError",
+        "line": 167,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self.executor._verify_cached",
+        "line": 168,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "request_path.exists",
+        "line": 170,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "json.loads",
+        "line": 171,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "request_path.read_text",
+        "line": 171,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "ValueError",
+        "line": 173,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "_immutable_json",
+        "line": 175,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self.executor.execute",
+        "line": 176,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "_immutable_json",
+        "line": 177,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "sorted",
+        "line": 183,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "_sha256",
+        "line": 185,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 188,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 189,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 190,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 191,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 192,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 193,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 194,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 195,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 196,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 197,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 198,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._token",
+        "line": 199,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._request",
+        "line": 201,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "max",
+        "line": 208,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self.executor.execute",
+        "line": 209,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "next",
+        "line": 213,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "format",
+        "line": 217,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self.job_id.removeprefix",
+        "line": 218,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self.registry.approve_generated",
+        "line": 219,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self._request",
+        "line": 222,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "self.executor.execute",
+        "line": 234,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "_immutable_json",
+        "line": 243,
+        "owner": "ProjectVerilatorRunner.run",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "ProjectVerilatorRunner",
+        "line": 538,
+        "owner": "ProjectCommitRuntime._compile",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "self.compile_runner_factory",
+        "line": 543,
+        "owner": "ProjectCommitRuntime._compile",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "ProjectVerilatorRunner",
+        "line": 2158,
+        "owner": "ProjectJobWorkflow.resume",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "ProjectVerilatorRunner",
+        "line": 4810,
+        "owner": "StagedProjectWorkflow._compile_stage3_candidate",
+        "path": "core/project_staged.py"
+      }
+    ],
+    "filesystem": [
+      {
+        "call": "resolve",
+        "line": 80,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "resolve",
+        "line": 81,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 92,
+        "owner": "TrustedExecutableRegistry.approve_generated",
+        "path": "adapters/eda/boundary.py"
+      },
+      {
+        "call": "replace",
+        "line": 33,
+        "owner": "_utc",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.open",
+        "line": 38,
+        "owner": "_sha256_file",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 63,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 64,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 66,
+        "owner": "TrustedEdaProbeExecutor.__init__",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 109,
+        "owner": "TrustedEdaProbeExecutor._source",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 118,
+        "owner": "TrustedEdaProbeExecutor._source",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 126,
+        "owner": "TrustedEdaProbeExecutor._output_dir",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "text.replace",
+        "line": 163,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "sanitized.replace",
+        "line": 165,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "sanitized.replace",
+        "line": 173,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "sanitized.replace",
+        "line": 180,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "sanitized.replace",
+        "line": 183,
+        "owner": "TrustedEdaProbeExecutor._sanitize",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 192,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 200,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.stat",
+        "line": 201,
+        "owner": "TrustedEdaProbeExecutor._verify_cached",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "self.registry.resolve",
+        "line": 231,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "executable_path.is_file",
+        "line": 235,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "output.exists",
+        "line": 242,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "output.mkdir",
+        "line": 247,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "stdout_path.write_text",
+        "line": 283,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "stderr_path.write_text",
+        "line": 284,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "item.is_file",
+        "line": 305,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "output.rglob",
+        "line": 305,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "resolve",
+        "line": 312,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 321,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.stat",
+        "line": 322,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.stat",
+        "line": 337,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.stat",
+        "line": 347,
+        "owner": "TrustedEdaProbeExecutor.execute",
+        "path": "adapters/eda/probe.py"
+      },
+      {
+        "call": "path.open",
+        "line": 29,
+        "owner": "_sha256",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "resolve",
+        "line": 49,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "resolve",
+        "line": 50,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "resolve",
+        "line": 67,
+        "owner": "ProjectVerilatorRunner.__init__",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "evidence_path.exists",
+        "line": 160,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "request_path.read_text",
+        "line": 161,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "evidence_path.read_text",
+        "line": 162,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "request_path.exists",
+        "line": 170,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "request_path.read_text",
+        "line": 171,
+        "owner": "ProjectVerilatorRunner.build_only",
+        "path": "adapters/eda/project.py"
+      },
+      {
+        "call": "replace",
+        "line": 341,
+        "owner": "OpenAICompatibleProvider._compatible_tool_schema",
+        "path": "adapters/llm/openai_compatible_provider.py"
+      },
+      {
+        "call": "token.replace",
+        "line": 341,
+        "owner": "OpenAICompatibleProvider._compatible_tool_schema",
+        "path": "adapters/llm/openai_compatible_provider.py"
+      },
+      {
+        "call": "resolve",
+        "line": 14,
+        "owner": "<module>",
+        "path": "contracts/validator.py"
+      },
+      {
+        "call": "open",
+        "line": 136,
+        "owner": "load_document",
+        "path": "contracts/validator.py"
+      },
+      {
+        "call": "target.parent.mkdir",
+        "line": 29,
+        "owner": "publish_immutable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "target.exists",
+        "line": 30,
+        "owner": "publish_immutable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "target.is_file",
+        "line": 31,
+        "owner": "publish_immutable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "target.read_bytes",
+        "line": 32,
+        "owner": "publish_immutable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "target.is_file",
+        "line": 47,
+        "owner": "publish_immutable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "target.read_bytes",
+        "line": 48,
+        "owner": "publish_immutable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "os.open",
+        "line": 50,
+        "owner": "publish_immutable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "temporary.unlink",
+        "line": 57,
+        "owner": "publish_immutable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "target.parent.mkdir",
+        "line": 73,
+        "owner": "publish_replaceable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "os.replace",
+        "line": 82,
+        "owner": "publish_replaceable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "os.open",
+        "line": 83,
+        "owner": "publish_replaceable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "temporary.unlink",
+        "line": 90,
+        "owner": "publish_replaceable_bytes",
+        "path": "core/atomic_artifact.py"
+      },
+      {
+        "call": "path.read_bytes",
+        "line": 69,
+        "owner": "_read_yaml",
+        "path": "core/project_agent_profile.py"
+      },
+      {
+        "call": "resolve",
+        "line": 91,
+        "owner": "_resolve",
+        "path": "core/project_agent_profile.py"
+      },
+      {
+        "call": "lexical.resolve",
+        "line": 101,
+        "owner": "_resolve",
+        "path": "core/project_agent_profile.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 108,
+        "owner": "_resolve",
+        "path": "core/project_agent_profile.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 64,
+        "owner": "_regular",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "job_root.resolve",
+        "line": 65,
+        "owner": "_regular",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "path.resolve",
+        "line": 65,
+        "owner": "_regular",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 114,
+        "owner": "_next_unoccupied_revision",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "content_path.read_text",
+        "line": 442,
+        "owner": "validate_commit_manifest",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "resolve",
+        "line": 455,
+        "owner": "ProjectCommitRuntime.__init__",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "resolve",
+        "line": 456,
+        "owner": "ProjectCommitRuntime.__init__",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "replace",
+        "line": 480,
+        "owner": "ProjectCommitRuntime._entry",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 530,
+        "owner": "ProjectCommitRuntime._compile",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 723,
+        "owner": "ProjectCommitRuntime._prepare_stage3",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 732,
+        "owner": "ProjectCommitRuntime._prepare_stage3",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "replace",
+        "line": 1004,
+        "owner": "ProjectCommitRuntime._stage_lineage",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "role.replace",
+        "line": 1019,
+        "owner": "ProjectCommitRuntime._next_stage_session_id",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "session_dir.exists",
+        "line": 1026,
+        "owner": "ProjectCommitRuntime._next_stage_session_id",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "session_dir.is_dir",
+        "line": 1028,
+        "owner": "ProjectCommitRuntime._next_stage_session_id",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "exists",
+        "line": 1031,
+        "owner": "ProjectCommitRuntime._next_stage_session_id",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "replace",
+        "line": 1127,
+        "owner": "ProjectCommitRuntime._run_stage_provider",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "exists",
+        "line": 1175,
+        "owner": "ProjectCommitRuntime._resume_existing_group",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "exists",
+        "line": 1176,
+        "owner": "ProjectCommitRuntime._resume_existing_group",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "exists",
+        "line": 1217,
+        "owner": "ProjectCommitRuntime._resume_existing_group",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "replace",
+        "line": 1271,
+        "owner": "ProjectCommitRuntime._next_group_replacement",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 1516,
+        "owner": "ProjectCommitRuntime._final_review_recovered",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 1541,
+        "owner": "ProjectCommitRuntime._final_review_recovered",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 1625,
+        "owner": "ProjectCommitRuntime._paths_for_roots",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 1626,
+        "owner": "ProjectCommitRuntime._paths_for_roots",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 1866,
+        "owner": "ProjectCommitRuntime.advance",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "exists",
+        "line": 1872,
+        "owner": "ProjectCommitRuntime.advance",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "job_root.resolve",
+        "line": 273,
+        "owner": "_safe_target",
+        "path": "core/project_incremental.py"
+      },
+      {
+        "call": "current.exists",
+        "line": 278,
+        "owner": "_safe_target",
+        "path": "core/project_incremental.py"
+      },
+      {
+        "call": "target.resolve",
+        "line": 281,
+        "owner": "_safe_target",
+        "path": "core/project_incremental.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 396,
+        "owner": "validate_index",
+        "path": "core/project_incremental.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 427,
+        "owner": "load_index",
+        "path": "core/project_incremental.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 1037,
+        "owner": "IncrementalArtifactStore.load_stage3",
+        "path": "core/project_incremental.py"
+      },
+      {
+        "call": "replace",
+        "line": 82,
+        "owner": "_utc",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "path.open",
+        "line": 87,
+        "owner": "_sha256",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "runtime_role.replace",
+        "line": 154,
+        "owner": "_persist_provider_probe",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "content_path.exists",
+        "line": 191,
+        "owner": "_persist_rejected_candidate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "record_path.exists",
+        "line": 191,
+        "owner": "_persist_rejected_candidate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "resolve",
+        "line": 230,
+        "owner": "_resolved_workspace_file",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "lexical.resolve",
+        "line": 233,
+        "owner": "_resolved_workspace_file",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "resolved.is_file",
+        "line": 244,
+        "owner": "_resolved_workspace_file",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "resolve",
+        "line": 366,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "job_root.parent.resolve",
+        "line": 372,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "submission_path.resolve",
+        "line": 375,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "job_root.resolve",
+        "line": 376,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "submission_path.is_file",
+        "line": 382,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "submission_path.read_text",
+        "line": 389,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "job_root.resolve",
+        "line": 443,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "path.resolve",
+        "line": 443,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 448,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "path.read_text",
+        "line": 453,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "replace",
+        "line": 453,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "replace",
+        "line": 453,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "profile_snapshot.is_file",
+        "line": 485,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "profile_snapshot.read_bytes",
+        "line": 486,
+        "owner": "validate_project_input",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "resolve",
+        "line": 751,
+        "owner": "ProjectJobWorkflow.__init__",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "resolve",
+        "line": 752,
+        "owner": "ProjectJobWorkflow.__init__",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "source_path.read_bytes",
+        "line": 852,
+        "owner": "ProjectJobWorkflow._baseline_source_records",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "replace",
+        "line": 863,
+        "owner": "ProjectJobWorkflow._baseline_source_records",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "text.replace",
+        "line": 863,
+        "owner": "ProjectJobWorkflow._baseline_source_records",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "job_root.parent.exists",
+        "line": 905,
+        "owner": "ProjectJobWorkflow.bootstrap",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "job_root.parent.resolve",
+        "line": 906,
+        "owner": "ProjectJobWorkflow.bootstrap",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "manifest_path.exists",
+        "line": 913,
+        "owner": "ProjectJobWorkflow.bootstrap",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "job_root.exists",
+        "line": 955,
+        "owner": "ProjectJobWorkflow.bootstrap",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "job_root.rglob",
+        "line": 956,
+        "owner": "ProjectJobWorkflow.bootstrap",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "job_root.rglob",
+        "line": 961,
+        "owner": "ProjectJobWorkflow.bootstrap",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 962,
+        "owner": "ProjectJobWorkflow.bootstrap",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "read_text",
+        "line": 1036,
+        "owner": "ProjectJobWorkflow._source_bundle",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "read_text",
+        "line": 1052,
+        "owner": "ProjectJobWorkflow._source_evidence",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "profile_role.replace",
+        "line": 1082,
+        "owner": "ProjectJobWorkflow._probe_provider",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "glob",
+        "line": 1085,
+        "owner": "ProjectJobWorkflow._probe_provider",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "audit.glob",
+        "line": 1192,
+        "owner": "ProjectJobWorkflow._latest_checkpoint",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "audit.is_dir",
+        "line": 1193,
+        "owner": "ProjectJobWorkflow._latest_checkpoint",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "exists",
+        "line": 1437,
+        "owner": "ProjectJobWorkflow._gate_paths",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "exists",
+        "line": 1445,
+        "owner": "ProjectJobWorkflow._gate_paths",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "content_path.is_file",
+        "line": 1804,
+        "owner": "ProjectJobWorkflow._checkpoint_candidate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "content_path.read_text",
+        "line": 1805,
+        "owner": "ProjectJobWorkflow._checkpoint_candidate",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "staged.read_text",
+        "line": 1983,
+        "owner": "ProjectJobWorkflow._approve",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "report_path.exists",
+        "line": 2025,
+        "owner": "ProjectJobWorkflow.resume",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "read_text",
+        "line": 2189,
+        "owner": "ProjectJobWorkflow._report",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "resolve",
+        "line": 53,
+        "owner": "ProjectJobRuntimeIntegration.__init__",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "resolve",
+        "line": 54,
+        "owner": "ProjectJobRuntimeIntegration.__init__",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "root.parent.resolve",
+        "line": 72,
+        "owner": "ProjectJobRuntimeIntegration._job_root",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 85,
+        "owner": "ProjectJobRuntimeIntegration._manifest",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 105,
+        "owner": "ProjectJobRuntimeIntegration._source_checkpoint",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "current_dir.exists",
+        "line": 208,
+        "owner": "ProjectJobRuntimeIntegration._retry_legacy_rejected_plan",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "exists",
+        "line": 272,
+        "owner": "ProjectJobRuntimeIntegration._retry_rejected_history_read_model_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 350,
+        "owner": "ProjectJobRuntimeIntegration._retry_provider_contract_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "request_path.read_bytes",
+        "line": 452,
+        "owner": "ProjectJobRuntimeIntegration._retry_provider_contract_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "exists",
+        "line": 468,
+        "owner": "ProjectJobRuntimeIntegration._retry_provider_contract_failure",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "exists",
+        "line": 502,
+        "owner": "ProjectJobRuntimeIntegration._execute",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "replace",
+        "line": 39,
+        "owner": "_utc",
+        "path": "core/project_oches003.py"
+      },
+      {
+        "call": "path.resolve",
+        "line": 245,
+        "owner": "RepairRecordStore._safe",
+        "path": "core/project_oches003.py"
+      },
+      {
+        "call": "root.resolve",
+        "line": 245,
+        "owner": "RepairRecordStore._safe",
+        "path": "core/project_oches003.py"
+      },
+      {
+        "call": "self.record_root.exists",
+        "line": 252,
+        "owner": "RepairRecordStore.records",
+        "path": "core/project_oches003.py"
+      },
+      {
+        "call": "self.record_root.glob",
+        "line": 254,
+        "owner": "RepairRecordStore.records",
+        "path": "core/project_oches003.py"
+      },
+      {
+        "call": "replace",
+        "line": 36,
+        "owner": "_utc",
+        "path": "core/project_repair.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 127,
+        "owner": "ProjectRepairRuntime._load_authority_path",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "path.resolve",
+        "line": 128,
+        "owner": "ProjectRepairRuntime._load_authority_path",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "self.job_root.resolve",
+        "line": 128,
+        "owner": "ProjectRepairRuntime._load_authority_path",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "path.read_text",
+        "line": 130,
+        "owner": "ProjectRepairRuntime._load_authority_path",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "waiting_path.is_file",
+        "line": 144,
+        "owner": "ProjectRepairRuntime.validate_stage_authority",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "waiting_path.read_text",
+        "line": 146,
+        "owner": "ProjectRepairRuntime.validate_stage_authority",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "stage.replace",
+        "line": 164,
+        "owner": "ProjectRepairRuntime.validate_stage_authority",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "stage.replace",
+        "line": 249,
+        "owner": "ProjectRepairRuntime.run_orchestrator.submit",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "waiting_path.is_file",
+        "line": 461,
+        "owner": "ProjectRepairRuntime.run_stage.submit",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "waiting_path.read_text",
+        "line": 465,
+        "owner": "ProjectRepairRuntime.run_stage.submit",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "stage.replace",
+        "line": 500,
+        "owner": "ProjectRepairRuntime.run_stage",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "stage.replace",
+        "line": 525,
+        "owner": "ProjectRepairRuntime.run_stage",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "stage.replace",
+        "line": 538,
+        "owner": "ProjectRepairRuntime.run_stage",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 627,
+        "owner": "_load_explicit_json",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "path.resolve",
+        "line": 628,
+        "owner": "_load_explicit_json",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "resolve",
+        "line": 628,
+        "owner": "_load_explicit_json",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "path.read_text",
+        "line": 630,
+        "owner": "_load_explicit_json",
+        "path": "core/project_scoped_repair.py"
+      },
+      {
+        "call": "resolve",
+        "line": 46,
+        "owner": "load_stage3_provider_config",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "unresolved.resolve",
+        "line": 55,
+        "owner": "load_stage3_provider_config",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "resolved.is_file",
+        "line": 62,
+        "owner": "load_stage3_provider_config",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "unresolved.is_file",
+        "line": 63,
+        "owner": "load_stage3_provider_config",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "path.open",
+        "line": 77,
+        "owner": "_sha256",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "resolve",
+        "line": 99,
+        "owner": "StandaloneStage3Workflow._job_root",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "root.parent.resolve",
+        "line": 101,
+        "owner": "StandaloneStage3Workflow._job_root",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 109,
+        "owner": "StandaloneStage3Workflow._regular",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "source_root.is_dir",
+        "line": 126,
+        "owner": "StandaloneStage3Workflow._load_source",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "source_root.parent.resolve",
+        "line": 127,
+        "owner": "StandaloneStage3Workflow._load_source",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "resolve",
+        "line": 128,
+        "owner": "StandaloneStage3Workflow._load_source",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "submission_path.read_bytes",
+        "line": 134,
+        "owner": "StandaloneStage3Workflow._load_source",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 152,
+        "owner": "StandaloneStage3Workflow._load_source.selected",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "path.resolve",
+        "line": 153,
+        "owner": "StandaloneStage3Workflow._load_source.selected",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "resolve",
+        "line": 154,
+        "owner": "StandaloneStage3Workflow._load_source.selected",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "shard_path.is_file",
+        "line": 195,
+        "owner": "StandaloneStage3Workflow._load_source",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "shard_path.resolve",
+        "line": 197,
+        "owner": "StandaloneStage3Workflow._load_source",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "source_root.resolve",
+        "line": 198,
+        "owner": "StandaloneStage3Workflow._load_source",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 264,
+        "owner": "StandaloneStage3Workflow._persist_or_validate_manifest",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 265,
+        "owner": "StandaloneStage3Workflow._persist_or_validate_manifest",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "submission_path.is_file",
+        "line": 267,
+        "owner": "StandaloneStage3Workflow._persist_or_validate_manifest",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "submission_path.read_bytes",
+        "line": 269,
+        "owner": "StandaloneStage3Workflow._persist_or_validate_manifest",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "job_root.exists",
+        "line": 274,
+        "owner": "StandaloneStage3Workflow._persist_or_validate_manifest",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "job_root.rglob",
+        "line": 275,
+        "owner": "StandaloneStage3Workflow._persist_or_validate_manifest",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 291,
+        "owner": "StandaloneStage3Workflow._probe",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "source_probe_path.is_file",
+        "line": 314,
+        "owner": "StandaloneStage3Workflow._probe",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 354,
+        "owner": "StandaloneStage3Workflow._load_result",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "content_path.is_file",
+        "line": 371,
+        "owner": "StandaloneStage3Workflow._load_result",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "content_path.read_text",
+        "line": 372,
+        "owner": "StandaloneStage3Workflow._load_result",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 489,
+        "owner": "StandaloneStage3Workflow.run",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "path.open",
+        "line": 45,
+        "owner": "_sha256",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "self.root.resolve",
+        "line": 67,
+        "owner": "StandaloneStage3ReviewerWorkflow._independent_candidate",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "unresolved.resolve",
+        "line": 76,
+        "owner": "StandaloneStage3ReviewerWorkflow._independent_candidate",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "resolved.is_file",
+        "line": 83,
+        "owner": "StandaloneStage3ReviewerWorkflow._independent_candidate",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "unresolved.is_file",
+        "line": 84,
+        "owner": "StandaloneStage3ReviewerWorkflow._independent_candidate",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 112,
+        "owner": "StandaloneStage3ReviewerWorkflow._regular",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "manifest_path.exists",
+        "line": 160,
+        "owner": "StandaloneStage3ReviewerWorkflow._persist_manifest",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "manifest_path.is_file",
+        "line": 161,
+        "owner": "StandaloneStage3ReviewerWorkflow._persist_manifest",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "submission_path.is_file",
+        "line": 163,
+        "owner": "StandaloneStage3ReviewerWorkflow._persist_manifest",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "submission_path.read_bytes",
+        "line": 164,
+        "owner": "StandaloneStage3ReviewerWorkflow._persist_manifest",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "job_root.rglob",
+        "line": 170,
+        "owner": "StandaloneStage3ReviewerWorkflow._persist_manifest",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "item.is_file",
+        "line": 171,
+        "owner": "StandaloneStage3ReviewerWorkflow._persist_manifest",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "job_root.exists",
+        "line": 172,
+        "owner": "StandaloneStage3ReviewerWorkflow._persist_manifest",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 185,
+        "owner": "StandaloneStage3ReviewerWorkflow._probe_reviewer",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "source_path.is_file",
+        "line": 190,
+        "owner": "StandaloneStage3ReviewerWorkflow._probe_reviewer",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 232,
+        "owner": "StandaloneStage3ReviewerWorkflow._load_result",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "response_path.exists",
+        "line": 354,
+        "owner": "StandaloneStage3ReviewerWorkflow.run",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 402,
+        "owner": "StandaloneStage3ReviewerWorkflow.run",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "replace",
+        "line": 70,
+        "owner": "_utc",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "value.replace",
+        "line": 98,
+        "owner": "_bounded_text",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 494,
+        "owner": "inspect_no_rtl_request",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.read_text",
+        "line": 495,
+        "owner": "inspect_no_rtl_request",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "record_root.exists",
+        "line": 1116,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "record_root.glob",
+        "line": 1117,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "commit_path.exists",
+        "line": 1141,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint_path.is_file",
+        "line": 1157,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "stage.replace",
+        "line": 1176,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 1209,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.resolve",
+        "line": 1210,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "resolve",
+        "line": 1210,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 1239,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.resolve",
+        "line": 1240,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "resolve",
+        "line": 1240,
+        "owner": "build_reviewer_repair_lineage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 1790,
+        "owner": "StagedProjectWorkflow._owner_scope_fingerprint",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 1791,
+        "owner": "StagedProjectWorkflow._owner_scope_fingerprint",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "read_text",
+        "line": 1871,
+        "owner": "StagedProjectWorkflow._spec",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "replace",
+        "line": 2097,
+        "owner": "StagedProjectWorkflow._schema_projection",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "token.replace",
+        "line": 2097,
+        "owner": "StagedProjectWorkflow._schema_projection",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 2289,
+        "owner": "StagedProjectWorkflow._candidate_correction",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "read_bytes",
+        "line": 2352,
+        "owner": "StagedProjectWorkflow._candidate_correction",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "read_bytes",
+        "line": 2509,
+        "owner": "StagedProjectWorkflow._candidate_correction",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 2519,
+        "owner": "StagedProjectWorkflow._existing_usage",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "request_path.exists",
+        "line": 2562,
+        "owner": "StagedProjectWorkflow._invoke",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "request_path.is_file",
+        "line": 2563,
+        "owner": "StagedProjectWorkflow._invoke",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "response_path.exists",
+        "line": 2608,
+        "owner": "StagedProjectWorkflow._invoke",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "response_path.is_file",
+        "line": 2609,
+        "owner": "StagedProjectWorkflow._invoke",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "request_path.is_file",
+        "line": 3079,
+        "owner": "StagedProjectWorkflow._persist_stage3_rejection",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "response_path.is_file",
+        "line": 3080,
+        "owner": "StagedProjectWorkflow._persist_stage3_rejection",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 3176,
+        "owner": "StagedProjectWorkflow._persist_stage3_rejection",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 3306,
+        "owner": "StagedProjectWorkflow._owner_review_form",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 3307,
+        "owner": "StagedProjectWorkflow._owner_review_form",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.parent.mkdir",
+        "line": 3355,
+        "owner": "StagedProjectWorkflow._owner_review_form",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.write_bytes",
+        "line": 3356,
+        "owner": "StagedProjectWorkflow._owner_review_form",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "submission_path.exists",
+        "line": 3515,
+        "owner": "StagedProjectWorkflow._owner_routing_state",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "corrected_path.exists",
+        "line": 3564,
+        "owner": "StagedProjectWorkflow._correct_commented_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "effective_path.exists",
+        "line": 3564,
+        "owner": "StagedProjectWorkflow._correct_commented_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "lineage_path.exists",
+        "line": 3564,
+        "owner": "StagedProjectWorkflow._correct_commented_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "corrected_path.is_file",
+        "line": 3565,
+        "owner": "StagedProjectWorkflow._correct_commented_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "effective_path.is_file",
+        "line": 3565,
+        "owner": "StagedProjectWorkflow._correct_commented_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "lineage_path.is_file",
+        "line": 3566,
+        "owner": "StagedProjectWorkflow._correct_commented_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "response_path.exists",
+        "line": 3627,
+        "owner": "StagedProjectWorkflow._correct_commented_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 3787,
+        "owner": "StagedProjectWorkflow._regeneration_states",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "checkpoint_path.exists",
+        "line": 4182,
+        "owner": "StagedProjectWorkflow._approval_gate",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "completed_path.exists",
+        "line": 4225,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "human_path.exists",
+        "line": 4238,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "content_path.is_file",
+        "line": 4290,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "content_path.read_text",
+        "line": 4291,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "validated_path.exists",
+        "line": 4298,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "stage.replace",
+        "line": 4318,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "scoped_path.exists",
+        "line": 4325,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "waiting_path.exists",
+        "line": 4349,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "fail_closed_path.exists",
+        "line": 4398,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "fail_closed_path.is_file",
+        "line": 4399,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 4457,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "final_request_path.is_file",
+        "line": 4529,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "final_response_path.is_file",
+        "line": 4531,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "content_path.is_file",
+        "line": 4582,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "content_path.read_text",
+        "line": 4583,
+        "owner": "StagedProjectWorkflow._load_terminal",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 4592,
+        "owner": "StagedProjectWorkflow._latest",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 4610,
+        "owner": "StagedProjectWorkflow._load_shards",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.read_text",
+        "line": 4757,
+        "owner": "StagedProjectWorkflow._stage3_compile_log_excerpt",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "line.replace",
+        "line": 4778,
+        "owner": "StagedProjectWorkflow._stage3_compile_log_excerpt",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 4964,
+        "owner": "StagedProjectWorkflow._review_routing_context.load_regular",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 5043,
+        "owner": "StagedProjectWorkflow._persist_review_rejection",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 5203,
+        "owner": "StagedProjectWorkflow._persist_review_rejection",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "legacy_path.is_file",
+        "line": 5282,
+        "owner": "StagedProjectWorkflow._review",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "persisted_request_path.exists",
+        "line": 5288,
+        "owner": "StagedProjectWorkflow._review",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "persisted_request_path.is_file",
+        "line": 5289,
+        "owner": "StagedProjectWorkflow._review",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "persisted_report_path.exists",
+        "line": 5340,
+        "owner": "StagedProjectWorkflow._review",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "persisted_validation_path.exists",
+        "line": 5340,
+        "owner": "StagedProjectWorkflow._review",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "persisted_report_path.is_file",
+        "line": 5342,
+        "owner": "StagedProjectWorkflow._review",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "persisted_validation_path.is_file",
+        "line": 5344,
+        "owner": "StagedProjectWorkflow._review",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "response_path.exists",
+        "line": 5406,
+        "owner": "StagedProjectWorkflow._review",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 5488,
+        "owner": "StagedProjectWorkflow._load_resume_bundle",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "initial_map_path.is_file",
+        "line": 5505,
+        "owner": "StagedProjectWorkflow._load_resume_bundle",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "content_path.is_file",
+        "line": 5570,
+        "owner": "StagedProjectWorkflow._load_resume_bundle",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "content_path.read_text",
+        "line": 5571,
+        "owner": "StagedProjectWorkflow._load_resume_bundle",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "report_path.is_file",
+        "line": 5687,
+        "owner": "StagedProjectWorkflow.start",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "validation_path.is_file",
+        "line": 5687,
+        "owner": "StagedProjectWorkflow.start",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "job_root.glob",
+        "line": 5784,
+        "owner": "StagedProjectWorkflow.submit_repair_plan",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "stage.replace",
+        "line": 5824,
+        "owner": "StagedProjectWorkflow.submit_repair_plan",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "target.is_file",
+        "line": 5880,
+        "owner": "StagedProjectWorkflow.route_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "form_path.is_file",
+        "line": 5892,
+        "owner": "StagedProjectWorkflow.route_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "map_path.is_file",
+        "line": 5892,
+        "owner": "StagedProjectWorkflow.route_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "target.exists",
+        "line": 5897,
+        "owner": "StagedProjectWorkflow.route_scenarios",
+        "path": "core/project_staged.py"
+      },
+      {
+        "call": "job_root.resolve",
+        "line": 187,
+        "owner": "_safe_relative",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "target.resolve",
+        "line": 187,
+        "owner": "_safe_relative",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "key.replace",
+        "line": 210,
+        "owner": "_json_diff",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "replace",
+        "line": 210,
+        "owner": "_json_diff",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "self.job_root.is_dir",
+        "line": 350,
+        "owner": "ProjectReadModel._load_current_snapshot",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 432,
+        "owner": "ProjectReadModel._load_exact_json",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "self.job_root.glob",
+        "line": 541,
+        "owner": "ProjectReadModel._load_repair_history",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "self.job_root.glob",
+        "line": 546,
+        "owner": "ProjectReadModel._load_repair_history",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "self.job_root.glob",
+        "line": 567,
+        "owner": "ProjectReadModel._load_repair_history",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 577,
+        "owner": "ProjectReadModel._load_repair_history",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 626,
+        "owner": "ProjectReadModel._load_plan_receipt_history",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "manifest_path.is_file",
+        "line": 703,
+        "owner": "ProjectReadModel._validate_rejected_plan_transcript",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "event_path.is_file",
+        "line": 727,
+        "owner": "ProjectReadModel._validate_rejected_plan_transcript",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "event_path.read_bytes",
+        "line": 728,
+        "owner": "ProjectReadModel._validate_rejected_plan_transcript",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "self.job_root.glob",
+        "line": 969,
+        "owner": "ProjectReadModel._revision_unit",
+        "path": "core/project_tools.py"
+      },
+      {
+        "call": "replace",
+        "line": 25,
+        "owner": "_utc",
+        "path": "core/session_scheduler.py"
+      },
+      {
+        "call": "directory.mkdir",
+        "line": 49,
+        "owner": "SerialSessionScheduler.__init__",
+        "path": "core/session_scheduler.py"
+      },
+      {
+        "call": "directory.is_dir",
+        "line": 50,
+        "owner": "SerialSessionScheduler.__init__",
+        "path": "core/session_scheduler.py"
+      },
+      {
+        "call": "self.lock_path.open",
+        "line": 58,
+        "owner": "SerialSessionScheduler._lock",
+        "path": "core/session_scheduler.py"
+      },
+      {
+        "call": "self.events_dir.glob",
+        "line": 72,
+        "owner": "SerialSessionScheduler._events",
+        "path": "core/session_scheduler.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 75,
+        "owner": "SerialSessionScheduler._events",
+        "path": "core/session_scheduler.py"
+      },
+      {
+        "call": "path.exists",
+        "line": 236,
+        "owner": "SerialSessionScheduler.request_cancel",
+        "path": "core/session_scheduler.py"
+      },
+      {
+        "call": "self.session_dir.exists",
+        "line": 60,
+        "owner": "TranscriptStore.__init__",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "self.session_dir.mkdir",
+        "line": 63,
+        "owner": "TranscriptStore.__init__",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 79,
+        "owner": "TranscriptStore._entry_value",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "path.read_bytes",
+        "line": 80,
+        "owner": "TranscriptStore._entry_value",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "path.read_text",
+        "line": 85,
+        "owner": "TranscriptStore._entry_value",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "self.session_dir.is_dir",
+        "line": 91,
+        "owner": "TranscriptStore._load",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "manifest_path.exists",
+        "line": 95,
+        "owner": "TranscriptStore._load",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "manifest_path.is_file",
+        "line": 96,
+        "owner": "TranscriptStore._load",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "manifest_path.read_text",
+        "line": 100,
+        "owner": "TranscriptStore._load",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "self.session_dir.glob",
+        "line": 116,
+        "owner": "TranscriptStore._load",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 123,
+        "owner": "TranscriptStore._load",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "path.read_bytes",
+        "line": 129,
+        "owner": "TranscriptStore._load",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "session_dir.exists",
+        "line": 237,
+        "owner": "load_terminal_transcript",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "session_dir.exists",
+        "line": 253,
+        "owner": "load_terminal_transcript_events",
+        "path": "infrastructure/persistence/transcript_store.py"
+      },
+      {
+        "call": "replace",
+        "line": 42,
+        "owner": "validate_schema",
+        "path": "scripts/dvlib.py"
+      },
+      {
+        "call": "token.replace",
+        "line": 42,
+        "owner": "validate_schema",
+        "path": "scripts/dvlib.py"
+      },
+      {
+        "call": "resolve",
+        "line": 13,
+        "owner": "<module>",
+        "path": "scripts/run_project_job.py"
+      },
+      {
+        "call": "resolve",
+        "line": 32,
+        "owner": "<module>",
+        "path": "scripts/run_project_job.py"
+      },
+      {
+        "call": "record_root.glob",
+        "line": 73,
+        "owner": "advance_commit_runtime",
+        "path": "scripts/run_project_job.py"
+      },
+      {
+        "call": "path.is_file",
+        "line": 78,
+        "owner": "advance_commit_runtime",
+        "path": "scripts/run_project_job.py"
+      },
+      {
+        "call": "args.project_input.read_bytes",
+        "line": 129,
+        "owner": "main",
+        "path": "scripts/run_project_job.py"
+      },
+      {
+        "call": "resolve",
+        "line": 13,
+        "owner": "<module>",
+        "path": "scripts/run_project_stage3.py"
+      },
+      {
+        "call": "resolve",
+        "line": 26,
+        "owner": "<module>",
+        "path": "scripts/run_project_stage3.py"
+      },
+      {
+        "call": "args.stage3_input.read_bytes",
+        "line": 37,
+        "owner": "main",
+        "path": "scripts/run_project_stage3.py"
+      },
+      {
+        "call": "resolve",
+        "line": 12,
+        "owner": "<module>",
+        "path": "scripts/run_project_stage3_reviewer.py"
+      },
+      {
+        "call": "resolve",
+        "line": 15,
+        "owner": "<module>",
+        "path": "scripts/run_project_stage3_reviewer.py"
+      },
+      {
+        "call": "args.reviewer_input.read_bytes",
+        "line": 30,
+        "owner": "main",
+        "path": "scripts/run_project_stage3_reviewer.py"
+      },
+      {
+        "call": "path.open",
+        "line": 26,
+        "owner": "_sha256",
+        "path": "scripts/validate_project_job.py"
+      },
+      {
+        "call": "args.job_root.resolve",
+        "line": 37,
+        "owner": "main",
+        "path": "scripts/validate_project_job.py"
+      },
+      {
+        "call": "glob",
+        "line": 44,
+        "owner": "main",
+        "path": "scripts/validate_project_job.py"
+      },
+      {
+        "call": "approved.is_file",
+        "line": 85,
+        "owner": "main",
+        "path": "scripts/validate_project_job.py"
+      },
+      {
+        "call": "resolve",
+        "line": 7,
+        "owner": "<module>",
+        "path": "scripts/validate_project_job_workflow.py"
+      }
+    ],
+    "provider": [
+      {
+        "call": "self.provider_factory",
+        "line": 953,
+        "owner": "ProjectCommitRuntime._provider",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "self.provider_factory",
+        "line": 1131,
+        "owner": "ProjectCommitRuntime._run_stage_provider",
+        "path": "core/project_commit_runtime.py"
+      },
+      {
+        "call": "provider.probe",
+        "line": 1118,
+        "owner": "ProjectJobWorkflow._probe_provider",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "provider.select_tools",
+        "line": 1241,
+        "owner": "ProjectJobWorkflow._complete",
+        "path": "core/project_job.py"
+      },
+      {
+        "call": "self.provider_factory",
+        "line": 144,
+        "owner": "ProjectJobRuntimeIntegration._provider",
+        "path": "core/project_job_runtime.py"
+      },
+      {
+        "call": "stage_provider_factory",
+        "line": 607,
+        "owner": "ProjectRepairRuntime.run",
+        "path": "core/project_repair_runtime.py"
+      },
+      {
+        "call": "provider.probe",
+        "line": 334,
+        "owner": "StandaloneStage3Workflow._probe",
+        "path": "core/project_stage3.py"
+      },
+      {
+        "call": "provider.probe",
+        "line": 194,
+        "owner": "StandaloneStage3ReviewerWorkflow._probe_reviewer",
+        "path": "core/project_stage3_reviewer.py"
+      },
+      {
+        "call": "self.provider.select_tools",
+        "line": 201,
+        "owner": "AgentLoop.run",
+        "path": "runtime/agent_loop.py"
+      }
+    ]
+  },
+  "circular_import_components": [
+    [
+      "core.project_commit_runtime",
+      "core.project_job",
+      "core.project_reviewer",
+      "core.project_staged"
+    ]
+  ],
+  "fixture_isolation": {
+    "forbidden_absolute_result_references": [],
+    "production_job_literals": [],
+    "temporary_directory_constructors": [
+      {
+        "line": 17,
+        "path": "tests/agent_runtime/test_oches002_scheduler.py"
+      },
+      {
+        "line": 83,
+        "path": "tests/agent_runtime/test_oches002_tool_session.py"
+      },
+      {
+        "line": 22,
+        "path": "tests/agent_runtime/test_oches003_records.py"
+      },
+      {
+        "line": 555,
+        "path": "tests/agent_runtime/test_project_job_workflow.py"
+      },
+      {
+        "line": 51,
+        "path": "tests/agent_runtime/test_project_stage3.py"
+      },
+      {
+        "line": 30,
+        "path": "tests/agent_runtime/test_recovery_and_atomic.py"
+      }
+    ],
+    "tests_owned_non_python_files": []
+  },
+  "hotspot_definitions": {
+    "core/project_commit_runtime.py": [
+      {
+        "end_line": 52,
+        "kind": "function",
+        "line": 51,
+        "line_count": 2,
+        "name": "_sha_text"
+      },
+      {
+        "end_line": 70,
+        "kind": "function",
+        "line": 55,
+        "line_count": 16,
+        "name": "_regular"
+      },
+      {
+        "end_line": 81,
+        "kind": "function",
+        "line": 73,
+        "line_count": 9,
+        "name": "_persist_json"
+      },
+      {
+        "end_line": 89,
+        "kind": "function",
+        "line": 84,
+        "line_count": 6,
+        "name": "_persist_text"
+      },
+      {
+        "end_line": 103,
+        "kind": "function",
+        "line": 92,
+        "line_count": 12,
+        "name": "_provider_identity"
+      },
+      {
+        "end_line": 108,
+        "kind": "function",
+        "line": 106,
+        "line_count": 3,
+        "name": "_current_index_path"
+      },
+      {
+        "end_line": 118,
+        "kind": "function",
+        "line": 111,
+        "line_count": 8,
+        "name": "_next_unoccupied_revision"
+      },
+      {
+        "end_line": 134,
+        "kind": "function",
+        "line": 121,
+        "line_count": 14,
+        "name": "_artifact_paths"
+      },
+      {
+        "end_line": 144,
+        "kind": "function",
+        "line": 137,
+        "line_count": 8,
+        "name": "_artifact_roots"
+      },
+      {
+        "end_line": 169,
+        "kind": "function",
+        "line": 147,
+        "line_count": 23,
+        "name": "_rebuild_stage1"
+      },
+      {
+        "end_line": 228,
+        "kind": "function",
+        "line": 172,
+        "line_count": 57,
+        "name": "_rebuild_stage2"
+      },
+      {
+        "end_line": 246,
+        "kind": "function",
+        "line": 231,
+        "line_count": 16,
+        "name": "_validate_committed_candidate"
+      },
+      {
+        "end_line": 316,
+        "kind": "function",
+        "line": 249,
+        "line_count": 68,
+        "name": "_rebuild_stage3"
+      },
+      {
+        "end_line": 338,
+        "kind": "function",
+        "line": 319,
+        "line_count": 20,
+        "name": "validate_compile_validation"
+      },
+      {
+        "end_line": 444,
+        "kind": "function",
+        "line": 341,
+        "line_count": 104,
+        "name": "validate_commit_manifest"
+      },
+      {
+        "end_line": 1899,
+        "kind": "class",
+        "line": 447,
+        "line_count": 1453,
+        "name": "ProjectCommitRuntime"
+      },
+      {
+        "end_line": 1904,
+        "kind": "function",
+        "line": 1902,
+        "line_count": 3,
+        "name": "checkpoint_map1_revision"
+      },
+      {
+        "end_line": 1909,
+        "kind": "function",
+        "line": 1907,
+        "line_count": 3,
+        "name": "checkpoint_map2_revision"
+      },
+      {
+        "end_line": 1915,
+        "kind": "function",
+        "line": 1912,
+        "line_count": 4,
+        "name": "checkpoint_candidate_revision"
+      }
+    ],
+    "core/project_job.py": [
+      {
+        "end_line": 78,
+        "kind": "class",
+        "line": 73,
+        "line_count": 6,
+        "name": "ProjectJobError"
+      },
+      {
+        "end_line": 82,
+        "kind": "function",
+        "line": 81,
+        "line_count": 2,
+        "name": "_utc"
+      },
+      {
+        "end_line": 90,
+        "kind": "function",
+        "line": 85,
+        "line_count": 6,
+        "name": "_sha256"
+      },
+      {
+        "end_line": 94,
+        "kind": "function",
+        "line": 93,
+        "line_count": 2,
+        "name": "_bytes_sha256"
+      },
+      {
+        "end_line": 100,
+        "kind": "function",
+        "line": 97,
+        "line_count": 4,
+        "name": "_without"
+      },
+      {
+        "end_line": 104,
+        "kind": "function",
+        "line": 103,
+        "line_count": 2,
+        "name": "project_input_fingerprint"
+      },
+      {
+        "end_line": 120,
+        "kind": "function",
+        "line": 107,
+        "line_count": 14,
+        "name": "project_authority_fingerprint"
+      },
+      {
+        "end_line": 124,
+        "kind": "function",
+        "line": 123,
+        "line_count": 2,
+        "name": "project_candidate_fingerprint"
+      },
+      {
+        "end_line": 128,
+        "kind": "function",
+        "line": 127,
+        "line_count": 2,
+        "name": "project_report_fingerprint"
+      },
+      {
+        "end_line": 135,
+        "kind": "function",
+        "line": 131,
+        "line_count": 5,
+        "name": "_immutable_text"
+      },
+      {
+        "end_line": 142,
+        "kind": "function",
+        "line": 138,
+        "line_count": 5,
+        "name": "_immutable_bytes"
+      },
+      {
+        "end_line": 147,
+        "kind": "function",
+        "line": 145,
+        "line_count": 3,
+        "name": "_immutable_json"
+      },
+      {
+        "end_line": 158,
+        "kind": "function",
+        "line": 150,
+        "line_count": 9,
+        "name": "_persist_provider_probe"
+      },
+      {
+        "end_line": 196,
+        "kind": "function",
+        "line": 161,
+        "line_count": 36,
+        "name": "_persist_rejected_candidate"
+      },
+      {
+        "end_line": 208,
+        "kind": "function",
+        "line": 199,
+        "line_count": 10,
+        "name": "_persist_nonapproval_decision"
+      },
+      {
+        "end_line": 224,
+        "kind": "function",
+        "line": 211,
+        "line_count": 14,
+        "name": "_validate_relative_path"
+      },
+      {
+        "end_line": 248,
+        "kind": "function",
+        "line": 227,
+        "line_count": 22,
+        "name": "_resolved_workspace_file"
+      },
+      {
+        "end_line": 339,
+        "kind": "function",
+        "line": 251,
+        "line_count": 89,
+        "name": "validate_project_submission"
+      },
+      {
+        "end_line": 515,
+        "kind": "function",
+        "line": 342,
+        "line_count": 174,
+        "name": "validate_project_input"
+      },
+      {
+        "end_line": 525,
+        "kind": "function",
+        "line": 518,
+        "line_count": 8,
+        "name": "_extract_systemverilog"
+      },
+      {
+        "end_line": 575,
+        "kind": "function",
+        "line": 533,
+        "line_count": 43,
+        "name": "_midblock_declaration_evidence"
+      },
+      {
+        "end_line": 580,
+        "kind": "function",
+        "line": 578,
+        "line_count": 3,
+        "name": "_has_midblock_declaration"
+      },
+      {
+        "end_line": 589,
+        "kind": "function",
+        "line": 583,
+        "line_count": 7,
+        "name": "_has_response_consuming_backpressure_helper"
+      },
+      {
+        "end_line": 605,
+        "kind": "function",
+        "line": 592,
+        "line_count": 14,
+        "name": "_pre_edge_axi_poll_evidence"
+      },
+      {
+        "end_line": 610,
+        "kind": "function",
+        "line": 608,
+        "line_count": 3,
+        "name": "_raw_wait_evidence"
+      },
+      {
+        "end_line": 629,
+        "kind": "function",
+        "line": 613,
+        "line_count": 17,
+        "name": "_pattern_line_evidence"
+      },
+      {
+        "end_line": 650,
+        "kind": "function",
+        "line": 632,
+        "line_count": 19,
+        "name": "_backpressure_helper_evidence"
+      },
+      {
+        "end_line": 679,
+        "kind": "function",
+        "line": 653,
+        "line_count": 27,
+        "name": "_deterministic_repair_evidence"
+      },
+      {
+        "end_line": 734,
+        "kind": "function",
+        "line": 682,
+        "line_count": 53,
+        "name": "_validate_testbench"
+      },
+      {
+        "end_line": 2307,
+        "kind": "class",
+        "line": 737,
+        "line_count": 1571,
+        "name": "ProjectJobWorkflow"
+      }
+    ],
+    "core/project_staged.py": [
+      {
+        "end_line": 70,
+        "kind": "function",
+        "line": 69,
+        "line_count": 2,
+        "name": "_utc"
+      },
+      {
+        "end_line": 76,
+        "kind": "function",
+        "line": 73,
+        "line_count": 4,
+        "name": "_without"
+      },
+      {
+        "end_line": 80,
+        "kind": "function",
+        "line": 79,
+        "line_count": 2,
+        "name": "artifact_fingerprint"
+      },
+      {
+        "end_line": 88,
+        "kind": "function",
+        "line": 83,
+        "line_count": 6,
+        "name": "_checkpoint_fingerprint"
+      },
+      {
+        "end_line": 92,
+        "kind": "function",
+        "line": 91,
+        "line_count": 2,
+        "name": "_sha"
+      },
+      {
+        "end_line": 102,
+        "kind": "function",
+        "line": 95,
+        "line_count": 8,
+        "name": "_bounded_text"
+      },
+      {
+        "end_line": 110,
+        "kind": "function",
+        "line": 105,
+        "line_count": 6,
+        "name": "_failure_with_context"
+      },
+      {
+        "end_line": 134,
+        "kind": "function",
+        "line": 113,
+        "line_count": 22,
+        "name": "_stage3_diagnostic"
+      },
+      {
+        "end_line": 172,
+        "kind": "function",
+        "line": 137,
+        "line_count": 36,
+        "name": "_raise_stage3_diagnostics"
+      },
+      {
+        "end_line": 196,
+        "kind": "function",
+        "line": 175,
+        "line_count": 22,
+        "name": "_review_diagnostic"
+      },
+      {
+        "end_line": 235,
+        "kind": "function",
+        "line": 199,
+        "line_count": 37,
+        "name": "_raise_review_diagnostics"
+      },
+      {
+        "end_line": 239,
+        "kind": "function",
+        "line": 238,
+        "line_count": 2,
+        "name": "_canonical_strings"
+      },
+      {
+        "end_line": 250,
+        "kind": "function",
+        "line": 242,
+        "line_count": 9,
+        "name": "_validate_semantic_completeness"
+      },
+      {
+        "end_line": 263,
+        "kind": "function",
+        "line": 253,
+        "line_count": 11,
+        "name": "_provider_identity"
+      },
+      {
+        "end_line": 280,
+        "kind": "function",
+        "line": 266,
+        "line_count": 15,
+        "name": "_generation_tools"
+      },
+      {
+        "end_line": 328,
+        "kind": "function",
+        "line": 283,
+        "line_count": 46,
+        "name": "_raw_generation"
+      },
+      {
+        "end_line": 379,
+        "kind": "function",
+        "line": 331,
+        "line_count": 49,
+        "name": "_enrich_evidence"
+      },
+      {
+        "end_line": 396,
+        "kind": "function",
+        "line": 382,
+        "line_count": 15,
+        "name": "_enrich_review_evidence"
+      },
+      {
+        "end_line": 418,
+        "kind": "function",
+        "line": 399,
+        "line_count": 20,
+        "name": "_validate_enriched_evidence"
+      },
+      {
+        "end_line": 435,
+        "kind": "function",
+        "line": 421,
+        "line_count": 15,
+        "name": "_validate_code_exact"
+      },
+      {
+        "end_line": 458,
+        "kind": "function",
+        "line": 438,
+        "line_count": 21,
+        "name": "_validate_code_evidence"
+      },
+      {
+        "end_line": 507,
+        "kind": "function",
+        "line": 464,
+        "line_count": 44,
+        "name": "inspect_no_rtl_request"
+      },
+      {
+        "end_line": 561,
+        "kind": "function",
+        "line": 510,
+        "line_count": 52,
+        "name": "validate_scenario_ac_map"
+      },
+      {
+        "end_line": 659,
+        "kind": "function",
+        "line": 564,
+        "line_count": 96,
+        "name": "validate_ac_testcase_map"
+      },
+      {
+        "end_line": 707,
+        "kind": "function",
+        "line": 662,
+        "line_count": 46,
+        "name": "_sv_code_tokens"
+      },
+      {
+        "end_line": 835,
+        "kind": "function",
+        "line": 710,
+        "line_count": 126,
+        "name": "validate_testcase_candidate"
+      },
+      {
+        "end_line": 934,
+        "kind": "function",
+        "line": 838,
+        "line_count": 97,
+        "name": "_validate_review_scope"
+      },
+      {
+        "end_line": 1030,
+        "kind": "function",
+        "line": 937,
+        "line_count": 94,
+        "name": "build_review_request"
+      },
+      {
+        "end_line": 1102,
+        "kind": "function",
+        "line": 1033,
+        "line_count": 70,
+        "name": "provider_review_request"
+      },
+      {
+        "end_line": 1276,
+        "kind": "function",
+        "line": 1105,
+        "line_count": 172,
+        "name": "build_reviewer_repair_lineage"
+      },
+      {
+        "end_line": 1316,
+        "kind": "function",
+        "line": 1279,
+        "line_count": 38,
+        "name": "_raw_review"
+      },
+      {
+        "end_line": 1416,
+        "kind": "function",
+        "line": 1319,
+        "line_count": 98,
+        "name": "_enrich_code_evidence"
+      },
+      {
+        "end_line": 1548,
+        "kind": "function",
+        "line": 1419,
+        "line_count": 130,
+        "name": "build_review_report"
+      },
+      {
+        "end_line": 1748,
+        "kind": "function",
+        "line": 1551,
+        "line_count": 198,
+        "name": "validate_review_report"
+      },
+      {
+        "end_line": 6024,
+        "kind": "class",
+        "line": 1751,
+        "line_count": 4274,
+        "name": "StagedProjectWorkflow"
+      }
+    ]
+  },
+  "import_edges": [
+    {
+      "line": 9,
+      "source": "adapters.eda.boundary",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 10,
+      "source": "adapters.eda.boundary",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 15,
+      "source": "adapters.eda.probe",
+      "target": "adapters.eda.boundary"
+    },
+    {
+      "line": 21,
+      "source": "adapters.eda.probe",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 12,
+      "source": "adapters.eda.project",
+      "target": "adapters.eda.boundary"
+    },
+    {
+      "line": 18,
+      "source": "adapters.eda.project",
+      "target": "adapters.eda.probe"
+    },
+    {
+      "line": 19,
+      "source": "adapters.eda.project",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 24,
+      "source": "adapters.eda.project",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 11,
+      "source": "adapters.llm.openai_compatible_provider",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 7,
+      "source": "adapters.llm.provider",
+      "target": "contracts.security"
+    },
+    {
+      "line": 8,
+      "source": "adapters.llm.provider",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 7,
+      "source": "adapters.llm.provider_config",
+      "target": "contracts.security"
+    },
+    {
+      "line": 8,
+      "source": "adapters.llm.provider_config",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 11,
+      "source": "contracts.validator",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 11,
+      "source": "core.project_agent_profile",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 12,
+      "source": "core.project_agent_profile",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 11,
+      "source": "core.project_commit_runtime",
+      "target": "adapters.eda"
+    },
+    {
+      "line": 12,
+      "source": "core.project_commit_runtime",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 13,
+      "source": "core.project_commit_runtime",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 14,
+      "source": "core.project_commit_runtime",
+      "target": "core.project_agent_profile"
+    },
+    {
+      "line": 15,
+      "source": "core.project_commit_runtime",
+      "target": "core.project_incremental"
+    },
+    {
+      "line": 18,
+      "source": "core.project_commit_runtime",
+      "target": "core.project_job"
+    },
+    {
+      "line": 22,
+      "source": "core.project_commit_runtime",
+      "target": "core.project_scoped_repair"
+    },
+    {
+      "line": 25,
+      "source": "core.project_commit_runtime",
+      "target": "core.project_repair"
+    },
+    {
+      "line": 26,
+      "source": "core.project_commit_runtime",
+      "target": "core.project_repair_runtime"
+    },
+    {
+      "line": 27,
+      "source": "core.project_commit_runtime",
+      "target": "core.project_staged"
+    },
+    {
+      "line": 31,
+      "source": "core.project_commit_runtime",
+      "target": "core.project_tools"
+    },
+    {
+      "line": 32,
+      "source": "core.project_commit_runtime",
+      "target": "infrastructure.persistence.transcript_store"
+    },
+    {
+      "line": 35,
+      "source": "core.project_commit_runtime",
+      "target": "runtime.agent_loop"
+    },
+    {
+      "line": 36,
+      "source": "core.project_commit_runtime",
+      "target": "core.project_oches003"
+    },
+    {
+      "line": 39,
+      "source": "core.project_commit_runtime",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 17,
+      "source": "core.project_incremental",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 18,
+      "source": "core.project_incremental",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 19,
+      "source": "core.project_incremental",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 17,
+      "source": "core.project_job",
+      "target": "adapters.eda"
+    },
+    {
+      "line": 18,
+      "source": "core.project_job",
+      "target": "adapters.eda.boundary"
+    },
+    {
+      "line": 19,
+      "source": "core.project_job",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 20,
+      "source": "core.project_job",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 23,
+      "source": "core.project_job",
+      "target": "core.project_agent_profile"
+    },
+    {
+      "line": 28,
+      "source": "core.project_job",
+      "target": "core.project_reviewer"
+    },
+    {
+      "line": 38,
+      "source": "core.project_job",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 1817,
+      "source": "core.project_job",
+      "target": "core.project_staged"
+    },
+    {
+      "line": 1852,
+      "source": "core.project_job",
+      "target": "core.project_staged"
+    },
+    {
+      "line": 1861,
+      "source": "core.project_job",
+      "target": "core.project_staged"
+    },
+    {
+      "line": 1914,
+      "source": "core.project_job",
+      "target": "core.project_staged"
+    },
+    {
+      "line": 2017,
+      "source": "core.project_job",
+      "target": "core.project_staged"
+    },
+    {
+      "line": 10,
+      "source": "core.project_job_runtime",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 11,
+      "source": "core.project_job_runtime",
+      "target": "core.project_agent_profile"
+    },
+    {
+      "line": 12,
+      "source": "core.project_job_runtime",
+      "target": "core.project_job"
+    },
+    {
+      "line": 18,
+      "source": "core.project_job_runtime",
+      "target": "core.project_repair_runtime"
+    },
+    {
+      "line": 19,
+      "source": "core.project_job_runtime",
+      "target": "core.recovery"
+    },
+    {
+      "line": 20,
+      "source": "core.project_job_runtime",
+      "target": "core.project_scoped_repair"
+    },
+    {
+      "line": 21,
+      "source": "core.project_job_runtime",
+      "target": "core.project_staged"
+    },
+    {
+      "line": 22,
+      "source": "core.project_job_runtime",
+      "target": "core.project_tools"
+    },
+    {
+      "line": 23,
+      "source": "core.project_job_runtime",
+      "target": "core.session_scheduler"
+    },
+    {
+      "line": 24,
+      "source": "core.project_job_runtime",
+      "target": "infrastructure.persistence.transcript_store"
+    },
+    {
+      "line": 25,
+      "source": "core.project_job_runtime",
+      "target": "runtime.agent_loop"
+    },
+    {
+      "line": 26,
+      "source": "core.project_job_runtime",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 15,
+      "source": "core.project_oches003",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 16,
+      "source": "core.project_oches003",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 17,
+      "source": "core.project_oches003",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 14,
+      "source": "core.project_repair",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 15,
+      "source": "core.project_repair",
+      "target": "core.project_scoped_repair"
+    },
+    {
+      "line": 18,
+      "source": "core.project_repair",
+      "target": "core.project_tools"
+    },
+    {
+      "line": 19,
+      "source": "core.project_repair",
+      "target": "core.project_oches003"
+    },
+    {
+      "line": 20,
+      "source": "core.project_repair",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 9,
+      "source": "core.project_repair_runtime",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 10,
+      "source": "core.project_repair_runtime",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 11,
+      "source": "core.project_repair_runtime",
+      "target": "core.project_agent_profile"
+    },
+    {
+      "line": 12,
+      "source": "core.project_repair_runtime",
+      "target": "core.project_repair"
+    },
+    {
+      "line": 15,
+      "source": "core.project_repair_runtime",
+      "target": "core.project_scoped_repair"
+    },
+    {
+      "line": 21,
+      "source": "core.project_repair_runtime",
+      "target": "core.project_tools"
+    },
+    {
+      "line": 25,
+      "source": "core.project_repair_runtime",
+      "target": "core.project_oches003"
+    },
+    {
+      "line": 28,
+      "source": "core.project_repair_runtime",
+      "target": "infrastructure.persistence.transcript_store"
+    },
+    {
+      "line": 29,
+      "source": "core.project_repair_runtime",
+      "target": "runtime.agent_loop"
+    },
+    {
+      "line": 30,
+      "source": "core.project_repair_runtime",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 12,
+      "source": "core.project_reviewer",
+      "target": "core.project_staged"
+    },
+    {
+      "line": 20,
+      "source": "core.project_reviewer",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 9,
+      "source": "core.project_scoped_repair",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 10,
+      "source": "core.project_scoped_repair",
+      "target": "core.project_tools"
+    },
+    {
+      "line": 11,
+      "source": "core.project_scoped_repair",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 357,
+      "source": "core.project_scoped_repair",
+      "target": "core.project_oches003"
+    },
+    {
+      "line": 684,
+      "source": "core.project_scoped_repair",
+      "target": "infrastructure.persistence.transcript_store"
+    },
+    {
+      "line": 12,
+      "source": "core.project_stage3",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 13,
+      "source": "core.project_stage3",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 14,
+      "source": "core.project_stage3",
+      "target": "core.project_job"
+    },
+    {
+      "line": 15,
+      "source": "core.project_stage3",
+      "target": "core.project_staged"
+    },
+    {
+      "line": 20,
+      "source": "core.project_stage3",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 13,
+      "source": "core.project_stage3_reviewer",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 14,
+      "source": "core.project_stage3_reviewer",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 15,
+      "source": "core.project_stage3_reviewer",
+      "target": "core.project_job"
+    },
+    {
+      "line": 16,
+      "source": "core.project_stage3_reviewer",
+      "target": "core.project_stage3"
+    },
+    {
+      "line": 20,
+      "source": "core.project_stage3_reviewer",
+      "target": "core.project_staged"
+    },
+    {
+      "line": 25,
+      "source": "core.project_stage3_reviewer",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 13,
+      "source": "core.project_staged",
+      "target": "adapters.eda"
+    },
+    {
+      "line": 14,
+      "source": "core.project_staged",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 15,
+      "source": "core.project_staged",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 16,
+      "source": "core.project_staged",
+      "target": "core.project_agent_profile"
+    },
+    {
+      "line": 21,
+      "source": "core.project_staged",
+      "target": "core.project_incremental"
+    },
+    {
+      "line": 26,
+      "source": "core.project_staged",
+      "target": "infrastructure.persistence.transcript_store"
+    },
+    {
+      "line": 29,
+      "source": "core.project_staged",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 1109,
+      "source": "core.project_staged",
+      "target": "core.project_scoped_repair"
+    },
+    {
+      "line": 1112,
+      "source": "core.project_staged",
+      "target": "core.project_tools"
+    },
+    {
+      "line": 1113,
+      "source": "core.project_staged",
+      "target": "core.project_oches003"
+    },
+    {
+      "line": 1142,
+      "source": "core.project_staged",
+      "target": "core.project_commit_runtime"
+    },
+    {
+      "line": 1755,
+      "source": "core.project_staged",
+      "target": "core.project_job"
+    },
+    {
+      "line": 1860,
+      "source": "core.project_staged",
+      "target": "core.project_job"
+    },
+    {
+      "line": 4303,
+      "source": "core.project_staged",
+      "target": "core.project_scoped_repair"
+    },
+    {
+      "line": 4306,
+      "source": "core.project_staged",
+      "target": "core.project_tools"
+    },
+    {
+      "line": 5755,
+      "source": "core.project_staged",
+      "target": "core.project_repair"
+    },
+    {
+      "line": 5759,
+      "source": "core.project_staged",
+      "target": "core.project_tools"
+    },
+    {
+      "line": 11,
+      "source": "core.project_tools",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 12,
+      "source": "core.project_tools",
+      "target": "core.project_incremental"
+    },
+    {
+      "line": 13,
+      "source": "core.project_tools",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 14,
+      "source": "core.project_tools",
+      "target": "core.project_oches003"
+    },
+    {
+      "line": 12,
+      "source": "core.session_scheduler",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 13,
+      "source": "core.session_scheduler",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 14,
+      "source": "core.session_scheduler",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 3,
+      "source": "infrastructure.persistence",
+      "target": "infrastructure.persistence.transcript_store"
+    },
+    {
+      "line": 11,
+      "source": "infrastructure.persistence.transcript_store",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 12,
+      "source": "infrastructure.persistence.transcript_store",
+      "target": "core.atomic_artifact"
+    },
+    {
+      "line": 13,
+      "source": "infrastructure.persistence.transcript_store",
+      "target": "runtime.agent_loop"
+    },
+    {
+      "line": 14,
+      "source": "infrastructure.persistence.transcript_store",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 3,
+      "source": "runtime",
+      "target": "runtime.agent_loop"
+    },
+    {
+      "line": 9,
+      "source": "runtime.agent_loop",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 10,
+      "source": "runtime.agent_loop",
+      "target": "core.project_oches003"
+    },
+    {
+      "line": 11,
+      "source": "runtime.agent_loop",
+      "target": "scripts.dvlib"
+    },
+    {
+      "line": 17,
+      "source": "scripts.run_project_job",
+      "target": "adapters.llm"
+    },
+    {
+      "line": 18,
+      "source": "scripts.run_project_job",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 19,
+      "source": "scripts.run_project_job",
+      "target": "core.project_job"
+    },
+    {
+      "line": 24,
+      "source": "scripts.run_project_job",
+      "target": "core.project_agent_profile"
+    },
+    {
+      "line": 25,
+      "source": "scripts.run_project_job",
+      "target": "core.project_job_runtime"
+    },
+    {
+      "line": 28,
+      "source": "scripts.run_project_job",
+      "target": "core.project_commit_runtime"
+    },
+    {
+      "line": 29,
+      "source": "scripts.run_project_job",
+      "target": "core.recovery"
+    },
+    {
+      "line": 17,
+      "source": "scripts.run_project_stage3",
+      "target": "adapters.llm"
+    },
+    {
+      "line": 18,
+      "source": "scripts.run_project_stage3",
+      "target": "core.project_job"
+    },
+    {
+      "line": 19,
+      "source": "scripts.run_project_stage3",
+      "target": "core.recovery"
+    },
+    {
+      "line": 20,
+      "source": "scripts.run_project_stage3",
+      "target": "core.project_stage3"
+    },
+    {
+      "line": 17,
+      "source": "scripts.run_project_stage3_reviewer",
+      "target": "adapters.llm"
+    },
+    {
+      "line": 18,
+      "source": "scripts.run_project_stage3_reviewer",
+      "target": "core.project_job"
+    },
+    {
+      "line": 19,
+      "source": "scripts.run_project_stage3_reviewer",
+      "target": "core.recovery"
+    },
+    {
+      "line": 20,
+      "source": "scripts.run_project_stage3_reviewer",
+      "target": "core.project_stage3"
+    },
+    {
+      "line": 21,
+      "source": "scripts.run_project_stage3_reviewer",
+      "target": "core.project_stage3_reviewer"
+    },
+    {
+      "line": 11,
+      "source": "scripts.validate_project_job",
+      "target": "contracts.validator"
+    },
+    {
+      "line": 12,
+      "source": "scripts.validate_project_job",
+      "target": "core.project_job"
+    },
+    {
+      "line": 18,
+      "source": "scripts.validate_project_job",
+      "target": "core.project_reviewer"
+    }
+  ],
+  "module_count": 41,
+  "modules": [
+    {
+      "line_count": 1,
+      "module": "adapters",
+      "path": "adapters/__init__.py",
+      "public_classes": [],
+      "public_functions": []
+    },
+    {
+      "line_count": 4,
+      "module": "adapters.eda",
+      "path": "adapters/eda/__init__.py",
+      "public_classes": [],
+      "public_functions": []
+    },
+    {
+      "line_count": 128,
+      "module": "adapters.eda.boundary",
+      "path": "adapters/eda/boundary.py",
+      "public_classes": [
+        "TrustedEdaBoundaryError",
+        "TrustedExecutableRegistry"
+      ],
+      "public_functions": [
+        "approved_environment"
+      ]
+    },
+    {
+      "line_count": 433,
+      "module": "adapters.eda.probe",
+      "path": "adapters/eda/probe.py",
+      "public_classes": [
+        "TrustedEdaProbeExecutor"
+      ],
+      "public_functions": []
+    },
+    {
+      "line_count": 249,
+      "module": "adapters.eda.project",
+      "path": "adapters/eda/project.py",
+      "public_classes": [
+        "ProjectVerilatorRunner"
+      ],
+      "public_functions": []
+    },
+    {
+      "line_count": 8,
+      "module": "adapters.llm",
+      "path": "adapters/llm/__init__.py",
+      "public_classes": [],
+      "public_functions": []
+    },
+    {
+      "line_count": 718,
+      "module": "adapters.llm.openai_compatible_provider",
+      "path": "adapters/llm/openai_compatible_provider.py",
+      "public_classes": [
+        "OpenAICompatibleProvider"
+      ],
+      "public_functions": []
+    },
+    {
+      "line_count": 120,
+      "module": "adapters.llm.provider",
+      "path": "adapters/llm/provider.py",
+      "public_classes": [
+        "LLMProvider",
+        "ProviderContractError"
+      ],
+      "public_functions": []
+    },
+    {
+      "line_count": 27,
+      "module": "adapters.llm.provider_config",
+      "path": "adapters/llm/provider_config.py",
+      "public_classes": [
+        "ProviderConfigError"
+      ],
+      "public_functions": [
+        "validated_provider_config"
+      ]
+    },
+    {
+      "line_count": 1,
+      "module": "contracts",
+      "path": "contracts/__init__.py",
+      "public_classes": [],
+      "public_functions": []
+    },
+    {
+      "line_count": 28,
+      "module": "contracts.security",
+      "path": "contracts/security.py",
+      "public_classes": [
+        "SensitiveDataError"
+      ],
+      "public_functions": [
+        "assert_no_sensitive_fields"
+      ]
+    },
+    {
+      "line_count": 528,
+      "module": "contracts.validator",
+      "path": "contracts/validator.py",
+      "public_classes": [],
+      "public_functions": [
+        "accepted",
+        "diagnostic",
+        "eda_probe_evidence_fingerprint",
+        "eda_probe_request_fingerprint",
+        "load_document",
+        "load_schema",
+        "validate"
+      ]
+    },
+    {
+      "line_count": 1,
+      "module": "core",
+      "path": "core/__init__.py",
+      "public_classes": [],
+      "public_functions": []
+    },
+    {
+      "line_count": 99,
+      "module": "core.atomic_artifact",
+      "path": "core/atomic_artifact.py",
+      "public_classes": [],
+      "public_functions": [
+        "is_pending_artifact",
+        "publish_immutable_bytes",
+        "publish_immutable_text",
+        "publish_replaceable_bytes"
+      ]
+    },
+    {
+      "line_count": 194,
+      "module": "core.project_agent_profile",
+      "path": "core/project_agent_profile.py",
+      "public_classes": [],
+      "public_functions": [
+        "binding",
+        "binding_lineage",
+        "load_project_agent_profile"
+      ]
+    },
+    {
+      "line_count": 1922,
+      "module": "core.project_commit_runtime",
+      "path": "core/project_commit_runtime.py",
+      "public_classes": [
+        "ProjectCommitRuntime"
+      ],
+      "public_functions": [
+        "checkpoint_candidate_revision",
+        "checkpoint_map1_revision",
+        "checkpoint_map2_revision",
+        "validate_commit_manifest",
+        "validate_compile_validation"
+      ]
+    },
+    {
+      "line_count": 1220,
+      "module": "core.project_incremental",
+      "path": "core/project_incremental.py",
+      "public_classes": [
+        "IncrementalArtifactStore"
+      ],
+      "public_functions": [
+        "build_review_bundle",
+        "build_stage1_bundle",
+        "build_stage2_bundle",
+        "build_stage3_bundle",
+        "evaluate_impact",
+        "load_index",
+        "persist_impact",
+        "unrouted_owner_scope",
+        "validate_assembly",
+        "validate_index",
+        "validate_unit"
+      ]
+    },
+    {
+      "line_count": 2319,
+      "module": "core.project_job",
+      "path": "core/project_job.py",
+      "public_classes": [
+        "ProjectJobError",
+        "ProjectJobWorkflow"
+      ],
+      "public_functions": [
+        "project_authority_fingerprint",
+        "project_candidate_fingerprint",
+        "project_input_fingerprint",
+        "project_report_fingerprint",
+        "validate_project_input",
+        "validate_project_submission"
+      ]
+    },
+    {
+      "line_count": 702,
+      "module": "core.project_job_runtime",
+      "path": "core/project_job_runtime.py",
+      "public_classes": [
+        "ProjectJobRuntimeIntegration"
+      ],
+      "public_functions": [
+        "repair_checkpoint_id"
+      ]
+    },
+    {
+      "line_count": 573,
+      "module": "core.project_oches003",
+      "path": "core/project_oches003.py",
+      "public_classes": [
+        "RepairRecordStore",
+        "SerialRepairExecutor"
+      ],
+      "public_functions": [
+        "build_prompt_contract",
+        "canonical_repair_groups",
+        "map_provider_stop",
+        "record_fingerprint"
+      ]
+    },
+    {
+      "line_count": 393,
+      "module": "core.project_repair",
+      "path": "core/project_repair.py",
+      "public_classes": [],
+      "public_functions": [
+        "artifact_fingerprint",
+        "build_failure_feedback",
+        "current_inventory",
+        "current_roots",
+        "dispatch_canonical_group",
+        "formalize_repair_plan",
+        "validate_repair_plan"
+      ]
+    },
+    {
+      "line_count": 616,
+      "module": "core.project_repair_runtime",
+      "path": "core/project_repair_runtime.py",
+      "public_classes": [
+        "ProjectRepairRuntime"
+      ],
+      "public_functions": []
+    },
+    {
+      "line_count": 57,
+      "module": "core.project_reviewer",
+      "path": "core/project_reviewer.py",
+      "public_classes": [
+        "ReviewValidationError"
+      ],
+      "public_functions": [
+        "issue_set_fingerprint",
+        "review_issue_fingerprint",
+        "review_report_fingerprint",
+        "review_request_fingerprint"
+      ]
+    },
+    {
+      "line_count": 740,
+      "module": "core.project_scoped_repair",
+      "path": "core/project_scoped_repair.py",
+      "public_classes": [],
+      "public_functions": [
+        "artifact_fingerprint",
+        "build_scoped_dispatch",
+        "formalize_scoped_replacement",
+        "validate_current_dispatch_authority",
+        "validate_orchestrator_binding",
+        "validate_scoped_replacement",
+        "validate_scoped_replacement_lineage"
+      ]
+    },
+    {
+      "line_count": 504,
+      "module": "core.project_stage3",
+      "path": "core/project_stage3.py",
+      "public_classes": [
+        "StandaloneStage3Workflow"
+      ],
+      "public_functions": [
+        "load_stage3_provider_config",
+        "validate_stage3_submission"
+      ]
+    },
+    {
+      "line_count": 414,
+      "module": "core.project_stage3_reviewer",
+      "path": "core/project_stage3_reviewer.py",
+      "public_classes": [
+        "StandaloneStage3ReviewerWorkflow"
+      ],
+      "public_functions": [
+        "validate_stage3_reviewer_submission"
+      ]
+    },
+    {
+      "line_count": 6034,
+      "module": "core.project_staged",
+      "path": "core/project_staged.py",
+      "public_classes": [
+        "StagedProjectWorkflow"
+      ],
+      "public_functions": [
+        "artifact_fingerprint",
+        "build_review_report",
+        "build_review_request",
+        "build_reviewer_repair_lineage",
+        "inspect_no_rtl_request",
+        "provider_review_request",
+        "validate_ac_testcase_map",
+        "validate_review_report",
+        "validate_scenario_ac_map",
+        "validate_testcase_candidate"
+      ]
+    },
+    {
+      "line_count": 1063,
+      "module": "core.project_tools",
+      "path": "core/project_tools.py",
+      "public_classes": [
+        "ProjectReadModel",
+        "ProjectToolError"
+      ],
+      "public_functions": [
+        "read_tool_definitions"
+      ]
+    },
+    {
+      "line_count": 54,
+      "module": "core.recovery",
+      "path": "core/recovery.py",
+      "public_classes": [],
+      "public_functions": [
+        "stop_result",
+        "stop_status"
+      ]
+    },
+    {
+      "line_count": 390,
+      "module": "core.session_scheduler",
+      "path": "core/session_scheduler.py",
+      "public_classes": [
+        "SerialSessionScheduler",
+        "SessionSchedulerError"
+      ],
+      "public_functions": []
+    },
+    {
+      "line_count": 1,
+      "module": "infrastructure",
+      "path": "infrastructure/__init__.py",
+      "public_classes": [],
+      "public_functions": []
+    },
+    {
+      "line_count": 5,
+      "module": "infrastructure.persistence",
+      "path": "infrastructure/persistence/__init__.py",
+      "public_classes": [],
+      "public_functions": []
+    },
+    {
+      "line_count": 277,
+      "module": "infrastructure.persistence.transcript_store",
+      "path": "infrastructure/persistence/transcript_store.py",
+      "public_classes": [
+        "TranscriptStore"
+      ],
+      "public_functions": [
+        "create_transcript_store",
+        "load_terminal_transcript",
+        "load_terminal_transcript_events",
+        "persist_single_submission_transcript",
+        "transcript_session_dir"
+      ]
+    },
+    {
+      "line_count": 5,
+      "module": "runtime",
+      "path": "runtime/__init__.py",
+      "public_classes": [],
+      "public_functions": []
+    },
+    {
+      "line_count": 311,
+      "module": "runtime.agent_loop",
+      "path": "runtime/agent_loop.py",
+      "public_classes": [
+        "AgentLoop",
+        "AgentLoopError",
+        "AgentLoopPolicy",
+        "Transcript"
+      ],
+      "public_functions": []
+    },
+    {
+      "line_count": 99,
+      "module": "scripts.dvlib",
+      "path": "scripts/dvlib.py",
+      "public_classes": [],
+      "public_functions": [
+        "canonical_hash",
+        "validate_schema"
+      ]
+    },
+    {
+      "line_count": 221,
+      "module": "scripts.run_project_job",
+      "path": "scripts/run_project_job.py",
+      "public_classes": [],
+      "public_functions": [
+        "advance_commit_runtime",
+        "advance_repair_runtime",
+        "configured_provider",
+        "main",
+        "snapshot_provider"
+      ]
+    },
+    {
+      "line_count": 70,
+      "module": "scripts.run_project_stage3",
+      "path": "scripts/run_project_stage3.py",
+      "public_classes": [],
+      "public_functions": [
+        "main"
+      ]
+    },
+    {
+      "line_count": 49,
+      "module": "scripts.run_project_stage3_reviewer",
+      "path": "scripts/run_project_stage3_reviewer.py",
+      "public_classes": [],
+      "public_functions": [
+        "main"
+      ]
+    },
+    {
+      "line_count": 124,
+      "module": "scripts.validate_project_job",
+      "path": "scripts/validate_project_job.py",
+      "public_classes": [],
+      "public_functions": [
+        "main"
+      ]
+    },
+    {
+      "line_count": 30,
+      "module": "scripts.validate_project_job_workflow",
+      "path": "scripts/validate_project_job_workflow.py",
+      "public_classes": [],
+      "public_functions": []
+    }
+  ],
+  "production_roots": [
+    "core",
+    "adapters",
+    "contracts",
+    "scripts",
+    "runtime",
+    "infrastructure"
+  ],
+  "schema_version": "1.0",
+  "source_root": ".",
+  "target_packages_present": [
+    "infrastructure",
+    "runtime"
+  ],
+  "while_true": [
+    {
+      "line": 39,
+      "owner": "_sha256_file",
+      "path": "adapters/eda/probe.py"
+    },
+    {
+      "line": 1022,
+      "owner": "ProjectCommitRuntime._next_stage_session_id",
+      "path": "core/project_commit_runtime.py"
+    },
+    {
+      "line": 1668,
+      "owner": "ProjectJobWorkflow._review_until_human_gate",
+      "path": "core/project_job.py"
+    },
+    {
+      "line": 611,
+      "owner": "ProjectJobRuntimeIntegration._advance",
+      "path": "core/project_job_runtime.py"
+    },
+    {
+      "line": 336,
+      "owner": "StandaloneStage3ReviewerWorkflow.run",
+      "path": "core/project_stage3_reviewer.py"
+    },
+    {
+      "line": 3617,
+      "owner": "StagedProjectWorkflow._correct_commented_scenarios",
+      "path": "core/project_staged.py"
+    },
+    {
+      "line": 5383,
+      "owner": "StagedProjectWorkflow._review",
+      "path": "core/project_staged.py"
+    },
+    {
+      "line": 5680,
+      "owner": "StagedProjectWorkflow.start",
+      "path": "core/project_staged.py"
+    },
+    {
+      "line": 186,
+      "owner": "AgentLoop.run",
+      "path": "runtime/agent_loop.py"
+    }
+  ]
+}

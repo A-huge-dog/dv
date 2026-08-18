@@ -18,7 +18,9 @@ from core.project_job_runtime import (
 from core.project_repair_runtime import ProjectRepairRuntime
 from core.project_scoped_repair import artifact_fingerprint
 from core.project_tools import ProjectReadModel, ProjectToolError
-from core.tool_session import _RawTranscript
+from infrastructure.persistence.transcript_store import (
+    TranscriptStore, transcript_session_dir,
+)
 from scripts.run_project_job import advance_repair_runtime
 from tests.agent_runtime.test_oches002_repair_runtime import (
     Oches002RepairRuntimeTests,
@@ -128,9 +130,10 @@ class Oches002OneYamlRuntimeTests(Oches002RepairRuntimeTests):
             "staging/orchestrator/repair_plan.{}.json".format(token), plan)
         receipt_relative = self.runtime._persist(
             "audit/router_receipt.{}.json".format(token), receipt)
-        transcript = _RawTranscript(
-            self.job, self.value["job_id"], "ORCHESTRATOR",
-            legacy_session, {"legacy_protocol": "OCHES002"})
+        transcript = TranscriptStore(
+            transcript_session_dir(self.job, "ORCHESTRATOR", legacy_session),
+            job_id=self.value["job_id"], role="ORCHESTRATOR",
+            session_id=legacy_session, lineage={"legacy_protocol": "OCHES002"})
         transcript.record("TOOL_CALL", {
             "call_id": "CALL.LEGACY.REJECTED",
             "name": "submit_repair_plan",
@@ -194,7 +197,7 @@ class Oches002OneYamlRuntimeTests(Oches002RepairRuntimeTests):
 
         submission_turn = first.turns[1]
         first.turns[1] = crash
-        with patch.object(_RawTranscript, "finalize", return_value={}):
+        with patch.object(TranscriptStore, "finalize", return_value={}):
             with self.assertRaises(KeyboardInterrupt):
                 self.runtime.run_orchestrator(first, self.planning_id)
         self.assertEqual(2, len(first.requests))
@@ -236,7 +239,7 @@ class Oches002OneYamlRuntimeTests(Oches002RepairRuntimeTests):
 
         submission_turn = first.turns[1]
         first.turns[1] = crash
-        with patch.object(_RawTranscript, "finalize", return_value={}):
+        with patch.object(TranscriptStore, "finalize", return_value={}):
             with self.assertRaises(KeyboardInterrupt):
                 self.runtime.run_stage(
                     first, dispatch, self.stage_id)

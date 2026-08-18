@@ -29,7 +29,10 @@ from core.project_staged import (
     validate_ac_testcase_map, validate_scenario_ac_map,
 )
 from core.project_tools import ProjectReadModel
-from core.tool_session import ToolSessionError, load_terminal_transcript_events
+from infrastructure.persistence.transcript_store import (
+    load_terminal_transcript_events,
+)
+from runtime.agent_loop import AgentLoopError
 from core.project_oches003 import (
     RepairRecordStore, build_prompt_contract, canonical_repair_groups,
 )
@@ -1026,14 +1029,14 @@ class ProjectCommitRuntime:
                 raise ProjectJobError(
                     "STALE_EVIDENCE", "Stage Provider attempt path is unsafe")
             if not (session_dir / "manifest.json").exists():
-                # SequentialToolSession validates and resumes every existing
+                # AgentLoop validates and resumes every existing
                 # raw event before it invokes the Provider again.
                 return session_id
             try:
                 transcript = load_terminal_transcript_events(
                     job_root=job_root, job_id=runtime.model.job_id,
                     role=role, session_id=session_id, lineage=lineage)
-            except ToolSessionError as caught:
+            except AgentLoopError as caught:
                 raise ProjectJobError(caught.code, caught.message) from caught
             manifest = transcript["manifest"]
             terminal = manifest["terminal"]
@@ -1152,7 +1155,7 @@ class ProjectCommitRuntime:
         probe_workflow._probe_provider(job_root, profile_role)
         try:
             runtime.run_stage(provider, dispatch, session_id)
-        except ToolSessionError as caught:
+        except AgentLoopError as caught:
             if caught.code == "PROVIDER_UNAVAILABLE":
                 return None, "PROVIDER_UNAVAILABLE"
             raise ProjectJobError(caught.code, caught.message) from caught

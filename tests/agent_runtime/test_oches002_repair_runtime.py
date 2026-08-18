@@ -11,7 +11,7 @@ from core.project_job import ProjectJobError
 from core.project_repair_runtime import ProjectRepairRuntime
 from core.project_scoped_repair import artifact_fingerprint
 from core.project_tools import ProjectToolError
-from core.tool_session import ToolSessionError
+from runtime.agent_loop import AgentLoopError
 from core.project_staged import (
     build_review_request, build_reviewer_repair_lineage,
     provider_review_request,
@@ -284,7 +284,7 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
                     "repairs": [],
                     "plan_fingerprint": "0" * 64,
                 })])
-        with self.assertRaises(ToolSessionError) as caught:
+        with self.assertRaises(AgentLoopError) as caught:
             self.runtime.run_orchestrator(
                 provider, "PLANNING.CANDIDATE.AUTHORITY.001")
         self.assertEqual("MALFORMED_MODEL_OUTPUT", caught.exception.code)
@@ -311,7 +311,7 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
                         "session_id": "STAGESESSION.FORGED.001",
                     }],
                 })])
-        with self.assertRaises(ToolSessionError) as caught:
+        with self.assertRaises(AgentLoopError) as caught:
             self.runtime.run_stage(
                 provider, dispatch, "STAGESESSION.STAGE.AUTHORITY.001")
         self.assertEqual("MALFORMED_MODEL_OUTPUT", caught.exception.code)

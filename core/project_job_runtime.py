@@ -21,7 +21,8 @@ from core.project_scoped_repair import artifact_fingerprint
 from core.project_staged import StagedProjectWorkflow
 from core.project_tools import ProjectReadModel, ProjectToolError
 from core.session_scheduler import SerialSessionScheduler, SessionSchedulerError
-from core.tool_session import ToolSessionError, load_terminal_transcript
+from infrastructure.persistence.transcript_store import load_terminal_transcript
+from runtime.agent_loop import AgentLoopError
 from scripts.dvlib import canonical_hash
 
 
@@ -420,7 +421,7 @@ class ProjectJobRuntimeIntegration:
             transcript = load_terminal_transcript(
                 job_root=job_root, job_id=job_id, role=role,
                 session_id=old_session, lineage=lineage)
-        except ToolSessionError as caught:
+        except AgentLoopError as caught:
             raise ProjectJobError(caught.code, caught.message) from caught
         if transcript["terminal"] != {
                 "status": "FAILED", "code": "PROVIDER_UNAVAILABLE",
@@ -478,8 +479,7 @@ class ProjectJobRuntimeIntegration:
             self, job_id: str, checkpoint_id: str,
             cancel_requested: Callable[[], bool]) -> dict[str, Any]:
         if cancel_requested():
-            from core.tool_session import ToolSessionError
-            raise ToolSessionError(
+            raise AgentLoopError(
                 "CANCELLED", "Job was cancelled before runtime recovery")
         manifest = self._manifest(job_id)
         source = self._source_checkpoint(job_id, manifest)
@@ -565,8 +565,7 @@ class ProjectJobRuntimeIntegration:
                     "STALE_EVIDENCE", "Router receipt lineage is stale")
 
         if cancel_requested():
-            from core.tool_session import ToolSessionError
-            raise ToolSessionError(
+            raise AgentLoopError(
                 "CANCELLED", "Job was cancelled before the Stage session")
         stage = str(dispatch.get("stage"))
         profile_role = {
