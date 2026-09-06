@@ -1,0 +1,69 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, sequence, task_id,
+  worker_session_id, task_kind, job_id, authority_fingerprint, status,
+  current_phase, last_action, last_observation, current_error, changed_files,
+  active_hypotheses, eliminated_causes, next_plan, turns_used, tokens_used,
+  eda_runs_used, transcript_cursor, latest_candidate_fingerprint,
+  latest_validation_fingerprint, previous_state_fingerprint,
+  state_fingerprint]
+properties:
+  schema_version: {const: "1.0"}
+  artifact_kind: {const: DV_WORKER_STATE}
+  sequence: {type: integer, minimum: 1}
+  task_id: {type: string, pattern: '^DVTASK\.[A-Z0-9_.-]+$'}
+  worker_session_id: {type: string, pattern: '^DVWORKER\.[A-Z0-9_.-]+$'}
+  task_kind: {const: UVM_GENERATE_AND_VALIDATE}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  authority_fingerprint: {$ref: '#/$defs/fingerprint'}
+  status:
+    enum: [RUNNING, SUCCEEDED, PAUSED_BUDGET, PAUSED_RETRYABLE,
+      PAUSED_RECOVERY_REQUIRED, BLOCKED_INPUT, BLOCKED_TOOL, CANCELLED,
+      FAILED_POLICY, FAILED_INTERNAL]
+  current_phase: {enum: [GENERATE, OBSERVE, ACT, VALIDATE, COMPLETE]}
+  last_action:
+    oneOf:
+      - {type: object, additionalProperties: false, maxProperties: 0}
+      - type: object
+        additionalProperties: false
+        required: [action_id, tool_name, arguments_fingerprint, status,
+          result, result_fingerprint]
+        properties:
+          action_id: {type: string, pattern: '^DVWORKER\.[A-Z0-9_.-]+\.ACTION\.[0-9]{3,}$'}
+          tool_name: {type: string, minLength: 1}
+          arguments_fingerprint: {$ref: '#/$defs/fingerprint'}
+          status: {enum: [INTENT, SUCCEEDED]}
+          result: {}
+          result_fingerprint:
+            anyOf: [{$ref: '#/$defs/fingerprint'}, {type: 'null'}]
+  last_observation: {type: object}
+  current_error: {type: object}
+  changed_files:
+    type: array
+    uniqueItems: true
+    items: {type: string, minLength: 1}
+  active_hypotheses:
+    type: array
+    uniqueItems: true
+    items: {type: string, minLength: 1}
+  eliminated_causes:
+    type: array
+    uniqueItems: true
+    items: {type: string, minLength: 1}
+  next_plan:
+    type: array
+    items: {type: string, minLength: 1}
+  turns_used: {type: integer, minimum: 0}
+  tokens_used: {type: integer, minimum: 0}
+  eda_runs_used: {type: integer, minimum: 0}
+  transcript_cursor: {type: integer, minimum: 0}
+  latest_candidate_fingerprint: {$ref: '#/$defs/nullable_fingerprint'}
+  latest_validation_fingerprint: {$ref: '#/$defs/nullable_fingerprint'}
+  previous_state_fingerprint:
+    anyOf: [{$ref: '#/$defs/fingerprint'}, {const: NONE}]
+  state_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  nullable_fingerprint:
+    anyOf: [{$ref: '#/$defs/fingerprint'}, {type: 'null'}]

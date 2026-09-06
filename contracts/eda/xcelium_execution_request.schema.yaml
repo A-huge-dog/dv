@@ -1,0 +1,75 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, request_id, job_id, phase,
+  executable_ref, environment_identity, environment_fingerprint,
+  argv_template, source_fingerprints, timeout_seconds, resource_limits,
+  output_subdir, expected_artifacts, expected_pass_marker,
+  expected_version_pattern, request_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: XCELIUM_EXECUTION_REQUEST}
+  request_id: {type: string, pattern: '^XCELIUM\.REQUEST\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.[A-Z0-9_.-]+$'}
+  phase: {enum: [VERSION, COMPILE, BUILD, RUN]}
+  executable_ref: {type: string, const: EDAEXEC.XCELIUM}
+  environment_identity:
+    {type: string, pattern: '^XCELIUMENV\.[A-Z0-9_.-]+$'}
+  environment_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  argv_template:
+    type: array
+    minItems: 1
+    maxItems: 512
+    items:
+      type: object
+      additionalProperties: false
+      required: [kind, value]
+      properties:
+        kind: {enum: [LITERAL, SOURCE, INCLUDE_DIR, OUTPUT_PATH]}
+        value: {type: string, minLength: 1, maxLength: 512}
+  source_fingerprints:
+    type: array
+    maxItems: 256
+    items:
+      type: object
+      additionalProperties: false
+      required: [path, fingerprint]
+      properties:
+        path:
+          {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*$'}
+        fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  timeout_seconds: {type: integer, minimum: 1, maximum: 3600}
+  resource_limits:
+    type: object
+    additionalProperties: false
+    required: [cpu_seconds, memory_mb, output_files]
+    properties:
+      cpu_seconds: {type: integer, minimum: 1, maximum: 3600}
+      memory_mb: {type: integer, minimum: 64, maximum: 65536}
+      output_files: {type: integer, minimum: 1, maximum: 1000000}
+  output_subdir:
+    {type: string, pattern: '^runs/xcelium/[A-Za-z0-9][A-Za-z0-9._/-]*$'}
+  expected_artifacts:
+    type: array
+    maxItems: 32
+    items:
+      type: object
+      additionalProperties: false
+      required: [kind, path_kind, relative_path, required, minimum_bytes]
+      properties:
+        kind: {enum: [XCELIUM_DATABASE, XRUN_LOG, TRACE_VCD, WAVE_SHM,
+          COVERAGE_DATABASE]}
+        path_kind: {enum: [FILE, DIRECTORY]}
+        relative_path:
+          {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*$'}
+        required: {type: boolean}
+        minimum_bytes: {type: integer, minimum: 1}
+  expected_pass_marker:
+    oneOf:
+      - {type: 'null'}
+      - {type: string, pattern: '^DV_[A-Z0-9_]+_PASS$', maxLength: 128}
+  expected_version_pattern:
+    oneOf:
+      - {type: 'null'}
+      - {type: string, minLength: 1, maxLength: 256}
+  request_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

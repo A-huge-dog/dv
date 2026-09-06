@@ -6,11 +6,12 @@ import copy
 import unittest
 
 from contracts.validator import accepted, load_document, validate
-from core.project_job import ProjectJobError, ProjectJobWorkflow
-from core.project_agent_profile import binding_lineage
-from core.project_repair import validate_repair_plan
-from core.project_tools import ProjectReadModel
-from core.project_staged import artifact_fingerprint
+from runtime.errors import ProjectJobError
+from runtime.project_job import ProjectJobWorkflow
+from domain.agent_binding import binding_lineage
+from domain.repair import validate_repair_plan
+from agents.project_tools import ProjectReadModel
+from domain.artifacts import artifact_fingerprint
 from scripts.dvlib import canonical_hash
 try:
     from test_project_job_workflow import (
@@ -43,7 +44,7 @@ class Oches001RepairControlTests(unittest.TestCase):
 
     def _plan(self, submission, report, request, target, stage="STAGE_3"):
         job_value = ProjectJobWorkflow(
-            self.root, self.root / "result").bootstrap(
+            self.root, self.root / "result").bootstrap_handler.handle(
                 submission, create=False)
         value = {
             "schema_version": "1.0",
@@ -77,15 +78,16 @@ class Oches001RepairControlTests(unittest.TestCase):
         return value
 
     def test_accepted_plan_stops_before_scoped_replacement_commit(self):
-        (workflow, submission, job, _, report, request,
+        (workflow, submission, job, checkpoint, report, request,
          generator, reviewer) = self._awaiting()
-        candidate = load_document(
-            job / "staging/generated/portable_sv/testcase.r000.json")
+        model = ProjectReadModel.from_checkpoint(job, checkpoint)
         target = {
-            "kind": "CODE_UNIT",
-            "id": candidate["code_units"][0]["code_unit_id"],
+            "kind": "TESTCASE",
+            "id": next(item["unit_id"] for item in model.units.values()
+                       if item["unit_kind"] == "LOGICAL_TESTCASE"),
         }
-        plan = self._plan(submission, report, request, target)
+        plan = self._plan(
+            submission, report, request, target, "STAGE_2")
         self.assertTrue(accepted(validate("project_repair_plan", plan)))
         result = workflow.submit_repair_plan(submission, plan)
         self.assertEqual("AWAITING_SCOPED_REPLACEMENT", result["state"])
@@ -116,7 +118,7 @@ class Oches001RepairControlTests(unittest.TestCase):
     def test_router_rejects_wrong_stage_unknown_target_and_scope_expansion(self):
         workflow, submission, job, checkpoint, report, request, generator, reviewer = \
             self._awaiting()
-        value = workflow.bootstrap(submission, create=False)
+        value = workflow.bootstrap_handler.handle(submission, create=False)
         model = ProjectReadModel.from_checkpoint(job, checkpoint)
         kind_map = {
             "SCENARIO": {"SCENARIO"},
@@ -162,7 +164,8 @@ class Oches001RepairControlTests(unittest.TestCase):
 
         expanded = self._plan(
             submission, report, request,
-            {"kind": "TESTCASE", "id": "TC.TINY.Y_FOLLOWS_CLK"})
+            {"kind": "TESTCASE", "id": "TC.TINY.Y_FOLLOWS_CLK"},
+            "STAGE_2")
         expanded["planning_session_id"] = "PLANNING.TINY.002"
         expanded["plan_id"] = "REPAIRPLAN.TINY.002"
         expanded["scope_fingerprint"] = "2" * 64
@@ -173,7 +176,7 @@ class Oches001RepairControlTests(unittest.TestCase):
 
         unknown = self._plan(
             submission, report, request,
-            {"kind": "TESTCASE", "id": "TC.UNKNOWN"})
+            {"kind": "TESTCASE", "id": "TC.UNKNOWN"}, "STAGE_2")
         unknown["planning_session_id"] = "PLANNING.TINY.003"
         unknown["plan_id"] = "REPAIRPLAN.TINY.003"
         unknown["plan_fingerprint"] = artifact_fingerprint(

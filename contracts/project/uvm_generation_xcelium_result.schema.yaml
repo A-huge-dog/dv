@@ -1,0 +1,25 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, request_fingerprint, status,
+  exit_code, stdout, stderr, stdout_path, stderr_path, request_path,
+  evidence_path, logs, raw_result, result_path, result_fingerprint]
+properties:
+  schema_version: {const: "1.0"}
+  artifact_kind: {const: UVM_GENERATION_XCELIUM_RESULT}
+  request_fingerprint: {$ref: '#/$defs/fingerprint'}
+  status: {enum: [PASS, FAIL, BLOCKED_TOOL, INCOMPLETE]}
+  exit_code: {type: [integer, 'null']}
+  stdout: {type: string}
+  stderr: {type: string}
+  stdout_path: {$ref: '#/$defs/path'}
+  stderr_path: {$ref: '#/$defs/path'}
+  request_path: {type: [string, 'null']}
+  evidence_path: {type: [string, 'null']}
+  logs: {type: array}
+  raw_result: {type: object}
+  result_path: {$ref: '#/$defs/path'}
+  result_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  path: {type: string, pattern: '^audit/uvm_generation/[A-Za-z0-9._/-]+$'}

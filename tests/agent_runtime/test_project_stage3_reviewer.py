@@ -11,9 +11,10 @@ from unittest.mock import patch
 import yaml
 
 from contracts.validator import load_document
-from core.project_job import ProjectJobError, ProjectJobWorkflow
-from core.project_stage3 import StandaloneStage3Workflow
-from core.project_stage3_reviewer import StandaloneStage3ReviewerWorkflow
+from runtime.errors import ProjectJobError
+from runtime.project_job import ProjectJobWorkflow
+from runtime.standalone_stage3 import StandaloneStage3Workflow
+from runtime.standalone_reviewer import StandaloneStage3ReviewerWorkflow
 from tests.agent_runtime import test_project_job_reviewer as reviewer_tests
 from tests.agent_runtime import test_project_job_workflow as workflow_tests
 from tests.agent_runtime import test_project_stage3 as stage3_tests

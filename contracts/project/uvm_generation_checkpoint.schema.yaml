@@ -1,0 +1,50 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, job_id, input_fingerprint, cycle_id,
+  cycle_kind, repair_revision, stage2_root, sequence, state, attempt,
+  attempts_used, next_action, candidate_path,
+  provider_request_path, provider_response_path, transcript_path,
+  effective_uvm_root, xcelium_result_path, xcelium_request_fingerprint,
+  xcelium_status, xcelium_exit_code, xcelium_stdout_path,
+  xcelium_stderr_path, latest_error_source_attempt,
+  previous_checkpoint_fingerprint, checkpoint_fingerprint]
+properties:
+  schema_version: {const: "1.0"}
+  artifact_kind: {const: UVM_GENERATION_CHECKPOINT}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  cycle_id: {type: string, pattern: '^(initial|repair-r[0-9]{3})$'}
+  cycle_kind: {enum: [INITIAL, REPAIR]}
+  repair_revision: {type: [integer, 'null'], minimum: 1}
+  stage2_root: {$ref: '#/$defs/fingerprint'}
+  sequence: {type: integer, minimum: 1}
+  state: {enum: [UVM_GENERATION_PENDING, UVM_CANDIDATE_READY, UVM_XCELIUM_RUNNING,
+    UVM_GENERATION_PASS, UVM_GENERATION_RETRY_READY,
+    UVM_XCELIUM_RETRYABLE]}
+  attempt: {type: integer, minimum: 0}
+  attempts_used: {type: integer, minimum: 0}
+  next_action: {enum: [CALL_PROVIDER, RUN_XCELIUM, GENERATE_STAGE3]}
+  candidate_path: {$ref: '#/$defs/nullable_path'}
+  provider_request_path: {$ref: '#/$defs/nullable_path'}
+  provider_response_path: {$ref: '#/$defs/nullable_path'}
+  transcript_path: {$ref: '#/$defs/nullable_path'}
+  effective_uvm_root: {$ref: '#/$defs/nullable_fingerprint'}
+  xcelium_result_path: {$ref: '#/$defs/nullable_path'}
+  xcelium_request_fingerprint: {$ref: '#/$defs/nullable_fingerprint'}
+  xcelium_status: {type: [string, 'null'], enum: [PASS, FAIL, BLOCKED_TOOL, INCOMPLETE, null]}
+  xcelium_exit_code: {type: [integer, 'null']}
+  xcelium_stdout_path: {$ref: '#/$defs/nullable_path'}
+  xcelium_stderr_path: {$ref: '#/$defs/nullable_path'}
+  latest_error_source_attempt: {type: [integer, 'null'], minimum: 1}
+  previous_checkpoint_fingerprint:
+    anyOf: [{$ref: '#/$defs/fingerprint'}, {const: NONE}]
+  checkpoint_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  nullable_fingerprint:
+    anyOf: [{$ref: '#/$defs/fingerprint'}, {type: 'null'}]
+  nullable_path:
+    anyOf:
+      - {type: string, pattern: '^(staging|audit|transcripts)/[A-Za-z0-9._/-]+$'}
+      - {type: 'null'}

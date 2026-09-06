@@ -20,7 +20,7 @@
     "path": {"type": "string"},
     "source_id": {"type": "string"},
     "required_owner": {"enum": ["NONE", "DV_AGENT_DEVELOPER", "SPEC_OWNER",
-      "DESIGN_OWNER", "HARDWARE_APPROVER", "DV_REVIEWER", "EDA_OWNER"]},
+      "DESIGN_OWNER", "HARDWARE_APPROVER", "DV_OWNER"]},
     "required_artifact_kind": {"type": "string", "minLength": 1},
     "required_decision_kind": {"type": "string", "minLength": 1}
   }

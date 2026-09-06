@@ -2,14 +2,16 @@ schema_version: "1.0"
 profile_id: PROJECT_AGENT_PROFILE.DEFAULT
 
 initial:
-  stage1: dv/config/llm/openrouter_gpt_5_6_terra.yaml
+  stage1: dv/config/llm/openrouter_primary.yaml
   stage2: dv/config/llm/openrouter_gpt_5_6_terra.yaml
+  uvm: dv/config/llm/openrouter_primary.yaml
   stage3: dv/config/llm/openrouter_gpt_5_6_terra.yaml
 
 repair:
   orchestrator: dv/config/llm/openrouter_primary.yaml
   stage1: dv/config/llm/openrouter_gpt_5_6_terra.yaml
   stage2: dv/config/llm/openrouter_gpt_5_6_terra.yaml
+  uvm: dv/config/llm/openrouter_primary.yaml
   stage3: dv/config/llm/openrouter_gpt_5_6_terra.yaml
 
 review:

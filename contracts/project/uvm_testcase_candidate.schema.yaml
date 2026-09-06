@@ -1,0 +1,46 @@
+$id: "urn:dv:project:uvm-testcase-candidate:1.0"
+$comment: >-
+  Model-owned UVM testcase code units. Runtime owns deterministic UVM class,
+  seed, timeout and marker values. The frozen Project YAML UVM files are the
+  sole authoring context.
+type: object
+additionalProperties: false
+required: [code_units, assembly, implemented_testcase_ids, skipped_testcases]
+properties:
+  code_units:
+    type: array
+    minItems: 1
+    maxItems: 4096
+    items:
+      type: object
+      additionalProperties: false
+      required: [role, testcase_ids, content]
+      properties:
+        role: {enum: [SHARED, TESTCASE]}
+        testcase_ids:
+          type: array
+          uniqueItems: true
+          items: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+        content: {type: string, minLength: 1, maxLength: 262144}
+  assembly:
+    type: array
+    minItems: 1
+    maxItems: 4096
+    uniqueItems: true
+    items: {type: integer, minimum: 0, maximum: 4095}
+  implemented_testcase_ids:
+    type: array
+    uniqueItems: true
+    items: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+  skipped_testcases:
+    type: array
+    uniqueItems: true
+    items:
+      type: object
+      additionalProperties: false
+      required: [testcase_id, reason_kind, reason, routing_required]
+      properties:
+        testcase_id: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+        reason_kind: {enum: [SPEC_AMBIGUITY, BLOCKED_CONTRACT, RTL_CONTRACT_MISMATCH]}
+        reason: {type: string, minLength: 1, maxLength: 1024}
+        routing_required: {type: boolean, const: true}

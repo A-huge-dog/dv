@@ -6,11 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.atomic_artifact import (
+from infrastructure.persistence.atomic_artifact import (
     PENDING_ARTIFACT_PREFIX, is_pending_artifact,
     publish_immutable_bytes,
 )
-from core.recovery import stop_status
+from runtime.recovery import stop_status
 
 
 class RecoveryAndAtomicTests(unittest.TestCase):

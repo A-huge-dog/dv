@@ -1,0 +1,14 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, state, job_id, binding_path,
+  binding_fingerprint, final_result_path, artifact_index_path]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: EDA_LOOP_CHECKPOINT}
+  state: {enum: [EDA_EXECUTION_PASS, EDA_EXECUTION_FAIL]}
+  job_id: {type: string, pattern: '^JOB\.[A-Z0-9_.-]+$'}
+  binding_path: {type: string, pattern: '^audit/eda001/bindings/[a-z0-9_.-]+\.json$'}
+  binding_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  final_result_path: {type: string, pattern: '^audit/eda001/executions/[a-z0-9_.-]+\.final_result\.json$'}
+  artifact_index_path: {type: string, pattern: '^audit/eda001/executions/[a-z0-9_.-]+\.artifact_index\.json$'}

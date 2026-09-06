@@ -8,7 +8,7 @@ required: [schema_version, workflow_version, review_id, review_request_id,
   reviewer, deterministic_validation, policy_fingerprint,
   upstream_fingerprints, owner_routing_decision, scenario_spec_issues,
   coverage_scope, routing_fingerprint, spec_evidence, scenario_ac_map,
-  ac_testcase_map, testcase_candidate, request_fingerprint]
+  ac_testcase_map, testcase_candidate, runtime_capability, request_fingerprint]
 properties:
   schema_version: {type: string, const: "7.0"}
   workflow_version: {type: string, const: "6.0"}
@@ -90,7 +90,7 @@ properties:
   upstream_fingerprints:
     type: object
     additionalProperties: false
-    required: [input, spec, scenario_ac_map, ac_testcase_map, testcase,
+    required: [input, spec, scenario_ac_map, ac_testcase_map, testcase, effective_uvm,
       owner_routing, scenario_spec_issues]
     properties:
       input: {$ref: '#/$defs/fingerprint'}
@@ -98,6 +98,7 @@ properties:
       scenario_ac_map: {$ref: '#/$defs/fingerprint'}
       ac_testcase_map: {$ref: '#/$defs/fingerprint'}
       testcase: {$ref: '#/$defs/fingerprint'}
+      effective_uvm: {$ref: '#/$defs/fingerprint'}
       owner_routing: {$ref: '#/$defs/fingerprint'}
       scenario_spec_issues: {$ref: '#/$defs/fingerprint'}
   owner_routing_decision:
@@ -154,6 +155,25 @@ properties:
   scenario_ac_map: {type: object}
   ac_testcase_map: {type: object}
   testcase_candidate: {type: object}
+  runtime_capability:
+    type: object
+    additionalProperties: false
+    required: [capability_id, aggregate_fingerprint, uvm_context_files]
+    properties:
+      capability_id: {type: string, pattern: '^[A-Z][A-Z0-9_.-]{0,127}$'}
+      aggregate_fingerprint: {$ref: '#/$defs/fingerprint'}
+      uvm_context_files:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [logical_path, fingerprint, content, kind]
+          properties:
+            logical_path: {type: string, minLength: 1}
+            fingerprint: {$ref: '#/$defs/fingerprint'}
+            content: {type: string}
+            kind: {enum: [CAPABILITY_CONTRACT, PUBLIC_DECLARATION]}
   request_fingerprint: {$ref: '#/$defs/fingerprint'}
 $defs:
   fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
@@ -162,8 +182,9 @@ $defs:
   roots:
     type: object
     additionalProperties: false
-    required: [scenario_ac_map, ac_testcase_map, testcase]
+    required: [scenario_ac_map, ac_testcase_map, testcase, effective_uvm]
     properties:
       scenario_ac_map: {$ref: '#/$defs/fingerprint'}
       ac_testcase_map: {$ref: '#/$defs/fingerprint'}
       testcase: {$ref: '#/$defs/fingerprint'}
+      effective_uvm: {$ref: '#/$defs/fingerprint'}

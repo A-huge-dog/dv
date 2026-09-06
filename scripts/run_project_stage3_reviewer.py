@@ -15,10 +15,11 @@ if str(DV_ROOT) not in sys.path:
 ROOT = Path(__file__).resolve().parents[2]
 
 from adapters.llm import OpenAICompatibleProvider, ProviderConfigError
-from core.project_job import ProjectJobError, ProjectJobWorkflow
-from core.recovery import stop_result
-from core.project_stage3 import load_stage3_provider_config
-from core.project_stage3_reviewer import (StandaloneStage3ReviewerWorkflow,
+from runtime.errors import ProjectJobError
+from runtime.project_job import ProjectJobWorkflow
+from runtime.recovery import stop_result
+from runtime.standalone_stage3 import load_stage3_provider_config
+from runtime.standalone_reviewer import (StandaloneStage3ReviewerWorkflow,
                                           validate_stage3_reviewer_submission)
 
 

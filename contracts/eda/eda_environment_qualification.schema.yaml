@@ -1,0 +1,13 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, environment_identity, status,
+  simulator_version, diagnostic_codes]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: EDA_ENVIRONMENT_QUALIFICATION}
+  environment_identity: {type: string, pattern: '^XCELIUMENV\.[A-Z0-9_.-]+$'}
+  status: {enum: [READY, BLOCKED_TOOL, LICENSE_UNAVAILABLE, VERSION_MISMATCH,
+    RUNTIME_DEPENDENCY_MISSING]}
+  simulator_version: {type: [string, 'null']}
+  diagnostic_codes: {type: array, items: {type: string}}

@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.session_scheduler import (
+from runtime.session_scheduler import (
     SerialSessionScheduler, SessionSchedulerError,
 )
 from scripts.dvlib import canonical_hash

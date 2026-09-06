@@ -1,0 +1,48 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, job_id, cycle_id, attempt, tool_run,
+  stage2_root, effective_uvm_root, sources, framework_sources, top,
+  timeout_seconds, phase,
+  request_fingerprint]
+properties:
+  schema_version: {const: "1.0"}
+  artifact_kind: {const: UVM_GENERATION_XCELIUM_REQUEST}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  cycle_id: {type: string, pattern: '^(initial|repair-r[0-9]{3})$'}
+  attempt: {type: integer, minimum: 1}
+  tool_run: {type: integer, minimum: 1}
+  stage2_root: {$ref: '#/$defs/fingerprint'}
+  effective_uvm_root: {$ref: '#/$defs/fingerprint'}
+  sources:
+    type: array
+    minItems: 1
+    maxItems: 128
+    items:
+      type: object
+      additionalProperties: false
+      required: [logical_path, path, fingerprint]
+      properties:
+        logical_path: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.(sv|svh|v)$'}
+        path: {type: string, pattern: '^staging/generated/uvm/[A-Za-z0-9._/-]+$'}
+        fingerprint: {$ref: '#/$defs/fingerprint'}
+  framework_sources:
+    type: array
+    minItems: 1
+    maxItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required: [logical_path, path, fingerprint]
+      properties:
+        logical_path: {const: framework/dv_uvm_generation_elaboration_top.sv}
+        path: {type: string, pattern: '^audit/uvm_generation/[A-Za-z0-9._/-]+\.sv$'}
+        fingerprint: {$ref: '#/$defs/fingerprint'}
+  top: {const: dv_uvm_generation_elaboration_top}
+  timeout_seconds: {type: integer, minimum: 1, maximum: 600}
+  phase: {const: BUILD}
+  worker_action_id:
+    {type: string, pattern: '^DVWORKER\.[A-Z0-9_.-]+\.ACTION\.[0-9]{3,}$'}
+  request_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

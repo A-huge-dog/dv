@@ -1,0 +1,30 @@
+$id: "urn:dv:project:review-evidence-check-result:1.0"
+type: object
+additionalProperties: false
+required: [schema_version, checks]
+properties:
+  schema_version: {const: "1.0"}
+  checks:
+    type: array
+    minItems: 1
+    maxItems: 64
+    items:
+      type: object
+      additionalProperties: false
+      required: [check_id, status, match_count, line_start, line_end, diagnostic]
+      properties:
+        check_id:
+          type: string
+          pattern: '^CHECK\.[A-Z0-9_.-]+$'
+        status:
+          enum: [EXACT_ONE, NOT_FOUND, AMBIGUOUS, INVALID_EVIDENCE,
+            STALE_EVIDENCE, SCOPE_EXPANSION]
+        match_count:
+          type: integer
+          minimum: 0
+        line_start:
+          anyOf: [{type: integer, minimum: 1}, {type: 'null'}]
+        line_end:
+          anyOf: [{type: integer, minimum: 1}, {type: 'null'}]
+        diagnostic:
+          anyOf: [{type: string, minLength: 1, maxLength: 1024}, {type: 'null'}]

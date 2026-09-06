@@ -1,0 +1,127 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, binding_id, job_id,
+  input_fingerprint, policy, testcase, rtl, uvm, dut, testcase_approval,
+  execution_authorization, execution, binding_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: PROJECT_EXECUTION_BUNDLE}
+  binding_id: {type: string, pattern: '^BINDING\.PROJECT\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  policy:
+    type: object
+    additionalProperties: false
+    required: [policy_id, source_profile_id, qualification_ceiling]
+    properties:
+      policy_id: {type: string, const: PJ-003.1}
+      source_profile_id: {type: string, minLength: 1, maxLength: 128}
+      qualification_ceiling:
+        {type: string, const: PORTABLE_TESTCASE_EXECUTION_ONLY}
+  testcase:
+    type: object
+    additionalProperties: false
+    required: [path, byte_fingerprint, candidate_fingerprint,
+      approval_authority_fingerprint, top, pass_marker, bundle_fingerprints]
+    properties:
+      path:
+        {type: string, const: approved/generated/uvm/generated_tests.sv}
+      byte_fingerprint: {$ref: '#/$defs/fingerprint'}
+      candidate_fingerprint: {$ref: '#/$defs/fingerprint'}
+      approval_authority_fingerprint: {$ref: '#/$defs/fingerprint'}
+      top: {type: string, pattern: '^tb_project_[0-9a-f]{16}$'}
+      pass_marker: {type: string, pattern: '^DV_PROJECT_[A-F0-9]{16}_PASS$'}
+      bundle_fingerprints: {$ref: '#/$defs/bundle'}
+  rtl:
+    type: array
+    minItems: 1
+    maxItems: 64
+    items: {$ref: '#/$defs/source'}
+  uvm:
+    type: array
+    minItems: 1
+    maxItems: 128
+    items: {$ref: '#/$defs/uvm_source'}
+  dut:
+    type: object
+    additionalProperties: false
+    required: [top, parameters]
+    properties:
+      top: {type: string, pattern: '^[A-Za-z_][A-Za-z0-9_$]*$'}
+      parameters:
+        type: object
+        additionalProperties: false
+        patternProperties:
+          '^[A-Za-z_][A-Za-z0-9_]*$': {type: [integer, boolean]}
+  testcase_approval: {$ref: '#/$defs/authority'}
+  execution_authorization: {$ref: '#/$defs/authority'}
+  execution:
+    type: object
+    additionalProperties: false
+    required: [profile_id, executable_ref, environment_identity,
+      environment_fingerprint, constraints]
+    properties:
+      profile_id: {type: string, const: EDAPROFILE.XCELIUM.PROJECT.V1}
+      executable_ref: {type: string, const: EDAEXEC.XCELIUM}
+      environment_identity:
+        {type: string, pattern: '^XCELIUMENV\.[A-Z0-9_.-]+$'}
+      environment_fingerprint: {$ref: '#/$defs/fingerprint'}
+      constraints:
+        type: object
+        additionalProperties: false
+        required: [timeout_seconds, seed, uvm, coverage, waves]
+        properties:
+          timeout_seconds: {type: integer, minimum: 1, maximum: 3600}
+          seed: {type: integer, minimum: 1, maximum: 2147483647}
+          uvm: {type: boolean}
+          coverage: {type: boolean}
+          waves: {type: boolean}
+  binding_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  source:
+    type: object
+    additionalProperties: false
+    required: [path, byte_fingerprint, source_identity]
+    properties:
+      path: {type: string, pattern: '^result/jobs/JOB\.PROJECT\.[A-Z0-9_.-]+/input_baseline/rtl/[A-Za-z0-9._-]+$'}
+      byte_fingerprint: {$ref: '#/$defs/fingerprint'}
+      source_identity: {$ref: '#/$defs/fingerprint'}
+  uvm_source:
+    type: object
+    additionalProperties: false
+    required: [logical_path, path, byte_fingerprint]
+    properties:
+      logical_path: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.(sv|svh|v)$'}
+      path: {type: string, pattern: '^approved/generated/uvm/effective/[A-Za-z0-9][A-Za-z0-9._/-]*\.(sv|svh|v)$'}
+      byte_fingerprint: {$ref: '#/$defs/fingerprint'}
+  authority:
+    type: object
+    additionalProperties: false
+    required: [path, id, fingerprint, role]
+    properties:
+      path: {type: string, pattern: '^audit/[A-Za-z0-9._-]+\.json$'}
+      id: {type: string, minLength: 1, maxLength: 256}
+      fingerprint: {$ref: '#/$defs/fingerprint'}
+      role: {type: string, const: DV_OWNER}
+  bundle:
+    type: object
+    additionalProperties: false
+    required: [input, scenario_ac_map, ac_testcase_map, testcase, effective_uvm, review,
+      review_validation, stage1_units, stage2_units, stage3_units,
+      stage3_assembly, review_units, checkpoint]
+    properties:
+      input: {$ref: '#/$defs/fingerprint'}
+      scenario_ac_map: {$ref: '#/$defs/fingerprint'}
+      ac_testcase_map: {$ref: '#/$defs/fingerprint'}
+      testcase: {$ref: '#/$defs/fingerprint'}
+      effective_uvm: {$ref: '#/$defs/fingerprint'}
+      review: {$ref: '#/$defs/fingerprint'}
+      review_validation: {$ref: '#/$defs/fingerprint'}
+      stage1_units: {$ref: '#/$defs/fingerprint'}
+      stage2_units: {$ref: '#/$defs/fingerprint'}
+      stage3_units: {$ref: '#/$defs/fingerprint'}
+      stage3_assembly: {$ref: '#/$defs/fingerprint'}
+      review_units: {$ref: '#/$defs/fingerprint'}
+      checkpoint: {$ref: '#/$defs/fingerprint'}

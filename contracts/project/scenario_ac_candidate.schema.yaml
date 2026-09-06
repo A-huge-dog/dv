@@ -1,8 +1,8 @@
 $id: "urn:dv:project:scenario-ac-candidate:4.0"
 $comment: >-
   Model-owned PJ-002 Stage 1 semantics. Runtime owns candidate/formal
-  versions, kinds, formal IDs, ordering, counts, snippets, fingerprints,
-  lineage, paths, and provider evidence.
+  versions, kinds, formal IDs, canonical ordering, count limits, snippets,
+  fingerprints, lineage, paths, and provider evidence.
 type: object
 additionalProperties: false
 required: [scenarios, acceptance_criteria, completeness]

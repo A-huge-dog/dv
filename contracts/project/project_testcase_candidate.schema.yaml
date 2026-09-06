@@ -1,22 +1,22 @@
-schema_version: "6.0"
+schema_version: "7.0"
 type: object
 additionalProperties: false
 required: [schema_version, artifact_kind, candidate_id, job_id, revision,
   state, output_path, top, content, content_fingerprint, input_fingerprint,
   spec_fingerprint, scenario_ac_map_fingerprint,
-  ac_testcase_map_fingerprint, upstream_fingerprints, policy_fingerprint,
-  code_units, assembly_manifest, implemented_testcase_ids,
+  ac_testcase_map_fingerprint, effective_uvm_root, upstream_fingerprints, policy_fingerprint,
+  code_units, assembly_manifest, implemented_testcase_ids, skipped_testcases,
   provider, validation,
   candidate_fingerprint]
 properties:
-  schema_version: {type: string, const: "6.0"}
-  artifact_kind: {type: string, const: PORTABLE_SV_TESTCASE}
+  schema_version: {type: string, const: "7.0"}
+  artifact_kind: {type: string, const: UVM_TESTCASE_BUNDLE}
   candidate_id: {type: string, pattern: '^PROJECTTESTCAND\.[A-Z0-9_.-]+$'}
   job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
   revision: {type: integer, minimum: 0, maximum: 100}
   state: {type: string, const: STAGING}
   output_path:
-    {type: string, pattern: '^staging/generated/portable_sv/testcase\.r[0-9]{3}\.sv$'}
+    {type: string, pattern: '^staging/generated/uvm/generated_tests\.r[0-9]{3}\.sv$'}
   top: {type: string, pattern: '^[A-Za-z_][A-Za-z0-9_$]*$'}
   content: {type: string, minLength: 1, maxLength: 262144}
   content_fingerprint: {$ref: '#/$defs/fingerprint'}
@@ -24,15 +24,17 @@ properties:
   spec_fingerprint: {$ref: '#/$defs/fingerprint'}
   scenario_ac_map_fingerprint: {$ref: '#/$defs/fingerprint'}
   ac_testcase_map_fingerprint: {$ref: '#/$defs/fingerprint'}
+  effective_uvm_root: {$ref: '#/$defs/fingerprint'}
   upstream_fingerprints:
     type: object
     additionalProperties: false
-    required: [input, spec, scenario_ac_map, ac_testcase_map]
+    required: [input, spec, scenario_ac_map, ac_testcase_map, effective_uvm]
     properties:
       input: {$ref: '#/$defs/fingerprint'}
       spec: {$ref: '#/$defs/fingerprint'}
       scenario_ac_map: {$ref: '#/$defs/fingerprint'}
       ac_testcase_map: {$ref: '#/$defs/fingerprint'}
+      effective_uvm: {$ref: '#/$defs/fingerprint'}
   policy_fingerprint: {$ref: '#/$defs/fingerprint'}
   code_units:
     type: array
@@ -62,6 +64,10 @@ properties:
     type: array
     uniqueItems: true
     items: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+  skipped_testcases:
+    type: array
+    uniqueItems: true
+    items: {$ref: '#/$defs/skipped_testcase'}
   provider: {$ref: '#/$defs/provider'}
   validation:
     type: object
@@ -77,6 +83,15 @@ properties:
       validation_fingerprint: {$ref: '#/$defs/fingerprint'}
   candidate_fingerprint: {$ref: '#/$defs/fingerprint'}
 $defs:
+  skipped_testcase:
+    type: object
+    additionalProperties: false
+    required: [testcase_id, reason_kind, reason, routing_required]
+    properties:
+      testcase_id: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+      reason_kind: {enum: [SPEC_AMBIGUITY, BLOCKED_CONTRACT, RTL_CONTRACT_MISMATCH]}
+      reason: {type: string, minLength: 1, maxLength: 1024}
+      routing_required: {type: boolean, const: true}
   fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
   provider:
     type: object

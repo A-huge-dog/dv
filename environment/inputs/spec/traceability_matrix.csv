@@ -1,0 +1,42 @@
+requirement_id,source_anchor,design_owner,rtl_artifact,dv_scenario,acceptance
+REQ_SYS_001,enhanced_rscu_req.md:System and interface,enhanced_rscu_top,rtl/enhanced_rscu_top.sv,TC_RESET_CSR,Integrated baseline blocks visible
+REQ_SYS_002,enhanced_rscu_req.md:System and interface,enhanced_rscu_top,rtl/enhanced_rscu_top.sv,TC_POWER_ON+TC_DVFS_UP,CRPC and DVFS operate
+REQ_SYS_003,interface_contract.md:APB,rscu_bridge,rtl/rscu_bridge.sv,TC_APB_ERROR,APB legal/illegal transfer checks pass
+REQ_SYS_004,enhanced_rscu.yaml:profile,rscu_crpc_plus,rtl/rscu_crpc_plus.sv,TC_PROFILE,Four-domain state vector observed
+REQ_SYS_005,enhanced_rscu_arch.md:Clock reset,all RTL,rtl/*.sv,TC_RESET_CSR,Deterministic async reset
+REQ_SYS_006,interface_contract.md:ownership,enhanced_rscu_top,rtl/enhanced_rscu_top.sv,TC_RESET_CSR,Synchronous Phase-1 contract documented
+REQ_BRG_001,enhanced_rscu_req.md:bridge,rscu_bridge,rtl/rscu_bridge.sv,TC_APB_ERROR,APB endpoint verified
+REQ_GPR_001,csr.yaml:GPR,rscu_gprb,rtl/rscu_gprb.sv,TC_GPR,RW controls and RO status pass
+REQ_CSR_001,csr.yaml,rscu_csr,rtl/rscu_csr.sv,TC_RESET_CSR,Map/reset/access match
+REQ_CSR_002,csr.yaml:commands,rscu_csr,rtl/rscu_csr.sv,TC_BUSY_REJECT,Busy does not overwrite command
+REQ_CSR_003,csr.yaml:W1C,rscu_csr,rtl/rscu_csr.sv,TC_IRQ_W1C,W1C and RO behavior pass
+REQ_IRQ_001,error_timeout_model.md:IRQ,rscu_intr_handler,rtl/rscu_intr_handler.sv,TC_IRQ_W1C,Sticky raw event passes
+REQ_IRQ_002,error_timeout_model.md:IRQ,rscu_intr_handler,rtl/rscu_intr_handler.sv,TC_IRQ_W1C,Mask/aggregate/set-priority pass
+REQ_ERR_001,error_timeout_model.md,rscu_csr,rtl/rscu_csr.sv,TC_ERROR_PATHS,All defined error classes visible
+REQ_ERR_002,error_timeout_model.md,rscu_csr,rtl/rscu_csr.sv,TC_ERROR_INFO,Sticky status/latest info pass
+REQ_PWR_001,power_sequence.md,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_RESET_CSR,OFF-safe reset outputs
+REQ_PWR_002,power_sequence.md:OFF to ON,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_POWER_ON,Ordered power-on passes
+REQ_PWR_003,power_sequence.md:ON to OFF,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_POWER_OFF,Ordered power-off passes
+REQ_PWR_004,power_sequence.md:retention,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_RETENTION,Entry and exit pass
+REQ_PWR_005,power_sequence.md:illegal,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_ILLEGAL_STATE,Illegal/no-op/recovery pass
+REQ_QHS_001,power_sequence.md:ON to OFF,pck_q_mgr,rtl/pck_like/pck_q_mgr.sv,TC_QUIESCE_DENY,Deny before destructive action
+REQ_PHS_001,power_sequence.md,pck_p_mgr,rtl/pck_like/pck_p_mgr.sv,TC_POWER_TIMEOUT,Power request stability/timeout
+REQ_DEP_001,enhanced_rscu_arch.md:dependency,pck_dependency_checker,rtl/pck_like/pck_dependency_checker.sv,TC_DEPENDENCY,Parent and child violation rejected
+REQ_CLK_001,power_sequence.md,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_POWER_ON_OFF,Clock ack ordering
+REQ_RST_001,power_sequence.md,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_POWER_ON_OFF,Reset ack ordering
+REQ_ISO_001,power_sequence.md,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_POWER_ON_OFF,Isolation ack ordering
+REQ_RET_001,power_sequence.md,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_RETENTION,Retention ack ordering
+REQ_TMO_001,error_timeout_model.md:counter,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_ALL_TIMEOUTS,Nth-cycle timeout semantics
+REQ_SAFE_001,enhanced_rscu_arch.md:containment,pck_domain_ctrl,rtl/pck_like/pck_domain_ctrl.sv,TC_POWER_TIMEOUT,Safe containment outputs
+REQ_DVFS_001,csr.yaml:OPP,dvfs_opp_table,rtl/dvfs/dvfs_opp_table.sv,TC_OPP_TABLE,Idle-only OPP writes
+REQ_DVFS_002,dvfs_sequence.md:upscale,dvfs_seq_fsm,rtl/dvfs/dvfs_seq_fsm.sv,TC_DVFS_UP,Voltage precedes frequency
+REQ_DVFS_003,dvfs_sequence.md:downscale,dvfs_seq_fsm,rtl/dvfs/dvfs_seq_fsm.sv,TC_DVFS_DOWN,Frequency precedes voltage
+REQ_DVFS_004,dvfs_sequence.md:arbitration,dvfs_mgr,rtl/dvfs/dvfs_mgr.sv,TC_DVFS_PRIORITY,Admission and priority pass
+REQ_DVFS_005,dvfs_sequence.md:failure,dvfs_mgr,rtl/dvfs/dvfs_mgr.sv,TC_DVFS_ERRORS,Illegal/unsafe/timeouts preserve OPP
+REQ_DVFS_006,dvfs_sequence.md:same OPP,dvfs_seq_fsm,rtl/dvfs/dvfs_seq_fsm.sv,TC_DVFS_SAME,Immediate completion/request stability
+REQ_DFT_001,interface_contract.md:integration,enhanced_rscu_top,rtl/enhanced_rscu_top.sv,TC_OVERRIDE,Forced outputs/state preservation
+REQ_DBG_001,csr.yaml:status,rscu_csr,rtl/rscu_csr.sv,TC_STATUS,Debug status reads match
+REQ_SOC_001,enhanced_rscu_arch.md:top,ai_soc_top,rtl/soc/ai_soc_top.sv,TC_SOC_SMOKE,Prototype elaborates and runs
+REQ_CFG_001,enhanced_rscu.yaml,rscu_pkg,rtl/rscu_pkg.sv,TC_PROFILE,Reference profile constants match
+REQ_Q2_001,acceptance_criteria.md:Q2,DV plan,sva+rscu_uvm_pkg.sv,TC_Q2_SUITE,Normal/error/SVA suite passes
+REQ_Q3_001,acceptance_criteria.md:Q3,enhanced_rscu_top,tb/tb_top.sv,TC_Q3_END_TO_END,Exact pass marker and zero failures

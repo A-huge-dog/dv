@@ -33,3 +33,19 @@ dist/
 # Operating-system metadata
 .DS_Store
 Thumbs.db
+# Accidental empty file
+/--project-input
+
+# Simulation outputs
+results/
+xcelium.d/
+INCA_libs/
+obj_dir/
+waves.shm/
+*.vcd
+*.fst
+*.fsdb
+*.vpd
+
+# Local license files
+*.lic

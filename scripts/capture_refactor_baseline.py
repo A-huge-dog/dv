@@ -22,9 +22,9 @@ PRODUCTION_ROOTS = (
     *(name for name in TARGET_PACKAGES if (ROOT / name).exists()),
 )
 HOTSPOT_PATHS = (
-    "core/project_staged.py",
-    "core/project_job.py",
-    "core/project_commit_runtime.py",
+    "runtime/staged_workflow.py",
+    "runtime/project_job.py",
+    "runtime/commit_runtime.py",
 )
 FILESYSTEM_CALLS = {
     "exists", "glob", "is_dir", "is_file", "iterdir", "lstat", "mkdir",
@@ -254,6 +254,7 @@ def capture() -> dict:
         and path.relative_to(ROOT).as_posix() not in {
             "tests/baselines/refactor_architecture.json",
             "tests/baselines/ref001_architecture.json",
+            "tests/baselines/ref006_architecture.json",
         }
     )
     target_packages_present = sorted(

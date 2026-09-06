@@ -32,6 +32,52 @@ SCHEMAS = {
         ROOT / "contracts/eda/eda_probe_request.schema.yaml",
     "eda_probe_evidence":
         ROOT / "contracts/eda/eda_probe_evidence.schema.yaml",
+    "xcelium_execution_request":
+        ROOT / "contracts/eda/xcelium_execution_request.schema.yaml",
+    "xcelium_execution_evidence":
+        ROOT / "contracts/eda/xcelium_execution_evidence.schema.yaml",
+    "eda_test_suite_binding":
+        ROOT / "contracts/eda/eda_test_suite_binding.schema.yaml",
+    "eda_test_suite_request":
+        ROOT / "contracts/eda/eda_test_suite_request.schema.yaml",
+    "eda_test_suite_final_result":
+        ROOT / "contracts/eda/eda_test_suite_final_result.schema.yaml",
+    "eda_artifact_index":
+        ROOT / "contracts/eda/eda_artifact_index.schema.yaml",
+    "eda_environment_qualification":
+        ROOT / "contracts/eda/eda_environment_qualification.schema.yaml",
+    "eda_loop_checkpoint":
+        ROOT / "contracts/eda/eda_loop_checkpoint.schema.yaml",
+    "generated_uvm_tests_manifest":
+        ROOT / "contracts/eda/generated_uvm_tests_manifest.schema.yaml",
+    "uvm_testcase_context_manifest":
+        ROOT / "contracts/eda/uvm_testcase_context_manifest.schema.yaml",
+    "uvm_testcase_binding":
+        ROOT / "contracts/eda/uvm_testcase_binding.schema.yaml",
+    "uvm_testcase_final_result":
+        ROOT / "contracts/eda/uvm_testcase_final_result.schema.yaml",
+    "project_execution_authorization":
+        ROOT / "contracts/project/project_execution_authorization.schema.yaml",
+    "project_approved_testcase":
+        ROOT / "contracts/project/project_approved_testcase.schema.yaml",
+    "project_execution_bundle":
+        ROOT / "contracts/project/project_execution_bundle.schema.yaml",
+    "project_execution_request":
+        ROOT / "contracts/project/project_execution_request.schema.yaml",
+    "project_execution_evidence":
+        ROOT / "contracts/project/project_execution_evidence.schema.yaml",
+    "project_execution_checkpoint":
+        ROOT / "contracts/project/project_execution_checkpoint.schema.yaml",
+    "uvm_generation_candidate":
+        ROOT / "contracts/project/uvm_generation_candidate.schema.yaml",
+    "uvm_generation_xcelium_request":
+        ROOT / "contracts/project/uvm_generation_xcelium_request.schema.yaml",
+    "uvm_generation_xcelium_result":
+        ROOT / "contracts/project/uvm_generation_xcelium_result.schema.yaml",
+    "uvm_generation_checkpoint":
+        ROOT / "contracts/project/uvm_generation_checkpoint.schema.yaml",
+    "dv_worker_state":
+        ROOT / "contracts/project/dv_worker_state.schema.yaml",
     "project_job_submission":
         ROOT / "contracts/project/project_job_submission.schema.yaml",
     "project_stage3_submission":
@@ -52,8 +98,14 @@ SCHEMAS = {
         ROOT / "contracts/project/project_testcase_candidate.schema.yaml",
     "portable_sv_testcase_candidate":
         ROOT / "contracts/project/portable_sv_testcase_candidate.schema.yaml",
+    "uvm_testcase_candidate":
+        ROOT / "contracts/project/uvm_testcase_candidate.schema.yaml",
     "project_testcase_review_candidate":
         ROOT / "contracts/project/project_testcase_review_candidate.schema.yaml",
+    "review_evidence_check":
+        ROOT / "contracts/project/review_evidence_check.schema.yaml",
+    "review_evidence_check_result":
+        ROOT / "contracts/project/review_evidence_check_result.schema.yaml",
     "project_stage_blocked":
         ROOT / "contracts/project/project_stage_blocked.schema.yaml",
     "scenario_owner_review_form":
@@ -404,6 +456,32 @@ def _semantic_errors(kind, value):
                 "project_transcript_manifest.manifest_fingerprint: canonical "
                 "fingerprint mismatch"))
         return errors
+    if kind == "dv_worker_state":
+        errors = []
+        projected = copy.deepcopy(value)
+        projected.pop("state_fingerprint", None)
+        if value.get("state_fingerprint") != canonical_hash(projected):
+            errors.append(_coded(
+                "STALE_EVIDENCE",
+                "dv_worker_state.state_fingerprint: canonical fingerprint "
+                "mismatch"))
+        action = value.get("last_action", {})
+        if isinstance(action, dict) and action:
+            if action.get("status") == "INTENT" and (
+                    action.get("result") is not None or
+                    action.get("result_fingerprint") is not None):
+                errors.append(_coded(
+                    "STALE_EVIDENCE",
+                    "dv_worker_state.last_action: intent cannot carry a "
+                    "receipt"))
+            if action.get("status") == "SUCCEEDED" and \
+                    action.get("result_fingerprint") != canonical_hash(
+                        action.get("result")):
+                errors.append(_coded(
+                    "STALE_EVIDENCE",
+                    "dv_worker_state.last_action: receipt fingerprint "
+                    "mismatch"))
+        return errors
     if kind == "project_read_tool_result":
         projected = copy.deepcopy(value)
         projected.pop("result_fingerprint", None)
@@ -469,19 +547,27 @@ def validate(kind, value):
             kind, type(error).__name__)]
     raw.extend(_semantic_errors(kind, value))
     owner_by_kind = {
-        "approval_request": "DV_REVIEWER",
-        "approval_decision": "DV_REVIEWER",
-        "eda_probe_request": "EDA_OWNER",
-        "eda_probe_evidence": "EDA_OWNER",
+        "approval_request": "DV_OWNER",
+        "approval_decision": "DV_OWNER",
+        "eda_probe_request": "DV_OWNER",
+        "eda_probe_evidence": "DV_OWNER",
+        "xcelium_execution_request": "DV_OWNER",
+        "xcelium_execution_evidence": "DV_OWNER",
+        "eda_test_suite_binding": "DV_OWNER",
+        "eda_test_suite_request": "DV_OWNER",
+        "eda_test_suite_final_result": "DV_OWNER",
+        "eda_artifact_index": "DV_OWNER",
+        "eda_environment_qualification": "DV_OWNER",
+        "eda_loop_checkpoint": "DV_OWNER",
         "project_job_submission": "SPEC_OWNER",
         "project_stage3_submission": "STAGE3_TEST_OWNER",
-        "project_job_input": "DV_REVIEWER",
+        "project_job_input": "DV_OWNER",
         "scenario_owner_review_form": "DV_OWNER",
         "scenario_owner_review_submission": "DV_OWNER",
-        "project_testcase_candidate": "DV_REVIEWER",
-        "project_testcase_review_request": "DV_REVIEWER",
-        "project_testcase_review_report": "DV_REVIEWER",
-        "project_testcase_review_validation": "DV_REVIEWER",
+        "project_testcase_candidate": "DV_OWNER",
+        "project_testcase_review_request": "DV_OWNER",
+        "project_testcase_review_report": "DV_OWNER",
+        "project_testcase_review_validation": "DV_OWNER",
         "project_repair_plan": "ORCHESTRATOR",
         "project_router_receipt": "ROUTER",
         "project_formal_dispatch": "ROUTER",
@@ -491,19 +577,20 @@ def validate(kind, value):
         "project_failure_feedback": "ORCHESTRATOR",
         "project_job_regeneration_state": "ROUTER",
         "project_transcript_manifest": "DV_AGENT_DEVELOPER",
+        "dv_worker_state": "DV_AGENT_DEVELOPER",
         "project_read_tool_result": "DV_AGENT_DEVELOPER",
         "project_session_cancel_request": "DV_OWNER",
         "project_session_queue_event": "DV_AGENT_DEVELOPER",
-        "project_job_report": "DV_REVIEWER",
+        "project_job_report": "DV_OWNER",
         "project_committed_testcase": "DV_AGENT_DEVELOPER",
-        "project_compile_validation": "EDA_OWNER",
+        "project_compile_validation": "DV_OWNER",
         "project_commit_manifest": "DV_AGENT_DEVELOPER",
-        "project_oches003_checkpoint": "DV_REVIEWER",
+        "project_oches003_checkpoint": "DV_OWNER",
     }
     routing_by_code = {
-        "STALE_EVIDENCE": ("DV_REVIEWER", "IMMUTABLE_EVIDENCE"),
-        "TOOL_PERMISSION_DENIED": ("EDA_OWNER", "EDA_PERMISSION"),
-        "CONFLICTING_SOURCE": ("DV_REVIEWER", "SOURCE_EVIDENCE"),
+        "STALE_EVIDENCE": ("DV_OWNER", "IMMUTABLE_EVIDENCE"),
+        "TOOL_PERMISSION_DENIED": ("DV_OWNER", "EDA_PERMISSION"),
+        "CONFLICTING_SOURCE": ("DV_OWNER", "SOURCE_EVIDENCE"),
     }
     diagnostics = []
     for error in raw:

@@ -19,12 +19,23 @@ for module_name in (
         "test_project_incremental_artifacts",
         "test_oches001_repair_control",
         "test_oches002_tool_session",
+        "test_dv_worker_state",
+        "test_m3_uvm_worker",
+        "test_m4_project_loop",
         "test_oches002_project_tools",
         "test_oches002_scoped_repair",
         "test_oches002_repair_runtime",
         "test_oches002_one_yaml_runtime",
         "test_oches002_scheduler",
-        "test_oches003_commit_runtime"):
+        "test_oches003_records",
+        "test_oches003_commit_runtime",
+        "test_recovery_and_atomic",
+        "test_xcelium_adapter",
+        "test_ref003_domain_architecture",
+        "test_ref004_application_architecture",
+        "test_ref005_project_loop",
+        "test_ref005_project_loop_architecture",
+        "test_ref006_physical_cleanup"):
     suite.addTests(unittest.defaultTestLoader.loadTestsFromName(module_name))
 result = unittest.TextTestRunner(verbosity=2).run(suite)
 raise SystemExit(0 if result.wasSuccessful() else 1)

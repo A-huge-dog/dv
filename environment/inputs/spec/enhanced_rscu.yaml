@@ -1,0 +1,41 @@
+schema_version: "1.0"
+design: enhanced_rscu
+phase: phase1
+top: enhanced_rscu_top
+clock:
+  name: pclk
+reset:
+  name: presetn
+  polarity: active_low
+  assertion: asynchronous
+bus:
+  protocol: APB3
+  address_width: 12
+  data_width: 32
+profile:
+  num_domains: 4
+  domains:
+    - {id: 0, name: COMPUTE, parents: [1, 2]}
+    - {id: 1, name: FABRIC, parents: [3]}
+    - {id: 2, name: SRAM, parents: [3]}
+    - {id: 3, name: DDR_IF, parents: []}
+  gpr_words: 4
+  opp_count: 4
+  opp_reset:
+    - {index: 0, voltage_code: 800, frequency_code: 400}
+    - {index: 1, voltage_code: 850, frequency_code: 600}
+    - {index: 2, voltage_code: 900, frequency_code: 800}
+    - {index: 3, voltage_code: 1000, frequency_code: 1000}
+power_states: {OFF: 0, RETENTION: 1, ON: 2, ERROR: 3}
+timeout:
+  unit: pclk_cycles
+  reset_cycles: 32
+  zero_means: disabled
+dvfs_priority: [thermal, firmware, performance]
+reference_boundary:
+  pck600_compatible: false
+  generated_from_pck600_trm: false
+quality_target:
+  modules: Q2
+  standalone_ip: Q3
+  soc_wrapper: prototype_only

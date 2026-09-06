@@ -1,0 +1,86 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, evidence_id, request_id,
+  request_fingerprint, job_id, phase, executable_ref, environment_identity,
+  environment_fingerprint, started_at, ended_at, exit_code,
+  execution_status, timed_out, pass_marker_found, uvm_error_count,
+  uvm_fatal_count, simulator_version,
+  logs, artifacts, output_tree_fingerprint, output_tree_size_bytes,
+  output_tree_file_count, diagnostic_codes, qualification_scope,
+  evidence_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: XCELIUM_EXECUTION_EVIDENCE}
+  evidence_id: {type: string, pattern: '^XCELIUM\.EVIDENCE\.[A-Z0-9_.-]+$'}
+  request_id: {type: string, pattern: '^XCELIUM\.REQUEST\.[A-Z0-9_.-]+$'}
+  request_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  job_id: {type: string, pattern: '^JOB\.[A-Z0-9_.-]+$'}
+  phase: {enum: [VERSION, COMPILE, BUILD, RUN]}
+  executable_ref: {type: string, const: EDAEXEC.XCELIUM}
+  environment_identity:
+    {type: string, pattern: '^XCELIUMENV\.[A-Z0-9_.-]+$'}
+  environment_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  started_at:
+    {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$'}
+  ended_at:
+    {type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$'}
+  exit_code: {type: integer, minimum: -255, maximum: 255}
+  execution_status: {enum: [PASS, FAIL, BLOCKED_TOOL]}
+  timed_out: {type: boolean}
+  pass_marker_found:
+    oneOf:
+      - {type: 'null'}
+      - {type: boolean}
+  uvm_error_count: {type: integer, minimum: 0}
+  uvm_fatal_count: {type: integer, minimum: 0}
+  simulator_version:
+    oneOf:
+      - {type: 'null'}
+      - {type: string, minLength: 1, maxLength: 512}
+  logs:
+    type: array
+    minItems: 2
+    maxItems: 3
+    items:
+      type: object
+      additionalProperties: false
+      required: [kind, relative_path, fingerprint, size_bytes]
+      properties:
+        kind: {enum: [STDOUT, STDERR, XRUN_LOG]}
+        relative_path:
+          {type: string, pattern: '^runs/xcelium/[A-Za-z0-9][A-Za-z0-9._/-]*$'}
+        fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+        size_bytes: {type: integer, minimum: 0}
+  artifacts:
+    type: array
+    maxItems: 32
+    items:
+      type: object
+      additionalProperties: false
+      required: [artifact_id, kind, path_kind, relative_path,
+        fingerprint, size_bytes, file_count]
+      properties:
+        artifact_id: {type: string, pattern: '^XCELIUM\.ARTIFACT\.[A-Z0-9]+$'}
+        kind: {enum: [XCELIUM_DATABASE, XRUN_LOG, TRACE_VCD, WAVE_SHM,
+          COVERAGE_DATABASE]}
+        path_kind: {enum: [FILE, DIRECTORY]}
+        relative_path:
+          {type: string, pattern: '^runs/xcelium/[A-Za-z0-9][A-Za-z0-9._/-]*$'}
+        fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+        size_bytes: {type: integer, minimum: 1}
+        file_count: {type: integer, minimum: 1}
+  output_tree_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  output_tree_size_bytes: {type: integer, minimum: 0}
+  output_tree_file_count: {type: integer, minimum: 2}
+  diagnostic_codes:
+    type: array
+    uniqueItems: true
+    items:
+      enum: [PROCESS_EXIT_NONZERO, PROCESS_TIMEOUT, LICENSE_UNAVAILABLE,
+        RUNTIME_DEPENDENCY_MISSING, VERSION_MISMATCH, COMPILE_FAILED,
+        ELABORATION_FAILED, SIMULATION_FAILED, UVM_FAILURE,
+        PASS_MARKER_MISSING, MISSING_ARTIFACT, OUTPUT_FILE_LIMIT]
+  qualification_scope:
+    {type: string, const: ISOLATED_XCELIUM_ADAPTER_NO_PROJECT_AUTHORITY}
+  evidence_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

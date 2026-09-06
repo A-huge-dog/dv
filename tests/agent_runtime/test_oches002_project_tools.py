@@ -6,7 +6,7 @@ import copy
 import unittest
 
 from contracts.validator import accepted, load_document, validate
-from core.project_tools import (
+from agents.project_tools import (
     ProjectReadModel, ProjectToolError, READ_TOOL_NAMES, STAGE_READ_TOOLS,
     read_tool_definitions,
 )
@@ -42,6 +42,21 @@ class Oches002ProjectToolTests(unittest.TestCase):
     def assert_result(self, value, tool_name):
         self.assertEqual(tool_name, value["tool_name"])
         self.assertTrue(accepted(validate("project_read_tool_result", value)))
+
+    def test_expected_roots_bind_the_effective_uvm(self):
+        roots = ProjectReadModel._expected_artifact_roots(
+            {"artifact_fingerprint": "1" * 64},
+            {"artifact_fingerprint": "2" * 64},
+            {
+                "effective_uvm_root": "3" * 64,
+                "candidate_fingerprint": "4" * 64,
+            })
+        self.assertEqual({
+            "scenario_ac_map": "1" * 64,
+            "ac_testcase_map": "2" * 64,
+            "effective_uvm": "3" * 64,
+            "testcase": "4" * 64,
+        }, roots)
 
     def test_all_nine_tools_use_one_exact_current_snapshot(self):
         bundle = self.awaiting()
@@ -160,15 +175,16 @@ class Oches002ProjectToolTests(unittest.TestCase):
 
     def test_accepted_dispatch_is_history_but_does_not_create_revision(self):
         bundle = self.awaiting()
-        candidate = load_document(
-            bundle["job"] /
-            "staging/generated/portable_sv/testcase.r000.json")
+        current = ProjectReadModel.from_checkpoint(
+            bundle["job"], bundle["checkpoint"])
         target = {
-            "kind": "CODE_UNIT",
-            "id": candidate["code_units"][0]["code_unit_id"],
+            "kind": "TESTCASE",
+            "id": next(item["unit_id"] for item in current.units.values()
+                       if item["unit_kind"] == "LOGICAL_TESTCASE"),
         }
         plan = self.fixture._plan(
-            bundle["submission"], bundle["report"], bundle["request"], target)
+            bundle["submission"], bundle["report"], bundle["request"],
+            target, "STAGE_2")
         final = bundle["workflow"].submit_repair_plan(
             bundle["submission"], plan)
         self.assertEqual("AWAITING_SCOPED_REPLACEMENT", final["state"])

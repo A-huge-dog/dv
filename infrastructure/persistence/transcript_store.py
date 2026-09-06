@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from contracts.validator import accepted, validate
-from core.atomic_artifact import publish_immutable_bytes
-from runtime.agent_loop import AgentLoopError
+from infrastructure.persistence.atomic_artifact import publish_immutable_bytes
+from agents.errors import AgentLoopError
 from scripts.dvlib import canonical_hash
 
 
@@ -19,6 +19,7 @@ ROLE_DIRECTORIES = {
     "STAGE_1": "stage1",
     "STAGE_2": "stage2",
     "STAGE_3": "stage3",
+    "UVM_GENERATION": "uvm_generation",
     "REVIEWER": "reviewer",
 }
 _EVENT_KINDS = {"REQUEST", "RESPONSE", "TOOL_CALL", "TOOL_RESULT"}

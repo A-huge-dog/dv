@@ -80,11 +80,12 @@ $defs:
   artifact_roots:
     type: object
     additionalProperties: false
-    required: [scenario_ac_map, ac_testcase_map, testcase]
+    required: [scenario_ac_map, ac_testcase_map, testcase, effective_uvm]
     properties:
       scenario_ac_map: {$ref: '#/$defs/fingerprint'}
       ac_testcase_map: {$ref: '#/$defs/fingerprint'}
       testcase: {$ref: '#/$defs/fingerprint'}
+      effective_uvm: {$ref: '#/$defs/fingerprint'}
   unit_roots:
     type: object
     additionalProperties: false

@@ -1,6 +1,6 @@
 # Project Job staged workflow summary
 
-Updated: 2026-08-17
+Updated: 2026-08-18
 
 当前 active contract 是 workflow `6.0` / policy `OCHES001`。本文件描述从 immutable Project input
 到 Human-review 路径，或从 OCHES002 validated replacement 经 OCHES003 compile/commit/impact/final review 的
@@ -40,6 +40,20 @@ at bootstrap, but Stage 1/2/3 and Reviewer requests may not contain RTL bytes, p
 RTL-derived interface evidence.
 
 ## Fingerprint boundaries
+
+Project workflow 只有一条 active control path：CLI 创建依赖后调用 `runtime/project_loop.py`；Project loop 读取
+`CheckpointRepository` 校验的固定 checkpoint，并把单步动作交给 `application/` handler。需要模型协议时，所有
+initial/repair/review 角色都进入 `runtime/agent_loop.py`；transcript、artifact 与 repair record 分别由
+`infrastructure/persistence/` 的唯一实现保存。旧 `core/` 源码树、包级 re-export facade 与循环 import 已删除。
+
+```text
+CLI -> ProjectLoop -> application handler -> domain rule
+                    -> AgentLoop -> TranscriptStore
+                    -> explicit infrastructure persistence / EDA boundary
+```
+
+Project loop 只决定业务 transition；Agent loop 只决定 request/tool/observation/final-submission 协议。两者都不能
+代替 Human approval、promotion 或 production EDA authority。
 
 Each semantic unit separates:
 
@@ -176,4 +190,8 @@ result. Their qualification scope remains `TEST_ONLY_NO_PROMOTION_OR_EDA`.
 Scripted/mock tests prove Framework contract, lineage, assembly, compile gating, serial authority switching, impact,
 final review and fail-closed behavior only. They do not prove production Qwen/DeepSeek output, Human approval,
 production Verilator execution, simulation, DUT correctness, full UVM, four-state semantics or coverage closure.
-PJ-003 remains paused and requires exact Human/EDA authority.
+PJ-003 is implemented and scripted/fake-qualified. The single ProjectLoop now records an exact `DV_OWNER` testcase
+decision, pauses for a separately submitted `DV_OWNER` execution authorization, binds the approved testcase to immutable
+baseline RTL, and executes through the injected trusted Xcelium adapter. Its terminal states are `EXECUTION_PASS`,
+`EXECUTION_FAIL`, and `EXECUTION_BLOCKED`; only PJ-004 may publish `COMPLETE`. This qualification does not grant any real
+Job approval or production EDA authority.

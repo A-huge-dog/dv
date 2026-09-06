@@ -1,0 +1,33 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, testcases, skipped_testcases, manifest_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: GENERATED_UVM_TESTS_MANIFEST}
+  testcases:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [testcase_id, uvm_class, uvm_testname, seed, timeout_seconds, pass_marker]
+      properties:
+        testcase_id: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+        uvm_class: {type: string, pattern: '^uvm_tc_[a-z0-9_]+_[0-9a-f]{12}$'}
+        uvm_testname: {type: string, pattern: '^uvm_tc_[a-z0-9_]+_[0-9a-f]{12}$'}
+        seed: {type: integer, minimum: 1, maximum: 2147483647}
+        timeout_seconds: {type: integer, minimum: 1, maximum: 3600}
+        pass_marker: {type: string, pattern: '^DV_UVM_[A-F0-9]{16}_PASS$'}
+  skipped_testcases:
+    type: array
+    uniqueItems: true
+    items:
+      type: object
+      additionalProperties: false
+      required: [testcase_id, reason_kind, reason, routing_required]
+      properties:
+        testcase_id: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
+        reason_kind: {enum: [SPEC_AMBIGUITY, BLOCKED_CONTRACT, RTL_CONTRACT_MISMATCH]}
+        reason: {type: string, minLength: 1, maxLength: 1024}
+        routing_required: {type: boolean, const: true}
+  manifest_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

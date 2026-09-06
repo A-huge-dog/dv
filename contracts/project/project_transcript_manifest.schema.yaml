@@ -7,7 +7,7 @@ properties:
   schema_version: {type: string, const: "1.0"}
   session_id: {type: string, pattern: '^[A-Z][A-Z0-9_.-]+$'}
   job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
-  role: {enum: [ORCHESTRATOR, STAGE_1, STAGE_2, STAGE_3, REVIEWER]}
+  role: {enum: [ORCHESTRATOR, STAGE_1, STAGE_2, UVM_GENERATION, STAGE_3, REVIEWER]}
   lineage: {type: object}
   entries:
     type: array

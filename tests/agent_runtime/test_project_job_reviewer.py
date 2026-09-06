@@ -7,14 +7,16 @@ import json
 import unittest
 
 from contracts.validator import load_document
-from core.project_job import ProjectJobError, ProjectJobWorkflow
-from core.project_staged import (
-    StagedProjectWorkflow, artifact_fingerprint,
-    validate_ac_testcase_map,
-    validate_review_report,
-    validate_scenario_ac_map,
-    validate_testcase_candidate,
+from runtime.errors import ProjectJobError
+from runtime.project_job import ProjectJobWorkflow
+from runtime.staged_workflow import (
+    StagedProjectWorkflow,
 )
+from domain.review import validate_review_report
+from domain.stage3 import validate_testcase_candidate
+from domain.stage2 import validate_ac_testcase_map
+from domain.stage1 import validate_scenario_ac_map
+from domain.artifacts import artifact_fingerprint
 from scripts.dvlib import canonical_hash
 try:
     from test_project_job_workflow import (
@@ -159,7 +161,7 @@ class ProjectJobReviewerTests(ProjectJobWorkflowTests):
             FakeProvider(), FakeReviewerProvider())
         checkpoint = self.start_checked(workflow)
         job = self.root / "result/jobs/JOB.PROJECT.TINY.001"
-        manifest = workflow.bootstrap(self.project_input())
+        manifest = workflow.bootstrap_handler.handle(self.project_input())
         map1 = load_document(job / checkpoint["scenario_ac_map_path"])
         map2 = load_document(job / checkpoint["ac_testcase_map_path"])
         candidate = load_document(job / checkpoint["candidate_metadata_path"])

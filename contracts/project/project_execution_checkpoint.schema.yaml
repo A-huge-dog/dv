@@ -1,0 +1,20 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, workflow_version, state, job_id,
+  input_fingerprint, authority_path, authority_fingerprint,
+  checkpoint_id, checkpoint_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  workflow_version: {type: string, const: PJ-003.1}
+  state: {enum: [PAUSED_BY_HUMAN, AWAITING_EXECUTION_AUTHORIZATION, READY_FOR_BINDING,
+    READY_FOR_EXECUTION, EXECUTION_PASS, EXECUTION_FAIL, EXECUTION_BLOCKED]}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  authority_path: {type: string, pattern: '^(approved|audit)/[A-Za-z0-9._/-]+$'}
+  authority_fingerprint: {$ref: '#/$defs/fingerprint'}
+  decision: {enum: [REJECT, REQUEST_REVISION]}
+  checkpoint_id: {type: string, pattern: '^CHECKPOINT\.PROJECT\.PJ003\.[A-Z0-9_.-]+$'}
+  checkpoint_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

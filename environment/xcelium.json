@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "simulator": "xcelium",
+  "environment": {
+    "identity": "XCELIUMENV.ARM.26_03_E065",
+    "xrun": "/arm/tools/cadence/xcelium/26.03_e065/tools/bin/64bit/xrun",
+    "allowlist": ["PATH", "LD_LIBRARY_PATH", "CDS_LIC_FILE", "LC_ALL"],
+    "expected_version_pattern": "(?i)xrun\\(64\\).*26\\.03-e065"
+  },
+  "defaults": {
+    "timeout_seconds": 600,
+    "resource_limits": {
+      "cpu_seconds": 600,
+      "memory_mb": 8192,
+      "output_files": 20000
+    }
+  },
+  "design": {
+    "sources": [
+      {"path": "inputs/rtl/rscu_pkg.sv", "role": "package"},
+      {"path": "inputs/rtl/rscu_bridge.sv", "role": "rtl"},
+      {"path": "inputs/rtl/rscu_gprb.sv", "role": "rtl"},
+      {"path": "inputs/rtl/rscu_intr_handler.sv", "role": "rtl"},
+      {"path": "inputs/rtl/pck_like/pck_dependency_checker.sv", "role": "rtl"},
+      {"path": "inputs/rtl/pck_like/pck_q_mgr.sv", "role": "rtl"},
+      {"path": "inputs/rtl/pck_like/pck_p_mgr.sv", "role": "rtl"},
+      {"path": "inputs/rtl/pck_like/pck_domain_ctrl.sv", "role": "rtl"},
+      {"path": "inputs/rtl/rscu_crpc_plus.sv", "role": "rtl"},
+      {"path": "inputs/rtl/dvfs/dvfs_opp_table.sv", "role": "rtl"},
+      {"path": "inputs/rtl/dvfs/dvfs_seq_fsm.sv", "role": "rtl"},
+      {"path": "inputs/rtl/dvfs/dvfs_mgr.sv", "role": "rtl"},
+      {"path": "inputs/rtl/rscu_csr.sv", "role": "rtl"},
+      {"path": "inputs/rtl/enhanced_rscu_top.sv", "role": "rtl"},
+      {"path": "tb/rscu_if.sv", "role": "dut_interface"},
+      {"path": "ral/rscu_ral_pkg.sv", "role": "package"},
+      {"path": "tests/rscu_uvm_pkg.sv", "role": "package"},
+      {"path": "tb/rscu_mock_agents.sv", "role": "testbench"},
+      {"path": "sva/rscu_sva.sv", "role": "assertion"},
+      {"path": "coverage/rscu_coverage.sv", "role": "testbench"},
+      {"path": "tb/tb_top.sv", "role": "testbench"}
+    ],
+    "top": "tb_top",
+    "parameters": {},
+    "include_dirs": [],
+    "defines": [],
+    "uvm": true,
+    "timescale": "1ns/1ps",
+    "access": "rwc"
+  },
+  "tests": [
+    {
+      "id": "reset_csr",
+      "uvm_test": "rscu_reset_csr_test",
+      "seed": 101,
+      "pass_marker": "DV_TESTCASE_PASS:RSCU_RESET_CSR",
+      "timeout_seconds": 120,
+      "plusargs": ["+UVM_VERBOSITY=UVM_LOW"]
+    },
+    {
+      "id": "power",
+      "uvm_test": "rscu_power_test",
+      "seed": 102,
+      "pass_marker": "DV_TESTCASE_PASS:RSCU_POWER",
+      "timeout_seconds": 180,
+      "plusargs": ["+UVM_VERBOSITY=UVM_LOW"]
+    },
+    {
+      "id": "errors",
+      "uvm_test": "rscu_error_test",
+      "seed": 103,
+      "pass_marker": "DV_TESTCASE_PASS:RSCU_ERRORS",
+      "timeout_seconds": 180,
+      "plusargs": ["+UVM_VERBOSITY=UVM_LOW"]
+    },
+    {
+      "id": "dvfs",
+      "uvm_test": "rscu_dvfs_test",
+      "seed": 104,
+      "pass_marker": "DV_TESTCASE_PASS:RSCU_DVFS",
+      "timeout_seconds": 180,
+      "plusargs": ["+UVM_VERBOSITY=UVM_LOW"]
+    },
+    {
+      "id": "q3",
+      "uvm_test": "rscu_q3_test",
+      "seed": 105,
+      "pass_marker": "DV_TESTCASE_PASS:RSCU_Q3",
+      "timeout_seconds": 300,
+      "plusargs": ["+UVM_VERBOSITY=UVM_LOW"]
+    }
+  ],
+  "regressions": [
+    {"name": "phase1-directed", "tests": ["reset_csr", "power", "errors", "dvfs"]}
+  ]
+}

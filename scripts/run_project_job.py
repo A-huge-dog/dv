@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import yaml
 
@@ -15,18 +15,15 @@ if str(DV_ROOT) not in sys.path:
     sys.path.insert(0, str(DV_ROOT))
 
 from adapters.llm import OpenAICompatibleProvider, ProviderConfigError
+from adapters.eda import XceliumAdapter, XceliumRunConfiguration
 from contracts.validator import load_document
-from core.project_job import (
-    ProjectJobError,
+from runtime.errors import ProjectJobError
+from runtime.project_job import (
     ProjectJobWorkflow,
     validate_project_submission,
 )
-from core.project_agent_profile import ROLE_PATHS
-from core.project_job_runtime import (
-    ProjectJobRuntimeIntegration, REPAIR_RUNTIME_STATES,
-)
-from core.project_commit_runtime import ProjectCommitRuntime
-from core.recovery import stop_result
+from runtime.recovery import stop_result
+from runtime.project_loop import ProjectLoop, ProjectLoopRequest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,52 +44,54 @@ def snapshot_provider(
     return configured_provider(job_root / relative)
 
 
-def advance_repair_runtime(
-        result: dict, workflow: ProjectJobWorkflow,
-        provider_factory=snapshot_provider) -> dict:
-    """Continue repairable Reviewer ERRORs without a second public input."""
-    if result.get("state") not in REPAIR_RUNTIME_STATES:
-        return result
-    integration = ProjectJobRuntimeIntegration(
-        workspace_root=workflow.workspace_root,
-        result_root=workflow.result_root,
-        provider_factory=provider_factory)
-    return integration.advance(result["job_id"])
+def authorized_xcelium(job_root: Path, manifest: dict, authorization: dict):
+    """Resolve only the environment named by an explicit DV_OWNER authority."""
+    return XceliumAdapter.from_preloaded_environment(
+        workspace_root=ROOT,
+        result_root=ROOT / "result",
+        job_id=manifest["job_id"],
+        environment_identity=authorization["environment_identity"],
+        timeout_seconds=authorization["constraints"]["timeout_seconds"],
+    )
 
 
-def advance_commit_runtime(
-        result: dict, workflow: ProjectJobWorkflow,
-        provider_factory=snapshot_provider,
-        compile_runner_factory=None) -> dict:
-    """Advance or recover a formally planned repair through OCHES003."""
-    state = result.get("state")
-    if state == "AWAITING_HUMAN_REVIEW":
-        record_root = (
-            workflow.result_root / "jobs" / str(result.get("job_id", "")) /
-            "audit/repair_records")
-        plan_paths = sorted(record_root.glob(
-            "*.orchestrator_plan.*.json"))
-        if not plan_paths:
-            return result
-        for path in plan_paths:
-            if not path.is_file() or path.is_symlink():
-                raise ProjectJobError(
-                    "STALE_EVIDENCE", "Project repair plan record is unsafe")
-            record = load_document(path)
-            if (record.get("record_type") != "ORCHESTRATOR_PLAN" or
-                    record.get("job_id") != result.get("job_id") or
-                    record.get("input_fingerprint") !=
-                        result.get("input_fingerprint")):
-                raise ProjectJobError(
-                    "STALE_EVIDENCE", "Project repair plan record is stale")
-    elif state != "SCOPED_REPLACEMENT_VALIDATED":
-        return result
-    runtime = ProjectCommitRuntime(
-        workspace_root=workflow.workspace_root,
-        result_root=workflow.result_root,
-        provider_factory=provider_factory,
-        compile_runner_factory=compile_runner_factory)
-    return runtime.advance(result["job_id"])
+def generation_xcelium(manifest: dict, job_root: Path, request: dict):
+    """Compile and elaborate one exact Job-local UVM overlay before Stage 3."""
+    adapter = XceliumAdapter.from_preloaded_environment(
+        workspace_root=ROOT,
+        result_root=ROOT / "result",
+        job_id=manifest["job_id"],
+        environment_identity="XCELIUMENV.PROJECT.GENERATION.V1",
+        timeout_seconds=manifest["eda"]["timeout_seconds"],
+    )
+    source_records = [
+        *request["sources"], *request["framework_sources"]]
+    uvm_sources = [
+        "result/jobs/{}/{}".format(manifest["job_id"], item["path"])
+        for item in source_records]
+    include_dirs = set()
+    for item, source in zip(source_records, uvm_sources):
+        source_path = Path(source)
+
+        # Generated packages commonly include headers relative to their own
+        # directory, for example "transactions/coral_types.svh".  Keep that
+        # directory in addition to the overlay root so both package-relative
+        # and full logical-path includes resolve correctly.
+        include_dirs.add(source_path.parent.as_posix())
+
+        root = source_path
+        for _ in PurePosixPath(item["logical_path"]).parts:
+            root = root.parent
+        include_dirs.add(root.as_posix())
+    execution_id = "UVM.{}.ATTEMPT{:03d}.RUN{:03d}".format(
+        request["cycle_id"].upper().replace("-", "."),
+        request["attempt"], request["tool_run"])
+    return adapter.build_only(execution_id, XceliumRunConfiguration(
+        sources=tuple(uvm_sources),
+        include_dirs=tuple(sorted(include_dirs)),
+        top=request["top"], uvm=True,
+        timeout_seconds=manifest["eda"]["timeout_seconds"],
+    ))
 
 
 def main() -> int:
@@ -108,10 +107,14 @@ def main() -> int:
         "--scenario-routing", type=Path,
         help="completed DV Owner direct-review JSON form")
     parser.add_argument("--decision", type=Path)
+    parser.add_argument(
+        "--execution-authorization", type=Path,
+        help="separate DV_OWNER Project execution authorization JSON")
     args = parser.parse_args()
     try:
         if args.retry_blocked_review and (
-                args.resume or args.decision or args.scenario_routing):
+                args.resume or args.decision or args.scenario_routing or
+                args.execution_authorization):
             raise ProjectJobError(
                 "INVALID_INPUT",
                 "--retry-blocked-review cannot be combined with "
@@ -121,6 +124,11 @@ def main() -> int:
                 "INVALID_INPUT",
                 "--scenario-routing cannot be combined with "
                 "--resume or --decision")
+        if args.decision and args.execution_authorization:
+            raise ProjectJobError(
+                "INVALID_INPUT",
+                "testcase decision and execution authorization must be "
+                "submitted separately")
         if args.resume and args.decision is None:
             raise ProjectJobError(
                 "MISSING_HUMAN_DECISION",
@@ -145,50 +153,35 @@ def main() -> int:
                 "STALE_EVIDENCE",
                 "--job-id does not match Project submission")
 
-        bootstrapper = ProjectJobWorkflow(ROOT, ROOT / "result")
-        manifest = bootstrapper.bootstrap(
-            project_submission, submission_bytes,
-            create=not (
-                args.resume or args.decision or
-                args.retry_blocked_review or args.scenario_routing))
-
-        job_root = ROOT / "result/jobs" / manifest["job_id"]
-        role_providers = {
-            "{}.{}".format(section, role): configured_provider(
-                job_root / manifest["agent_profile"]["bindings"][section][
-                    role]["baseline_path"])
-            for section, role in ROLE_PATHS
-        }
+        # CLI only wires dependencies. Bootstrap and every workflow
+        # transition are owned by the single ProjectLoop.
         workflow = ProjectJobWorkflow(
-            ROOT, ROOT / "result", role_providers=role_providers)
-        if args.retry_blocked_review:
-            result = workflow.retry_blocked_review(
-                project_submission, submission_bytes)
-        elif args.scenario_routing:
-            result = workflow.route_scenarios(
-                project_submission,
-                load_document(args.scenario_routing), submission_bytes)
-        elif args.resume or args.decision:
-            if args.decision is None:
-                raise ProjectJobError(
-                    "MISSING_HUMAN_DECISION",
-                    "--resume requires --decision")
-            result = workflow.resume(
-                project_submission, load_document(args.decision),
-                submission_bytes)
-        else:
-            result = workflow.start(
-                project_submission, submission_bytes)
-        result = advance_repair_runtime(result, workflow)
-        result = advance_commit_runtime(result, workflow)
+            ROOT, ROOT / "result", project_input_root=args.project_input.parent)
+        loop = ProjectLoop(
+            workflow, provider_factory=snapshot_provider,
+            eda_adapter_factory=authorized_xcelium,
+            uvm_build_runner=generation_xcelium)
+        result = loop.run_until_pause(ProjectLoopRequest(
+            submission=project_submission,
+            submission_bytes=submission_bytes,
+            human_decision=(load_document(args.decision)
+                            if args.decision is not None else None),
+            execution_authorization=(
+                load_document(args.execution_authorization)
+                if args.execution_authorization is not None else None),
+            scenario_routing=(load_document(args.scenario_routing)
+                              if args.scenario_routing is not None else None),
+            retry_blocked_review=args.retry_blocked_review,
+        ))
         print(json.dumps(
             result, sort_keys=True, indent=2, ensure_ascii=False))
         state = result.get("state") or result.get("status")
         return 0 if state in {
-            "AWAITING_SCENARIO_ROUTING", "AWAITING_TESTCASE_APPROVAL",
-            "AWAITING_HUMAN_REVIEW", "SCOPED_REPLACEMENT_VALIDATED",
-            "SPEC_ISSUES_RECORDED", "COMPLETE", "PAUSED_BY_HUMAN",
-            "PAUSED_RETRYABLE", "PAUSED_RECOVERY_REQUIRED",
+            "AWAITING_SCENARIO_ROUTING", "AWAITING_HUMAN_REVIEW",
+            "AWAITING_EXECUTION_AUTHORIZATION", "SCOPED_REPLACEMENT_VALIDATED",
+            "SPEC_ISSUES_RECORDED", "PAUSED_BY_HUMAN",
+            "EXECUTION_PASS", "EXECUTION_FAIL", "EXECUTION_BLOCKED",
+            "PAUSED_BUDGET", "PAUSED_RETRYABLE", "PAUSED_RECOVERY_REQUIRED",
             "PAUSED_COMPILE_REPAIR_REQUIRED",
             "OCHES003_FINAL_REVIEW_COMPLETE",
         } else 1

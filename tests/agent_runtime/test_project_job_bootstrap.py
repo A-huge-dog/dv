@@ -13,12 +13,12 @@ from pathlib import Path
 import yaml
 
 from contracts.validator import accepted, load_document, validate
-from core.project_job import (
-    ProjectJobError,
+from runtime.errors import ProjectJobError
+from runtime.project_job import (
     ProjectJobWorkflow,
-    project_input_fingerprint,
     validate_project_input,
 )
+from domain.artifacts import project_input_fingerprint
 try:
     from test_project_job_workflow import (
         FakeProvider, FakeReviewerProvider, ProjectJobWorkflowTests)
@@ -39,14 +39,14 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
         submission = self.project_input()
         raw = self.submission_bytes(submission)
         self.assertNotIn(b"fingerprint", raw)
-        self.assertNotIn(b"testcase", raw)
+        self.assertNotIn(b"\ntestcase:", raw)
         self.assertNotIn(b"pass_marker", raw)
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result",
             FakeProvider(), FakeReviewerProvider())
 
-        manifest = workflow.bootstrap(submission, raw)
-        self.assertEqual("4.0", manifest["schema_version"])
+        manifest = workflow.bootstrap_handler.handle(submission, raw)
+        self.assertEqual("6.0", manifest["schema_version"])
         self.assertEqual(
             "PROJECT_INPUT_MANIFEST", manifest["manifest_kind"])
         self.assertTrue(accepted(validate("project_job_input", manifest)))
@@ -122,7 +122,7 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
             self.root, self.root / "result", default, reviewer,
             role_providers={"initial.stage2": stage2})
         submission = self.project_input()
-        manifest = workflow.bootstrap(submission)
+        manifest = workflow.bootstrap_handler.handle(submission)
         self.assertEqual(
             "fake-stage2-model",
             manifest["agent_profile"]["bindings"]["initial"]["stage2"][
@@ -167,7 +167,8 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
         profile_path.write_text(
             yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
         manifest = ProjectJobWorkflow(
-            self.root, self.root / "result").bootstrap(self.project_input())
+            self.root, self.root / "result").bootstrap_handler.handle(
+                self.project_input())
         for (section, role), identity in expected.items():
             with self.subTest(section=section, role=role):
                 actual = manifest["agent_profile"]["bindings"][section][role]
@@ -201,7 +202,7 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
         }
         with self.assertRaises(ProjectJobError) as caught:
             ProjectJobWorkflow(
-                self.root, self.root / "result").bootstrap(legacy)
+                self.root, self.root / "result").bootstrap_handler.handle(legacy)
         self.assertEqual("INVALID_SCHEMA", caught.exception.code)
 
         profile_path = self.root / "config/agents.yaml"
@@ -223,13 +224,13 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
         invalid["job_id"] = "JOB.PROJECT.TINY.BADPROFILE"
         with self.assertRaises(ProjectJobError) as duplicate:
             ProjectJobWorkflow(
-                self.root, self.root / "result").bootstrap(invalid)
+                self.root, self.root / "result").bootstrap_handler.handle(invalid)
         self.assertEqual("INVALID_AGENT_PROFILE", duplicate.exception.code)
 
     def test_existing_job_rejects_profile_drift(self):
         submission = self.project_input()
         workflow = ProjectJobWorkflow(self.root, self.root / "result")
-        manifest = workflow.bootstrap(submission)
+        manifest = workflow.bootstrap_handler.handle(submission)
         profile_path = self.root / submission["agent_profile"]
         original = profile_path.read_bytes()
         profile_path.write_bytes(original + b"\n# drift\n")
@@ -287,7 +288,7 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
                 workflow = ProjectJobWorkflow(
                     self.root, self.root / "result")
                 with self.assertRaises(ProjectJobError) as error:
-                    workflow.bootstrap(submission)
+                    workflow.bootstrap_handler.handle(submission)
                 self.assertEqual(expected, error.exception.code)
                 self.assertFalse((
                     self.root / "result/jobs" /
@@ -305,7 +306,8 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
             "a/spec.md", "b/spec.md"]
         with self.assertRaises(ProjectJobError) as error:
             ProjectJobWorkflow(
-                self.root, self.root / "result").bootstrap(collision)
+                self.root, self.root / "result").bootstrap_handler.handle(
+                    collision)
         self.assertEqual("CONFLICTING_SOURCE", error.exception.code)
 
     def test_symlink_escape_and_non_regular_source_fail_closed(self):
@@ -319,7 +321,8 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
             escaped["spec"]["sources"] = ["escape.md"]
             with self.assertRaises(ProjectJobError) as error:
                 ProjectJobWorkflow(
-                    self.root, self.root / "result").bootstrap(escaped)
+                    self.root, self.root / "result").bootstrap_handler.handle(
+                        escaped)
             self.assertEqual(
                 "TOOL_PERMISSION_DENIED", error.exception.code)
         finally:
@@ -331,7 +334,8 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
         non_regular["spec"]["sources"] = ["directory.md"]
         with self.assertRaises(ProjectJobError) as error:
             ProjectJobWorkflow(
-                self.root, self.root / "result").bootstrap(non_regular)
+                self.root, self.root / "result").bootstrap_handler.handle(
+                    non_regular)
         self.assertEqual("BLOCKED_INPUT", error.exception.code)
 
     def test_partial_bootstrap_recovery_and_unexpected_partial_rejection(self):
@@ -345,7 +349,7 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
         partial_submission.write_bytes(raw)
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result")
-        manifest = workflow.bootstrap(submission, raw)
+        manifest = workflow.bootstrap_handler.handle(submission, raw)
         self.assertEqual(submission["job_id"], manifest["job_id"])
         self.assertTrue((
             job_root /
@@ -359,7 +363,7 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
         (unexpected_root / "staging/unbound.txt").write_text(
             "not baseline evidence\n", encoding="utf-8")
         with self.assertRaises(ProjectJobError) as error:
-            workflow.bootstrap(unexpected)
+            workflow.bootstrap_handler.handle(unexpected)
         self.assertEqual("PARTIAL_BOOTSTRAP", error.exception.code)
 
         symlinked = self.project_input()
@@ -372,7 +376,7 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
         (symlink_root / "input_baseline").symlink_to(
             outside_baseline, target_is_directory=True)
         with self.assertRaises(ProjectJobError) as symlink_error:
-            workflow.bootstrap(symlinked)
+            workflow.bootstrap_handler.handle(symlinked)
         self.assertEqual(
             "PARTIAL_BOOTSTRAP", symlink_error.exception.code)
 
@@ -386,7 +390,7 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
          "input_baseline/spec/spec.md").write_text(
              "different partial source bytes\n", encoding="utf-8")
         with self.assertRaises(ProjectJobError) as conflict_error:
-            workflow.bootstrap(conflicting)
+            workflow.bootstrap_handler.handle(conflicting)
         self.assertEqual(
             "STALE_EVIDENCE", conflict_error.exception.code)
 
@@ -395,12 +399,12 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
         raw = self.submission_bytes(submission)
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result")
-        manifest = workflow.bootstrap(submission, raw)
+        manifest = workflow.bootstrap_handler.handle(submission, raw)
 
         changed_submission = copy.deepcopy(submission)
         changed_submission["input_authority"]["identity"] = "other.owner"
         with self.assertRaises(ProjectJobError) as different:
-            workflow.bootstrap(
+            workflow.bootstrap_handler.handle(
                 changed_submission,
                 self.submission_bytes(changed_submission))
         self.assertEqual("STALE_EVIDENCE", different.exception.code)
@@ -438,7 +442,7 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
             json.dumps(tampered_manifest, sort_keys=True, indent=2) + "\n",
             encoding="utf-8")
         with self.assertRaises(ProjectJobError) as manifest_tamper:
-            workflow.bootstrap(submission, raw)
+            workflow.bootstrap_handler.handle(submission, raw)
         self.assertEqual(
             "STALE_EVIDENCE", manifest_tamper.exception.code)
         manifest_path.write_bytes(manifest_bytes)
@@ -450,7 +454,7 @@ class ProjectJobBootstrapTests(ProjectJobWorkflowTests):
             baseline_submission.read_text(encoding="utf-8") +
             "\n# tampered\n", encoding="utf-8")
         with self.assertRaises(ProjectJobError) as submission_tamper:
-            workflow.bootstrap(submission, raw)
+            workflow.bootstrap_handler.handle(submission, raw)
         self.assertEqual(
             "STALE_EVIDENCE", submission_tamper.exception.code)
 

@@ -7,14 +7,14 @@ import hashlib
 import unittest
 
 from contracts.validator import accepted, validate
-from core.project_agent_profile import binding_lineage
-from core.project_job import ProjectJobError
-from core.project_repair import validate_repair_plan
-from core.project_scoped_repair import (
-    artifact_fingerprint, formalize_scoped_replacement,
+from domain.agent_binding import binding_lineage
+from runtime.errors import ProjectJobError
+from domain.artifacts import artifact_fingerprint
+from domain.repair import (
+    formalize_scoped_replacement, validate_repair_plan,
     validate_scoped_replacement,
 )
-from core.project_tools import ProjectReadModel, STAGE_READ_TOOLS
+from agents.project_tools import ProjectReadModel, STAGE_READ_TOOLS
 from tests.agent_runtime.test_oches001_repair_control import (
     Oches001RepairControlTests,
 )
@@ -28,7 +28,7 @@ class Oches002ScopedRepairTests(unittest.TestCase):
          self.report, self.request, _, _) = self.fixture._awaiting()
         self.model = ProjectReadModel.from_checkpoint(
             self.job, self.checkpoint)
-        self.job_value = self.workflow.bootstrap(
+        self.job_value = self.workflow.bootstrap_handler.handle(
             self.submission, create=False)
         self.turns = {}
 
@@ -136,23 +136,23 @@ class Oches002ScopedRepairTests(unittest.TestCase):
                 request=request, response=response)
         self.assertEqual(code, caught.exception.code)
 
-    def test_stage3_dispatch_resolves_testcase_and_validates_without_commit(self):
+    def test_testcase_dispatch_routes_to_stage2_and_validates_without_commit(self):
         testcase_id = next(
             unit["unit_id"] for unit in self.model.units.values()
             if unit["unit_kind"] == "LOGICAL_TESTCASE")
         dispatch = self.dispatch(
-            "STAGE_3", {"kind": "TESTCASE", "id": testcase_id})
+            "STAGE_2", {"kind": "TESTCASE", "id": testcase_id})
         self.assertTrue(accepted(validate("project_formal_dispatch", dispatch)))
         self.assertEqual("2.0", dispatch["schema_version"])
         self.assertEqual(sorted(STAGE_READ_TOOLS), dispatch["tool_allow_list"])
         self.assertEqual(3, dispatch["retrieval_call_limit"])
         self.assertEqual(
             self.job_value["agent_profile"]["bindings"]["repair"][
-                "stage3"]["model_id"],
+                "stage2"]["model_id"],
             dispatch["stage_agent"]["model_id"])
         self.assertTrue(dispatch["target_units"])
         self.assertTrue(all(
-            item["unit_kind"] == "CODE_TESTCASE"
+            item["unit_kind"] == "LOGICAL_TESTCASE"
             for item in dispatch["target_units"]))
         self.assertTrue(dispatch["direct_dependencies"])
 
@@ -171,40 +171,28 @@ class Oches002ScopedRepairTests(unittest.TestCase):
             for unit_id, unit in self.model.units.items()})
 
     def test_identity_count_evidence_and_noop_fail_closed(self):
-        code_id = next(
+        testcase_id = next(
             unit["unit_id"] for unit in self.model.units.values()
-            if unit["unit_kind"] == "CODE_TESTCASE")
+            if unit["unit_kind"] == "LOGICAL_TESTCASE")
         dispatch = self.dispatch(
-            "STAGE_3", {"kind": "CODE_UNIT", "id": code_id})
+            "STAGE_2", {"kind": "TESTCASE", "id": testcase_id})
 
         renamed = self.replacement(dispatch)
-        renamed["replacements"][0]["unit_id"] = "CODE.TESTCASE.RENAMED"
+        renamed["replacements"][0]["unit_id"] = "TC.RENAMED"
         self.assert_rejected(renamed, dispatch, "IDENTITY_MUTATION")
 
         added = self.replacement(dispatch)
         extra = copy.deepcopy(added["replacements"][0])
-        extra["unit_id"] = "CODE.TESTCASE.EXTRA"
+        extra["unit_id"] = "TC.EXTRA"
         added["replacements"].append(extra)
         self.assert_rejected(added, dispatch, "IDENTITY_MUTATION")
 
         noop = self.replacement(dispatch)
         noop["replacements"][0]["semantic_body"] = copy.deepcopy(
-            self.model.units[code_id]["semantic_body"])
+            self.model.units[testcase_id]["semantic_body"])
         self.assert_rejected(noop, dispatch, "NO_SEMANTIC_CHANGE")
 
-    def test_stage1_and_stage2_change_content_but_not_relationships(self):
-        scenario_id = next(
-            unit["unit_id"] for unit in self.model.units.values()
-            if unit["unit_kind"] == "SCENARIO")
-        stage1 = self.dispatch(
-            "STAGE_1", {"kind": "SCENARIO", "id": scenario_id})
-        valid1 = self.replacement(stage1)
-        request1, response1 = self.turns[stage1["dispatch_fingerprint"]]
-        validate_scoped_replacement(
-            valid1, stage1, self.model, ProjectJobError,
-            session_id="STAGESESSION.TEST.001",
-            request=request1, response=response1)
-
+    def test_stage2_changes_content_but_not_relationships(self):
         testcase_id = next(
             unit["unit_id"] for unit in self.model.units.values()
             if unit["unit_kind"] == "LOGICAL_TESTCASE")
@@ -224,7 +212,7 @@ class Oches002ScopedRepairTests(unittest.TestCase):
     def test_spec_evidence_list_rejects_duplicate_reorder_remove_and_rewrite(self):
         unit = next(
             item for item in self.model.units.values()
-            if item["unit_kind"] in {"SCENARIO", "ACCEPTANCE_CRITERION"} and
+            if item["unit_kind"] == "LOGICAL_TESTCASE" and
             item["spec_evidence"])
         original = unit["spec_evidence"][0]
         document = self.model.spec_documents[original["path"]]["content"]
@@ -241,10 +229,8 @@ class Oches002ScopedRepairTests(unittest.TestCase):
         self.model.evidence[self.model._evidence_key(extra)] = \
             self.model._validate_spec_evidence(extra)
         unit["spec_evidence"].append(copy.deepcopy(extra))
-        kind = "SCENARIO" if unit["unit_kind"] == "SCENARIO" \
-            else "ACCEPTANCE_CRITERION"
         dispatch = self.dispatch(
-            "STAGE_1", {"kind": kind, "id": unit["unit_id"]})
+            "STAGE_2", {"kind": "TESTCASE", "id": unit["unit_id"]})
 
         duplicate = self.replacement(dispatch)
         duplicate["replacements"][0]["spec_evidence"].append(
@@ -264,11 +250,11 @@ class Oches002ScopedRepairTests(unittest.TestCase):
         self.assert_rejected(rewritten, dispatch, "SCOPE_EXPANSION")
 
     def test_submission_turn_fields_and_response_fingerprint_are_reverified(self):
-        code_id = next(
+        testcase_id = next(
             unit["unit_id"] for unit in self.model.units.values()
-            if unit["unit_kind"] == "CODE_TESTCASE")
+            if unit["unit_kind"] == "LOGICAL_TESTCASE")
         dispatch = self.dispatch(
-            "STAGE_3", {"kind": "CODE_UNIT", "id": code_id})
+            "STAGE_2", {"kind": "TESTCASE", "id": testcase_id})
         wrong_response = self.replacement(dispatch)
         wrong_response["response_fingerprint"] = "f" * 64
         self.assert_rejected(

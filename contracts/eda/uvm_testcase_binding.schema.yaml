@@ -1,0 +1,51 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, binding_id, job_id, rtl, dut,
+  generated_tests, approval, capability, binding_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: UVM_TESTCASE_BINDING}
+  binding_id: {type: string, pattern: '^BINDING\.UVM\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  rtl:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required: [path, byte_fingerprint]
+      properties:
+        path: {type: string, pattern: '^result/jobs/JOB\.PROJECT\.[A-Z0-9_.-]+/input_baseline/rtl/[A-Za-z0-9._-]+$'}
+        byte_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  dut:
+    type: object
+    additionalProperties: false
+    required: [top, parameters]
+    properties:
+      top: {type: string, pattern: '^[A-Za-z_][A-Za-z0-9_$]*$'}
+      parameters: {type: object}
+  generated_tests:
+    type: object
+    additionalProperties: false
+    required: [source_path, source_fingerprint, manifest_path, manifest_fingerprint]
+    properties:
+      source_path: {type: string, pattern: '^approved/generated/uvm/generated_tests\.sv$'}
+      source_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+      manifest_path: {type: string, pattern: '^approved/generated/uvm/generated_tests_manifest\.json$'}
+      manifest_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  approval:
+    type: object
+    additionalProperties: false
+    required: [path, fingerprint]
+    properties:
+      path: {type: string, pattern: '^audit/[A-Za-z0-9._-]+\.json$'}
+      fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  capability:
+    type: object
+    additionalProperties: false
+    required: [id, aggregate_fingerprint]
+    properties:
+      id: {type: string, pattern: '^[A-Z][A-Z0-9_.-]{0,127}$'}
+      aggregate_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  binding_fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

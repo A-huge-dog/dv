@@ -47,7 +47,7 @@ def _sha256_file(path: Path) -> str:
 def _probe_error(code: str, message: str, path: str,
                  artifact: str = "EDA_PROBE_REQUEST"):
     return TrustedEdaBoundaryError(message, [diagnostic(
-        code, message, path, required_owner="EDA_OWNER",
+        code, message, path, required_owner="DV_OWNER",
         required_artifact_kind=artifact)])
 
 

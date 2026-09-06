@@ -6,16 +6,14 @@ import copy
 import unittest
 
 from contracts.validator import accepted, load_document, validate
-from core.project_agent_profile import binding_lineage
-from core.project_job import ProjectJobError
-from core.project_repair_runtime import ProjectRepairRuntime
-from core.project_scoped_repair import artifact_fingerprint
-from core.project_tools import ProjectToolError
-from runtime.agent_loop import AgentLoopError
-from core.project_staged import (
-    build_review_request, build_reviewer_repair_lineage,
-    provider_review_request,
-)
+from domain.agent_binding import binding_lineage
+from runtime.errors import ProjectJobError
+from runtime.repair_runtime import ProjectRepairRuntime
+from domain.artifacts import artifact_fingerprint
+from agents.project_tools import ProjectToolError
+from agents.errors import AgentLoopError
+from runtime.staged_workflow import build_reviewer_repair_lineage
+from domain.review import build_review_request, provider_review_request
 from scripts.dvlib import canonical_hash
 from tests.agent_runtime.test_oches001_repair_control import (
     Oches001RepairControlTests,
@@ -78,8 +76,10 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
         self.fixture = Oches001RepairControlTests(methodName="runTest")
         self.fixture.setUp()
         (self.workflow, self.submission, self.job, self.checkpoint,
-         self.report, self.request, _, _) = self.fixture._awaiting()
-        self.value = self.workflow.bootstrap(self.submission, create=False)
+         self.report, self.request, self.generator,
+         self.initial_reviewer) = self.fixture._awaiting()
+        self.value = self.workflow.bootstrap_handler.handle(
+            self.submission, create=False)
         self.runtime = ProjectRepairRuntime(
             job_root=self.job, checkpoint=self.checkpoint,
             project_input=self.value, error=ProjectJobError)
@@ -88,7 +88,7 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
         self.fixture.tearDown()
 
     def orchestrator_provider(
-            self, target, stage="STAGE_3",
+            self, target, stage="STAGE_2",
             planning_session="PLANNING.RUNTIME.001",
             plan_id="REPAIRPLAN.RUNTIME.001"):
         binding = binding_lineage(
@@ -304,7 +304,7 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
             dispatch["target_units"][0]["unit_id"]]
         provider = ScriptedBoundProvider(
             binding["provider_id"], binding["model_id"], [call(
-                1, "submit_stage3_replacement", {
+                1, "submit_stage2_replacement", {
                     "replacements": [{
                         "unit_id": unit["unit_id"],
                         "semantic_body": copy.deepcopy(unit["semantic_body"]),
@@ -363,7 +363,8 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
                 "scenario_spec_issues": initial["scenario_spec_issues"],
                 "coverage_scope": initial["coverage_scope"],
                 "routing_fingerprint": initial["routing_fingerprint"],
-            }, self.report, lineage)
+            }, self.report, lineage,
+            uvm_context=initial["runtime_capability"])
         self.assertEqual("7.0", final["schema_version"])
         self.assertEqual(self.report, final["previous_report"])
         self.assertEqual(lineage, final["repair_lineage"])
@@ -376,12 +377,12 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
         self.assertNotIn("session_id", provider["metadata"])
 
     def test_stage_sibling_read_is_rejected_before_tool_execution(self):
-        code_units = [
+        testcases = [
             unit["unit_id"] for unit in self.runtime.model.units.values()
-            if unit["unit_kind"] in {"CODE_SHARED", "CODE_TESTCASE"}]
+            if unit["unit_kind"] == "LOGICAL_TESTCASE"]
         dispatch = self.runtime.run_orchestrator(
             self.orchestrator_provider({
-                "kind": "CODE_UNIT", "id": code_units[-1]}),
+                "kind": "TESTCASE", "id": testcases[-1]}),
             "PLANNING.RUNTIME.001")["dispatch"]
         sibling = next(
             unit_id for unit_id in self.runtime.model.units
@@ -410,14 +411,19 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
         self.assertEqual(stage, result["dispatch"]["stage"])
         self.assertFalse(result["current_state_modified"])
 
-    def test_stage1_runtime_changes_only_scenario_content(self):
+    def test_stage1_route_is_rejected_for_a_testcase_finding(self):
         scenario_id = next(
             unit["unit_id"] for unit in self.runtime.model.units.values()
             if unit["unit_kind"] == "SCENARIO")
-        self._assert_stage_runtime(
-            "STAGE_1", {"kind": "SCENARIO", "id": scenario_id},
-            "PLANNING.RUNTIME.STAGE1.001",
-            "STAGESESSION.RUNTIME.STAGE1.001")
+        result = self.runtime.run_orchestrator(
+            self.orchestrator_provider(
+                {"kind": "SCENARIO", "id": scenario_id}, "STAGE_1",
+                "PLANNING.RUNTIME.STAGE1.001",
+                "REPAIRPLAN.STAGE_1.001"),
+            "PLANNING.RUNTIME.STAGE1.001")
+        self.assertEqual("REJECTED", result["status"])
+        self.assertEqual(
+            "WRONG_STAGE_TARGET_KIND", result["receipt"]["diagnostic"]["code"])
 
     def test_stage2_runtime_changes_only_testcase_content(self):
         testcase_id = next(

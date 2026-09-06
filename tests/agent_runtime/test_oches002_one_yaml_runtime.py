@@ -9,19 +9,18 @@ from unittest.mock import patch
 
 from adapters.llm import ProviderContractError
 from contracts.validator import load_document
-from core.project_agent_profile import binding_lineage
-from core.project_job import ProjectJobError
-from core.project_job_runtime import (
+from domain.agent_binding import binding_lineage
+from runtime.errors import ProjectJobError
+from runtime.job_runtime import (
     PROVIDER_RETRY_RUNTIME_PROTOCOL, ProjectJobRuntimeIntegration,
     repair_checkpoint_id,
 )
-from core.project_repair_runtime import ProjectRepairRuntime
-from core.project_scoped_repair import artifact_fingerprint
-from core.project_tools import ProjectReadModel, ProjectToolError
+from runtime.repair_runtime import ProjectRepairRuntime
+from domain.artifacts import artifact_fingerprint
+from agents.project_tools import ProjectReadModel, ProjectToolError
 from infrastructure.persistence.transcript_store import (
     TranscriptStore, transcript_session_dir,
 )
-from scripts.run_project_job import advance_repair_runtime
 from tests.agent_runtime.test_oches002_repair_runtime import (
     Oches002RepairRuntimeTests,
     ScriptedBoundProvider,
@@ -147,15 +146,15 @@ class Oches002OneYamlRuntimeTests(Oches002RepairRuntimeTests):
 
     def test_one_yaml_error_path_reaches_validated_without_commit(self):
         before = copy.deepcopy(self.runtime.model.artifact_roots)
-        result = advance_repair_runtime(
-            self.checkpoint, self.workflow, self.provider_factory)
+        result = self.integration(self.provider_factory).advance(
+            self.value["job_id"])
 
         self.assertEqual("SCOPED_REPLACEMENT_VALIDATED", result["state"])
         self.assertEqual(before, self.runtime.model.artifact_roots)
         replacement = load_document(self.job / result["replacement_path"])
         self.assertEqual("STAGE_2", replacement["stage"])
         self.assertFalse((self.job / "approved").exists())
-        self.assertTrue((self.job / "runs/stage3").is_dir())
+        self.assertTrue((self.job / "staging/generated/uvm").is_dir())
         self.assertEqual(
             ["repair.orchestrator", "repair.stage2"],
             [role for role, _ in self.providers])
@@ -293,8 +292,8 @@ class Oches002OneYamlRuntimeTests(Oches002RepairRuntimeTests):
             (self.job / result["checkpoint_path"]).read_bytes())
 
     def test_validated_replay_rechecks_exact_transcript_response(self):
-        result = advance_repair_runtime(
-            self.checkpoint, self.workflow, self.provider_factory)
+        result = self.integration(self.provider_factory).advance(
+            self.value["job_id"])
         replacement = load_document(self.job / result["replacement_path"])
         stage_dir = replacement["stage"].lower().replace("_", "")
         response_path = (
@@ -310,8 +309,8 @@ class Oches002OneYamlRuntimeTests(Oches002RepairRuntimeTests):
         self.assertEqual([], calls)
 
     def test_validated_replay_rejects_individually_fingerprinted_cross_link(self):
-        result = advance_repair_runtime(
-            self.checkpoint, self.workflow, self.provider_factory)
+        result = self.integration(self.provider_factory).advance(
+            self.value["job_id"])
         checkpoint_path = (
             self.job / "audit/oches002_scoped_replacement_validated.json")
         checkpoint = load_document(checkpoint_path)

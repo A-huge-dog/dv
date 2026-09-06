@@ -13,7 +13,8 @@ from contracts.validator import accepted, load_document, validate
 from infrastructure.persistence.transcript_store import (
     TranscriptStore, create_transcript_store, transcript_session_dir,
 )
-from runtime.agent_loop import AgentLoop, AgentLoopError, AgentLoopPolicy
+from agents.errors import AgentLoopError
+from runtime.agent_loop import AgentLoop, AgentLoopPolicy
 from scripts.dvlib import canonical_hash
 
 
@@ -127,6 +128,39 @@ class AgentLoopTests(unittest.TestCase):
             cancel_requested=cancel_requested,
         )
 
+    def worker_session(
+            self, session_id, provider, *, observations=None, actions=None,
+            terminals=None, validator=None, clock=None, **budget):
+        observations = dict(observations or {})
+        actions = dict(actions or {})
+        terminals = dict(terminals or {})
+        names = list(observations) + list(actions) + list(terminals)
+        return AgentLoop(
+            provider=provider,
+            transcript_store=create_transcript_store(
+                job_root=self.job_root, job_id=self.job_id,
+                role="UVM_GENERATION", session_id=session_id,
+                lineage={"authority_fingerprint": "c" * 64}),
+            job_id=self.job_id, session_id=session_id,
+            initial_messages=self.initial_messages,
+            tools=[tool(name) for name in names],
+            observation_handlers=observations,
+            action_handlers=actions,
+            terminal_handlers=terminals,
+            completion_validator=validator,
+            provider_binding={
+                "provider_id": "scripted-provider",
+                "model_id": "scripted-sol",
+            },
+            policy=AgentLoopPolicy(
+                role="UVM_GENERATION",
+                observation_tools=frozenset(observations),
+                action_tools=frozenset(actions),
+                terminal_tools=frozenset(terminals),
+                **budget),
+            clock=clock,
+        )
+
     def test_three_retrievals_then_one_submission_preserve_raw_history(self):
         provider = ScriptedProvider([
             [call(1, "get_issue", ["ISSUE.B", "ISSUE.A"])],
@@ -192,6 +226,177 @@ class AgentLoopTests(unittest.TestCase):
             session.run()
         self.assertEqual("INVALID_TOOL_CALL", caught.exception.code)
         self.assertEqual(4, len(provider.requests))
+
+    def test_continuous_worker_repairs_after_fake_eda_failure(self):
+        session_id = "UVM.WORKER.CONTINUOUS.001"
+        provider = ScriptedProvider([
+            [call(1, "read", ["CANDIDATE"])],
+            [call(2, "write", ["V1"])],
+            [call(3, "fake_eda", ["RUN1"])],
+            [call(4, "write", ["V2"])],
+            [call(5, "fake_eda", ["RUN2"])],
+            [call(6, "finish_task", ["DONE"])],
+        ])
+        action_contexts = []
+        eda_results = iter(("FAIL", "PASS"))
+
+        def write(arguments, context):
+            action_contexts.append(copy.deepcopy(context))
+            return {"status": "WRITTEN", "version": arguments["ids"][0]}
+
+        def fake_eda(arguments, context):
+            action_contexts.append(copy.deepcopy(context))
+            return {
+                "status": next(eda_results), "run": arguments["ids"][0],
+            }
+
+        validations = []
+
+        def validate_completion(arguments, context):
+            validations.append((copy.deepcopy(arguments), copy.deepcopy(context)))
+            return {"status": "PASS", "completion": "VALIDATED"}
+
+        loop = self.worker_session(
+            session_id, provider,
+            observations={"read": lambda _arguments: {
+                "status": "OBSERVED", "candidate": "EMPTY",
+            }},
+            actions={"write": write, "fake_eda": fake_eda},
+            terminals={"finish_task": lambda _arguments, _context: {
+                "status": "REQUESTED",
+            }},
+            validator=validate_completion,
+            max_turns=8, max_tokens=1000, max_actions=5,
+            max_time_seconds=30)
+        result = loop.run()
+
+        self.assertEqual("PASS", result["status"])
+        self.assertEqual(6, loop.turn_count)
+        self.assertEqual(4, loop.action_count)
+        self.assertEqual(78, loop.tokens_used)
+        self.assertEqual(1, len(validations))
+        self.assertTrue(all(
+            request["metadata"]["session_id"] == session_id
+            for request in provider.requests))
+        self.assertIn(
+            '"candidate":"EMPTY"',
+            provider.requests[1]["messages"][-1]["content"])
+        self.assertIn(
+            '"status":"FAIL"',
+            provider.requests[3]["messages"][-1]["content"])
+        self.assertEqual([
+            "{}.ACTION.{:03d}".format(session_id, number)
+            for number in range(1, 5)
+        ], [context["action_id"] for context in action_contexts])
+
+        directory = transcript_session_dir(
+            self.job_root, "UVM_GENERATION", session_id)
+        manifest = load_document(directory / "manifest.json")
+        self.assertEqual("COMPLETED", manifest["terminal"]["status"])
+        self.assertEqual(24, len(manifest["entries"]))
+        action_calls = [
+            load_document(directory / entry["path"])
+            for entry in manifest["entries"] if entry["kind"] == "TOOL_CALL"
+            and load_document(directory / entry["path"])["name"] in {
+                "write", "fake_eda"}
+        ]
+        self.assertEqual(4, len({item["action_id"] for item in action_calls}))
+        results = [
+            load_document(directory / entry["path"])
+            for entry in manifest["entries"] if entry["kind"] == "TOOL_RESULT"
+        ]
+        self.assertEqual(
+            ["OBSERVED", "WRITTEN", "FAIL", "WRITTEN", "PASS", "PASS"],
+            [item["status"] for item in results])
+
+    def test_terminal_validator_rejection_is_an_observation(self):
+        provider = ScriptedProvider([
+            [call(1, "finish_task")],
+            [call(2, "read")],
+            [call(3, "finish_task")],
+        ])
+        decisions = iter((
+            {"status": "NOT_COMPLETE", "diagnostic": "EDA_NOT_RUN"},
+            {"status": "PASS"},
+        ))
+        validation_count = []
+
+        def validator(_arguments, _context):
+            validation_count.append(True)
+            return next(decisions)
+
+        result = self.worker_session(
+            "UVM.WORKER.VALIDATOR.001", provider,
+            observations={"read": lambda _arguments: {"status": "OBSERVED"}},
+            terminals={"finish_task": lambda _arguments, _context: {
+                "status": "REQUESTED",
+            }}, validator=validator, max_turns=4).run()
+
+        self.assertEqual({"status": "PASS"}, result)
+        self.assertEqual(2, len(validation_count))
+        self.assertIn(
+            '"status":"NOT_COMPLETE"',
+            provider.requests[1]["messages"][-1]["content"])
+
+    def test_continuous_worker_budget_pause_is_not_completion(self):
+        session_id = "UVM.WORKER.BUDGET.001"
+        provider = ScriptedProvider([
+            [call(1, "read")],
+            [call(2, "read")],
+        ])
+        loop = self.worker_session(
+            session_id, provider,
+            observations={"read": lambda _arguments: {"status": "OBSERVED"}},
+            terminals={"finish_task": lambda _arguments, _context: {
+                "status": "PASS",
+            }}, max_turns=2)
+
+        with self.assertRaises(AgentLoopError) as caught:
+            loop.run()
+        self.assertEqual("PAUSED_BUDGET", caught.exception.code)
+        directory = transcript_session_dir(
+            self.job_root, "UVM_GENERATION", session_id)
+        self.assertFalse((directory / "manifest.json").exists())
+        self.assertEqual(8, len(list(directory.glob("[0-9][0-9][0-9][0-9].*"))))
+
+    def test_token_action_and_time_budgets_pause_before_extra_work(self):
+        cases = (
+            ("TOKEN", ScriptedProvider([[call(1, "read")]]),
+             {"observations": {
+                 "read": lambda _arguments: {"status": "OBSERVED"}},
+              "max_tokens": 13}, 1),
+            ("ACTION", ScriptedProvider([
+                [call(1, "write")], [call(2, "write")],
+             ]),
+             {"actions": {"write": lambda _arguments, _context: {
+                 "status": "WRITTEN"}}, "max_actions": 1}, 2),
+        )
+        for suffix, provider, options, expected_requests in cases:
+            with self.subTest(budget=suffix):
+                session_id = "UVM.WORKER.BUDGET.{}.001".format(suffix)
+                loop = self.worker_session(
+                    session_id, provider,
+                    terminals={"finish_task": lambda _arguments, _context: {
+                        "status": "PASS",
+                    }}, **options)
+                with self.assertRaises(AgentLoopError) as caught:
+                    loop.run()
+                self.assertEqual("PAUSED_BUDGET", caught.exception.code)
+                self.assertEqual(expected_requests, len(provider.requests))
+
+        ticks = iter((0.0, 0.0, 2.0))
+        time_provider = ScriptedProvider([[call(1, "read")]])
+        observed = []
+        time_loop = self.worker_session(
+            "UVM.WORKER.BUDGET.TIME.001", time_provider,
+            observations={"read": lambda arguments: observed.append(arguments)},
+            terminals={"finish_task": lambda _arguments, _context: {
+                "status": "PASS",
+            }}, max_time_seconds=1, clock=lambda: next(ticks))
+        with self.assertRaises(AgentLoopError) as caught:
+            time_loop.run()
+        self.assertEqual("PAUSED_BUDGET", caught.exception.code)
+        self.assertEqual([], observed)
 
     def test_fourth_and_duplicate_retrievals_are_not_executed(self):
         for session_id, turns, expected_code in (

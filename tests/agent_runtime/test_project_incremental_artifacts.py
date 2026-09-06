@@ -7,12 +7,16 @@ import json
 import unittest
 
 from contracts.validator import accepted, load_document, validate
-from core.project_incremental import (
-    IncrementalArtifactStore, build_review_bundle, build_stage2_bundle,
-    build_stage3_bundle, evaluate_impact, validate_index,
+from domain.artifacts import (
+    artifact_fingerprint, build_review_bundle, build_stage2_bundle,
+    build_stage3_bundle,
 )
-from core.project_job import ProjectJobError, ProjectJobWorkflow
-from core.project_staged import artifact_fingerprint
+from infrastructure.persistence.artifact_store import (
+    IncrementalArtifactStore, validate_index,
+)
+from domain.repair import evaluate_impact
+from runtime.errors import ProjectJobError
+from runtime.project_job import ProjectJobWorkflow
 from tests.agent_runtime import test_project_job_workflow as workflow_tests
 from tests.agent_runtime.test_project_job_workflow import (
     FakeProvider, FakeReviewerProvider, Stage3ValidatedRetryProvider,
@@ -200,7 +204,7 @@ class IncrementalArtifactTests(unittest.TestCase):
             item for item in changed["code_units"]
             if item["role"] == "SHARED")
         shared["content"] = shared["content"].replace(
-            "module ", "module /* shared change */ ", 1)
+            "// shared ", "// changed shared ", 1)
         shared["content_fingerprint"] = __import__("hashlib").sha256(
             shared["content"].encode()).hexdigest()
         by_id = {item["code_unit_id"]: item for item in changed["code_units"]}

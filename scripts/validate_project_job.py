@@ -9,13 +9,13 @@ import sys
 from pathlib import Path
 
 from contracts.validator import accepted, load_document, validate
-from core.project_job import (
+from domain.artifacts import (
     project_candidate_fingerprint,
     project_input_fingerprint,
     project_report_fingerprint,
-    validate_project_input,
 )
-from core.project_reviewer import (
+from runtime.project_job import validate_project_input
+from domain.review import (
     review_report_fingerprint,
     validate_review_report,
 )

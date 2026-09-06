@@ -21,7 +21,7 @@ from contracts.validator import (
     eda_probe_request_fingerprint,
     validate,
 )
-from core.atomic_artifact import publish_immutable_text
+from infrastructure.persistence.atomic_artifact import publish_immutable_text
 
 
 def _sha256(path: Path) -> str:

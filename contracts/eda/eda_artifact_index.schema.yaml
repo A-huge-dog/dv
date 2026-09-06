@@ -1,0 +1,18 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, artifacts]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: EDA_ARTIFACT_INDEX}
+  artifacts:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [kind, relative_path, size_bytes, integrity_digest]
+      properties:
+        kind: {enum: [FINAL_RESULT, ERROR_REPORT, COVERAGE_REPORT, LOG]}
+        relative_path: {type: string, pattern: '^(audit|runs)/[A-Za-z0-9][A-Za-z0-9._/-]*$'}
+        size_bytes: {type: integer, minimum: 0}
+        integrity_digest: {type: string, pattern: '^[0-9a-f]{64}$'}

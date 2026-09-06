@@ -15,10 +15,16 @@ from unittest.mock import patch
 import yaml
 
 from contracts.validator import accepted, load_document, validate
-from core.project_job import ProjectJobError, ProjectJobWorkflow
-from core.project_staged import (
-    StagedProjectWorkflow, _enrich_code_evidence, _enrich_evidence,
-    _validate_code_evidence, inspect_no_rtl_request)
+from runtime.errors import ProjectJobError
+from runtime.project_job import ProjectJobWorkflow
+from runtime.staged_workflow import StagedProjectWorkflow, inspect_no_rtl_request
+from domain.evidence import _enrich_evidence
+from domain.review import (
+    _enrich_code_evidence, _validate_code_evidence, _validate_review_scope,
+)
+from domain.stage1 import enrich_stage1
+from domain.stage2 import enrich_stage2
+from domain.uvm_testcase import testcase_marker
 from scripts.dvlib import canonical_hash
 
 
@@ -131,49 +137,36 @@ class FakeProvider:
 
     @staticmethod
     def stage3(payload):
-        top = payload["job_identity"]["testbench_top"]
-        marker = payload["job_identity"]["pass_marker"]
-        testcase_ids = [
-            item["testcase_id"] for item in
-            payload["ac_testcase_map"]["index"].get(
-                "logical_testcases", [])]
-        if not testcase_ids:
-            testcase_ids = [
-                item["testcase_id"]
-                for shard in payload["ac_testcase_map"]["shards"]
-                for item in shard["logical_testcases"]]
-        shared = """module {top};
-  logic clk;
-  logic y;
-  tiny dut (.clk(clk), .y(y));
-  always #5 clk = ~clk;
-""".format(top=top)
-        testcase = """  initial begin
-    clk = 1'b0;
-    $dumpfile("project.vcd");
-    $dumpvars(0, {top});
-    #1;
-    if (y !== clk) $fatal(1, "AC_TINY_LOW_FAIL");
-    clk = 1'b1;
-    #1;
-    if (y !== clk) $fatal(1, "AC_TINY_HIGH_FAIL");
-    $display("{marker}");
-    $finish;
-  end
-endmodule
-""".format(top=top, marker=marker)
-        return {
-            "code_units": [{
-                "role": "SHARED",
-                "testcase_ids": [],
-                "content": shared,
-            }, {
+        manifest = payload["generated_testcase_manifest"]
+        units = [{
+            "role": "SHARED",
+            "testcase_ids": [],
+            "content": "// shared UVM testcase declarations\n",
+        }]
+        implemented = []
+        for item in manifest["testcases"]:
+            testcase_id = item["testcase_id"]
+            implemented.append(testcase_id)
+            units.append({
                 "role": "TESTCASE",
-                "testcase_ids": sorted(testcase_ids),
-                "content": testcase,
-            }],
-            "assembly": [0, 1],
-            "implemented_testcase_ids": sorted(testcase_ids),
+                "testcase_ids": [testcase_id],
+                "content": (
+                    "class {name} extends base_test;\n"
+                    "  task execute_testcase();\n"
+                    "    logic clk; logic y;\n"
+                    "    clk = 1'b0; // {testcase_id} low\n"
+                    "    if (y !== clk) `uvm_fatal(\"AC_TINY_LOW_FAIL\", \"y\") // {testcase_id}\n"
+                    "    clk = 1'b1; // {testcase_id} high\n"
+                    "    if (y !== clk) `uvm_fatal(\"AC_TINY_HIGH_FAIL\", \"y\") // {testcase_id}\n"
+                    "  endtask\n"
+                    "endclass\n").format(
+                        name=item["uvm_class"], testcase_id=testcase_id),
+            })
+        return {
+            "code_units": units,
+            "assembly": list(range(len(units))),
+            "implemented_testcase_ids": implemented,
+            "skipped_testcases": [],
         }
 
     def select_tools(self, request):
@@ -217,6 +210,122 @@ endmodule
             },
             "diagnostics": [],
         }
+
+
+class FakeUvmProvider:
+    """Independent UVM-role fixture used by the shared Project tests."""
+
+    provider_id = "fake-uvm-provider"
+    model_id = "openai/gpt-5.6-sol"
+
+    def __init__(self):
+        self.calls = 0
+
+    def probe(self):
+        return {
+            "schema_version": "1.0",
+            "provider_id": self.provider_id,
+            "model_id": self.model_id,
+            "status": "PASS",
+            "tool_call_capable": True,
+            "provider_version": "test",
+            "diagnostics": [],
+        }
+
+    def restore_probe(self, _probe):
+        return None
+
+    def select_tools(self, request):
+        self.calls += 1
+        payload = json.loads(request["messages"][1]["content"])
+        project_token = canonical_hash({
+            "job_id": payload["job_identity"]["job_id"],
+            "project_id": "PROJECT.TINY",
+            "artifact_kind": "PORTABLE_SV_TESTBENCH",
+        })[:16].upper()
+        markers = "// DV_PROJECT_{}_PASS\n{}".format(
+            project_token, "\n".join(
+            "// {}".format(testcase_marker(item["testcase_id"]))
+            for item in payload["immutable_generation_context"][
+                "logical_testcases"]))
+        replacements = [{
+            "logical_path": path,
+            "content": "// generated UVM fixture\n{}\n".format(markers),
+        } for path in payload["immutable_generation_context"][
+            "generated_file_slots"]]
+        prior_results = []
+        for message in request["messages"][2:]:
+            if (message.get("role") == "USER" and
+                    message.get("content", "").startswith(
+                        "TOOL_RESULT\n")):
+                prior_results.append(json.loads(
+                    message["content"].split("\n", 1)[1]))
+        if not prior_results or prior_results[-1]["tool_name"] == \
+                "read_uvm_candidate":
+            tool_name = "write_uvm_replacements"
+            arguments = {"replacements": replacements}
+        elif prior_results[-1]["tool_name"] == "write_uvm_replacements":
+            tool_name = "run_xcelium_compile"
+            arguments = {}
+        elif (prior_results[-1]["tool_name"] ==
+                "run_xcelium_compile" and
+                prior_results[-1]["result"].get("status") == "PASS"):
+            tool_name = "finish_task"
+            arguments = {}
+        elif prior_results[-1]["tool_name"] == "run_xcelium_compile":
+            tool_name = "write_uvm_replacements"
+            arguments = {"replacements": replacements}
+        else:
+            tool_name = "finish_task"
+            arguments = {}
+        return {
+            "schema_version": "1.0",
+            "request_id": request["request_id"],
+            "operation": "SELECT_TOOLS",
+            "finish_reason": "TOOL_CALLS",
+            "content": "",
+            "tool_calls": [{
+                "call_id": "CALL.UVM.{:03d}".format(self.calls),
+                "name": tool_name,
+                "arguments": arguments,
+            }],
+            "usage": {"input_tokens": 1, "output_tokens": 1},
+            "model_id": self.model_id,
+            "provider_metadata": {
+                "provider_id": self.provider_id,
+                "response_id": "RESP.UVM.{:03d}".format(self.calls),
+                "provider_status": "completed",
+            },
+            "diagnostics": [],
+        }
+
+
+def fake_uvm_build_runner(_value, _job_root, _request):
+    return {
+        "execution_status": "PASS",
+        "exit_code": 0,
+        "stdout": "fake UVM build passed",
+        "stderr": "",
+        "logs": [],
+    }
+
+
+def install_project_uvm_test_dependencies(testcase):
+    """Give legacy Project fixtures explicit UVM provider/tool dependencies."""
+    original = ProjectJobWorkflow.__init__
+
+    def initialize(workflow, *args, **kwargs):
+        role_providers = dict(kwargs.get("role_providers") or {})
+        role_providers.setdefault("initial.uvm", FakeUvmProvider())
+        role_providers.setdefault("repair.uvm", FakeUvmProvider())
+        kwargs["role_providers"] = role_providers
+        if kwargs.get("uvm_build_runner") is None:
+            kwargs["uvm_build_runner"] = fake_uvm_build_runner
+        original(workflow, *args, **kwargs)
+
+    patcher = patch.object(ProjectJobWorkflow, "__init__", initialize)
+    patcher.start()
+    testcase.addCleanup(patcher.stop)
 
 
 class FakeReviewerProvider:
@@ -351,7 +460,10 @@ class Stage3ValidatedRetryProvider(FakeProvider):
                 item for item in candidate["code_units"]
                 if item["role"] == "TESTCASE")
             testcase["content"] = testcase["content"].replace(
-                "    $finish;\n", "")
+                "class {}".format(next(item["uvm_class"] for item in
+                    json.loads(request["messages"][1]["content"])[
+                        "generated_testcase_manifest"]["testcases"])),
+                "class unexpected_uvm_testcase", 1)
         elif mode == "compile":
             testcase = next(
                 item for item in candidate["code_units"]
@@ -410,21 +522,16 @@ class CounterTimeoutProvider(FakeProvider):
     @staticmethod
     def stage3(payload):
         result = FakeProvider.stage3(payload)
-        shared = result["code_units"][0]
-        shared["content"] = shared["content"].replace(
-            "  always #5 clk = ~clk;\n",
-            "  localparam time CLK_HALF = 5;\n"
-            "  always #CLK_HALF clk = ~clk;\n")
         testcase = result["code_units"][1]
         testcase["content"] = testcase["content"].replace(
-            "    clk = 1'b0;\n",
+            "    clk = 1'b0;",
             "    integer timeout_count;\n"
-            "    clk = 1'b0;\n"
             "    timeout_count = 0;\n"
             "    while (timeout_count < 20) begin\n"
             "      @(posedge clk);\n"
             "      timeout_count = timeout_count + 1;\n"
-            "    end\n")
+            "    end\n"
+            "    clk = 1'b0;", 1)
         return result
 
 
@@ -552,12 +659,18 @@ class MalformedGenerationProvider(FakeProvider):
 
 class ProjectJobWorkflowTests(unittest.TestCase):
     def setUp(self):
+        install_project_uvm_test_dependencies(self)
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         (self.root / "spec.md").write_text(SPEC, encoding="utf-8")
         (self.root / "tiny.sv").write_text(
             "module tiny(input logic clk, output logic y);\n"
             "  assign y = clk;\nendmodule\n", encoding="utf-8")
+        (self.root / "uvm").mkdir()
+        (self.root / "uvm/pkg.sv").write_text(
+            "package tiny_uvm_pkg; endpackage\n", encoding="utf-8")
+        (self.root / "uvm/base_test.svh").write_text(
+            "class tiny_base_test; endclass\n", encoding="utf-8")
         (self.root / "config").mkdir()
         base = {
             "schema_version": "1.0",
@@ -582,18 +695,34 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             yaml.safe_dump(base, sort_keys=False), encoding="utf-8")
         (self.root / "config/reviewer.yaml").write_text(
             yaml.safe_dump(reviewer, sort_keys=False), encoding="utf-8")
+        uvm = {
+            **base,
+            "schema_version": "2.0",
+            "provider_kind": "OPENROUTER",
+            "provider_id": FakeUvmProvider.provider_id,
+            "model_id": FakeUvmProvider.model_id,
+            "endpoint": "https://openrouter.ai/api/v1",
+            "auth_env": "OPENAI_API_KEY",
+            "api_version": "responses-v1",
+            "reasoning_effort": "medium",
+        }
+        uvm.pop("enable_thinking")
+        (self.root / "config/uvm.yaml").write_text(
+            yaml.safe_dump(uvm, sort_keys=False), encoding="utf-8")
         profile = {
             "schema_version": "1.0",
             "profile_id": "PROJECT_AGENT_PROFILE.TEST",
             "initial": {
                 "stage1": "config/generator.yaml",
                 "stage2": "config/generator.yaml",
+                "uvm": "config/uvm.yaml",
                 "stage3": "config/generator.yaml",
             },
             "repair": {
                 "orchestrator": "config/generator.yaml",
                 "stage1": "config/generator.yaml",
                 "stage2": "config/generator.yaml",
+                "uvm": "config/uvm.yaml",
                 "stage3": "config/generator.yaml",
             },
             "review": {
@@ -618,9 +747,13 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                 "top": "tiny",
                 "parameters": {},
             },
+            "uvm_testcase_context": {
+                "files": ["uvm/pkg.sv", "uvm/base_test.svh"],
+                "generated_files": ["uvm/base_test.svh"],
+            },
             "agent_profile": "config/agents.yaml",
             "eda": {
-                "profile_id": "EDAPROFILE.VERILATOR.PROJECT.V1",
+                "profile_id": "EDAPROFILE.XCELIUM.PROJECT.V1",
                 "timeout_seconds": 60,
             },
             "input_authority": {
@@ -723,7 +856,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             workflow.route_scenarios(submission, conflicting)
         self.assertEqual("CONFLICTING_REPLAY", caught.exception.code)
 
-    def test_human_rejection_pauses_and_later_approval_resumes_same_job(self):
+    def test_staged_workflow_stops_at_human_gate_without_promotion_path(self):
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result",
             FakeProvider(), FakeReviewerProvider())
@@ -731,33 +864,9 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         checkpoint = self.start_checked(workflow, submission)
         self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
         job = self.root / "result/jobs" / submission["job_id"]
-        approval = load_document(
-            job / checkpoint["approval_request_path"])
-
-        def decision(kind, identity):
-            return {
-                "schema_version": "1.0",
-                "decision_id": "DECISION.{}.{}".format(kind, identity),
-                "approval_request_id": approval["approval_request_id"],
-                "job_id": submission["job_id"],
-                "thread_id": approval["thread_id"],
-                "decision": kind,
-                "approver_identity": identity,
-                "approver_role": "DV_REVIEWER",
-                "reason": "explicit Human review decision",
-                "evidence_ids": approval["validation_artifact_ids"],
-                "candidate_fingerprint": approval["candidate_fingerprint"],
-                "checkpoint_id": checkpoint["checkpoint_id"],
-                "decided_at": "2026-08-14T00:00:00Z",
-            }
-
-        paused = workflow.resume(
-            submission, decision("REJECT", "human.dv.reviewer.one"))
-        self.assertEqual("PAUSED_BY_HUMAN", paused["state"])
-        completed = workflow.resume(
-            submission, decision("APPROVE", "human.dv.reviewer.two"))
-        self.assertEqual("COMPLETE", completed["state"])
-        self.assertTrue((job / "audit/project_completed.json").is_file())
+        self.assertTrue((job / checkpoint["approval_request_path"]).is_file())
+        self.assertFalse(hasattr(workflow, "resume"))
+        self.assertFalse((job / "audit/project_completed.json").exists())
 
     def test_reviewer_bad_attempt_resumes_with_a_fresh_attempt(self):
         class RetryReviewer(FakeReviewerProvider):
@@ -791,7 +900,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         ).is_file())
 
     def test_owner_mapper_single_r001_and_exact_replay(self):
-        generator = FakeProvider()
+        generator = FakeProvider(ambiguity_stage="AC_TESTCASE_MAP")
         reviewer = FakeReviewerProvider()
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result", generator, reviewer)
@@ -802,15 +911,16 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         routing = self.completed_owner_review(
             form, "SCENARIO_AC_MAPPER",
             "Re-evaluate the complete Scenario mapping as one atomic unit.")
-        result = workflow.route_scenarios(submission, routing)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        with self.assertRaises(ProjectJobError) as stopped:
+            workflow.route_scenarios(submission, routing)
+        self.assertEqual("SPEC_AMBIGUITY", stopped.exception.code)
         self.assertTrue((
             job / "staging/mappings/scenario_ac_map.r001.json").is_file())
         self.assertTrue((
             job / "staging/mappings/scenario_ac_map.r001.lineage.json").is_file())
         self.assertFalse((
             job / "staging/mappings/scenario_ac_map.r002.json").exists())
-        self.assertEqual(4, generator.calls)
+        self.assertEqual(3, generator.calls)
         initial_prompt = generator.requests[0]["messages"][0]["content"]
         correction_request = next(
             request for request in generator.requests
@@ -821,18 +931,132 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         self.assertIn(
             "routing.destination is SCENARIO_AC_MAPPER", correction_prompt)
         self.assertIn(
-            "prior_stage_artifact.scenario_ids", correction_prompt)
+            "wholly mutable replacement scope", correction_prompt)
         self.assertIn(
-            "every and only those Scenario IDs", correction_prompt)
+            "Scenario count, AC count, content, and relationships may increase "
+            "or decrease", correction_prompt)
         self.assertIn(
             "Do not emit, modify, regenerate, or carry any Scenario routed "
             "to SPEC_AGENT or AC_TESTCASE_MAP_AND_TESTCASE",
             correction_prompt)
-        self.assertEqual(result, workflow.route_scenarios(submission, routing))
-        self.assertEqual(4, generator.calls)
+        corrected = load_document(
+            job / "staging/mappings/scenario_ac_map.r001.json")
+        self.assertEqual(
+            ["SCENARIO.R001"],
+            [item["scenario_id"] for item in corrected["scenarios"]])
+        self.assertEqual(
+            ["AC.R001"],
+            [item["ac_id"] for item in corrected["acceptance_criteria"]])
+        lineage = load_document(
+            job / "staging/mappings/scenario_ac_map.r001.lineage.json")
+        self.assertEqual(["SCENARIO.0001"], lineage["retired_scenario_ids"])
+        self.assertEqual(["AC.0001"], lineage["retired_ac_ids"])
+        self.assertEqual(
+            ["SCENARIO.R001"], lineage["replacement_scenario_ids"])
+        self.assertEqual(["AC.R001"], lineage["replacement_ac_ids"])
+        with self.assertRaises(ProjectJobError) as replayed:
+            workflow.route_scenarios(submission, routing)
+        self.assertEqual("SPEC_AMBIGUITY", replayed.exception.code)
+        self.assertEqual(3, generator.calls)
 
-    def test_owner_mapper_scope_failure_retries_in_same_job(self):
-        class ScopeRetryProvider(FakeProvider):
+    def test_owner_mapper_replaces_nonprefix_scope_with_fewer_items(self):
+        class NonPrefixOwnerCorrectionProvider(FakeProvider):
+            @staticmethod
+            def full_stage1():
+                base = FakeProvider.stage1()
+                scenarios = []
+                acceptance_criteria = []
+                for index in range(7):
+                    scenario = copy.deepcopy(base["scenarios"][0])
+                    scenario["objective"] = \
+                        "Verify mapped behavior {}.".format(index + 1)
+                    scenarios.append(scenario)
+                    ac = copy.deepcopy(base["acceptance_criteria"][0])
+                    ac["scenario_indexes"] = [index]
+                    ac["behavior"] = \
+                        "Mapped behavior {} remains defined.".format(index + 1)
+                    acceptance_criteria.append(ac)
+                return {
+                    "scenarios": scenarios,
+                    "acceptance_criteria": acceptance_criteria,
+                    "completeness": copy.deepcopy(base["completeness"]),
+                }
+
+            @classmethod
+            def correction(cls):
+                full = cls.full_stage1()
+                scenarios = copy.deepcopy(full["scenarios"][-1:])
+                acceptance_criteria = copy.deepcopy(
+                    full["acceptance_criteria"][-1:])
+                scenarios[0]["objective"] = \
+                    "Consolidate corrected mapped behaviors 6 and 7."
+                acceptance_criteria[0]["scenario_indexes"] = [0]
+                acceptance_criteria[0]["behavior"] = \
+                    "Consolidated behaviors 6 and 7 remain defined."
+                return {
+                    "scenarios": scenarios,
+                    "acceptance_criteria": acceptance_criteria,
+                    "completeness": copy.deepcopy(full["completeness"]),
+                }
+
+            def select_tools(self, request):
+                response = super().select_tools(request)
+                if request["metadata"]["stage"] == "SCENARIO_AC_MAP":
+                    response["tool_calls"][0]["arguments"] = \
+                        self.correction() if \
+                        request["metadata"]["revision"] == 1 else \
+                        self.full_stage1()
+                return response
+
+        generator = NonPrefixOwnerCorrectionProvider(
+            ambiguity_stage="AC_TESTCASE_MAP")
+        workflow = ProjectJobWorkflow(
+            self.root, self.root / "result", generator,
+            FakeReviewerProvider())
+        submission = self.project_input()
+        checkpoint = workflow.start(submission)
+        job = self.root / "result/jobs" / submission["job_id"]
+        form = load_document(job / checkpoint["owner_review_path"])
+        routing = self.completed_owner_review(
+            form, "AC_TESTCASE_MAP_AND_TESTCASE", "")
+        for item in routing["scenarios"][-2:]:
+            item["routing"]["destination"] = "SCENARIO_AC_MAPPER"
+            item["comment"] = "Correct only this existing Scenario."
+
+        with self.assertRaises(ProjectJobError) as stopped:
+            workflow.route_scenarios(submission, routing)
+        self.assertEqual("SPEC_AMBIGUITY", stopped.exception.code)
+
+        corrected = load_document(
+            job / "staging/mappings/scenario_ac_map.r001.json")
+        original = load_document(
+            job / "staging/mappings/scenario_ac_map.r000.json")
+        self.assertEqual(
+            [*[
+                "SCENARIO.{:04d}".format(index) for index in range(1, 6)],
+             "SCENARIO.R001"],
+            [item["scenario_id"] for item in corrected["scenarios"]])
+        self.assertEqual(
+            [*["AC.{:04d}".format(index) for index in range(1, 6)],
+             "AC.R001"],
+            [item["ac_id"] for item in corrected["acceptance_criteria"]])
+        self.assertEqual(
+            "Consolidate corrected mapped behaviors 6 and 7.",
+            corrected["scenarios"][-1]["objective"])
+        self.assertEqual(
+            original["scenarios"][:5], corrected["scenarios"][:5])
+        self.assertEqual(
+            original["acceptance_criteria"][:5],
+            corrected["acceptance_criteria"][:5])
+        correction_request = next(
+            request for request in generator.requests
+            if request["metadata"].get("revision") == 1)
+        self.assertIn(
+            "do not preserve old IDs or cardinality",
+            correction_request["messages"][0]["content"])
+
+    def test_owner_mapper_expansion_partitions_noncheckable_replacements(self):
+        class ScopeExpansionProvider(FakeProvider):
             @staticmethod
             def stage1_two():
                 value = FakeProvider.stage1()
@@ -849,6 +1073,15 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                 response = super().select_tools(request)
                 if request["metadata"]["stage"] == "SCENARIO_AC_MAP":
                     candidate = self.stage1_two()
+                    if request["metadata"]["revision"] == 1:
+                        candidate["scenarios"][1]["status"] = \
+                            "SPEC_AMBIGUITY"
+                        candidate["scenarios"][1]["reason"] = \
+                            "Spec does not define the required oracle."
+                        candidate["acceptance_criteria"][1]["status"] = \
+                            "SPEC_AMBIGUITY"
+                        candidate["acceptance_criteria"][1]["reason"] = \
+                            "Spec does not define the required oracle."
                     if ".RETRY" in request["request_id"]:
                         candidate["scenarios"] = candidate["scenarios"][:1]
                         candidate["acceptance_criteria"] = \
@@ -856,7 +1089,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                     response["tool_calls"][0]["arguments"] = candidate
                 return response
 
-        generator = ScopeRetryProvider(
+        generator = ScopeExpansionProvider(
             ambiguity_stage="AC_TESTCASE_MAP")
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result", generator,
@@ -873,39 +1106,89 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         target["routing"]["destination"] = "SCENARIO_AC_MAPPER"
         target["comment"] = "Regenerate only this Scenario."
 
-        with self.assertRaises(ProjectJobError) as caught:
+        with self.assertRaises(ProjectJobError) as stopped:
             workflow.route_scenarios(submission, routing)
 
-        self.assertEqual("ATTEMPT_PAUSED", caught.exception.code)
-        self.assertEqual(2, generator.calls)
+        self.assertEqual("SPEC_AMBIGUITY", stopped.exception.code)
+        self.assertEqual(3, generator.calls)
         self.assertTrue((
             job / "staging/requests/stage1.owner.r001.json"
         ).is_file())
-        self.assertFalse((
-            job / "staging/mappings/scenario_ac_map.r001.json").is_file())
-        rejection = list(job.glob(
-            "audit/pj002_rejected_stage_response.*.json"))
-        self.assertEqual(1, len(rejection))
         self.assertEqual(
-            "MAPPING_SCOPE_VIOLATION",
-            load_document(rejection[0])["diagnostic"]["code"])
-        with self.assertRaises(ProjectJobError) as resumed:
-            workflow.route_scenarios(submission, routing)
+            [], list(job.glob("audit/pj002_rejected_stage_response.*.json")))
+        corrected = load_document(
+            job / "staging/mappings/scenario_ac_map.r001.json")
+        original = load_document(
+            job / "staging/mappings/scenario_ac_map.r000.json")
         self.assertEqual(
-            "SPEC_AMBIGUITY", resumed.exception.code,
-            str(resumed.exception))
-        self.assertEqual(4, generator.calls)
-        self.assertTrue((
-            job / "staging/requests/stage1.owner.r001.retry001.json"
-        ).is_file())
-        self.assertTrue((
-            job / "staging/mappings/scenario_ac_map.r001.json").is_file())
+            ["SCENARIO.0002", "SCENARIO.R001", "SCENARIO.R002"],
+            [item["scenario_id"] for item in corrected["scenarios"]])
+        self.assertEqual(
+            ["AC.0002", "AC.R001", "AC.R002"],
+            [item["ac_id"] for item in corrected["acceptance_criteria"]])
+        self.assertEqual(original["scenarios"][1], corrected["scenarios"][0])
+        self.assertEqual(
+            original["acceptance_criteria"][1],
+            corrected["acceptance_criteria"][0])
+        checked = load_document(
+            job / "staging/mappings/scenario_ac_map.checked.r001.json")
+        self.assertEqual(
+            ["SCENARIO.0002", "SCENARIO.R001"],
+            [item["scenario_id"] for item in checked["scenarios"]])
+        self.assertEqual(
+            ["AC.0002", "AC.R001"],
+            [item["ac_id"] for item in checked["acceptance_criteria"]])
+        issues = load_document(
+            job / "staging/mappings/scenario_spec_issues.r001.json")
+        self.assertEqual(["SCENARIO.R002"], issues["scenario_ids"])
+        self.assertEqual(["AC.R002"], issues["ac_ids"])
+        self.assertEqual(
+            ["SCENARIO.R002"], issues["mapper_lineage"][
+                "replacement_issue_scenario_ids"])
+        manifest = workflow.bootstrap_handler.handle(submission)
+        staged = StagedProjectWorkflow(workflow)
+        owner = load_document(
+            job / "audit/scenario_owner_review_submission.json")
+        routing_context = staged._review_routing_context(
+            job, manifest, checked, {
+                "owner_review_submission_path":
+                    "audit/scenario_owner_review_submission.json",
+                "owner_review_submission_fingerprint":
+                    owner["submission_fingerprint"],
+                "spec_issues":
+                    "staging/mappings/scenario_spec_issues.r001.json",
+            })
+        map2_fp = "1" * 64
+        testcase_fp = "2" * 64
+        _validate_review_scope({
+            "job_id": manifest["job_id"],
+            "input_fingerprint": manifest["input_fingerprint"],
+            "spec_fingerprint": checked["spec_fingerprint"],
+            "artifact_roots": {
+                "scenario_ac_map": checked["artifact_fingerprint"],
+                "ac_testcase_map": map2_fp,
+                "testcase": testcase_fp,
+                "effective_uvm": "3" * 64,
+            },
+            "upstream_fingerprints": {
+                "input": manifest["input_fingerprint"],
+                "spec": checked["spec_fingerprint"],
+                "scenario_ac_map": checked["artifact_fingerprint"],
+                "ac_testcase_map": map2_fp,
+                "testcase": testcase_fp,
+                "effective_uvm": "3" * 64,
+                "owner_routing": owner["submission_fingerprint"],
+                "scenario_spec_issues":
+                    issues["artifact_fingerprint"],
+            },
+            **routing_context,
+        }, checked, ProjectJobError)
 
     def test_reordered_semantic_arrays_formalize_identically(self):
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result", FakeProvider(),
             FakeReviewerProvider())
-        manifest = workflow.bootstrap(self.project_input())
+        manifest = workflow.bootstrap_handler.handle(self.project_input())
         staged = StagedProjectWorkflow(workflow)
         _, sources, spec_fp = staged._spec(manifest)
         evidence = [_spec_range(SPEC, "Acceptance:")]
@@ -938,10 +1221,17 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         raw1_reordered["acceptance_criteria"].reverse()
         for ac in raw1_reordered["acceptance_criteria"]:
             ac["scenario_indexes"] = [1 - item for item in ac["scenario_indexes"]]
-        map_a = staged._enrich_stage1(
-            raw1, manifest, sources, spec_fp, 0, response)
-        map_b = staged._enrich_stage1(
-            raw1_reordered, manifest, sources, spec_fp, 0, response)
+        stage1_options = {
+            "max_items": staged.max_items,
+            "policy_fingerprint": staged.policy_fingerprint,
+            "error": staged.error,
+        }
+        map_a = enrich_stage1(
+            raw1, manifest, sources, spec_fp, 0, response,
+            **stage1_options)
+        map_b = enrich_stage1(
+            raw1_reordered, manifest, sources, spec_fp, 0, response,
+            **stage1_options)
         self.assertNotEqual(map_a, map_b)
         tc_base = FakeProvider().stage2()["logical_testcases"][0]
         tc_base["scenario_ids"] = [
@@ -960,11 +1250,19 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         stage2_b["logical_testcases"].reverse()
         stage2_b["logical_testcases"][1]["scenario_ids"].reverse()
         stage2_b["logical_testcases"][1]["ac_ids"].reverse()
-        job = workflow._job_root(manifest)
-        formal_a, testcases_a, _ = staged._enrich_stage2(
-            stage2_a, manifest, map_a, sources, spec_fp, 0, response, job)
-        formal_b, testcases_b, _ = staged._enrich_stage2(
-            stage2_b, manifest, map_a, sources, spec_fp, 0, response, job)
+        stage2_options = {
+            "max_items": staged.max_items,
+            "max_per_shard": staged.max_per_shard,
+            "max_file_bytes": staged.max_file_bytes,
+            "policy_fingerprint": staged.policy_fingerprint,
+            "error": staged.error,
+        }
+        formal_a, testcases_a, _ = enrich_stage2(
+            stage2_a, manifest, map_a, sources, spec_fp, 0, response,
+            **stage2_options)
+        formal_b, testcases_b, _ = enrich_stage2(
+            stage2_b, manifest, map_a, sources, spec_fp, 0, response,
+            **stage2_options)
         self.assertNotEqual(testcases_a, testcases_b)
         self.assertNotEqual(formal_a, formal_b)
 
@@ -1071,9 +1369,9 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         self.assertEqual(1, reviewer.calls)
         job = self.root / "result/jobs/JOB.PROJECT.TINY.001"
         manifests = sorted(job.glob("transcripts/*/*/manifest.json"))
-        self.assertEqual(4, len(manifests))
+        self.assertEqual(5, len(manifests))
         self.assertEqual(
-            {"STAGE_1", "STAGE_2", "STAGE_3", "REVIEWER"},
+            {"STAGE_1", "STAGE_2", "UVM_GENERATION", "STAGE_3", "REVIEWER"},
             {load_document(path)["role"] for path in manifests})
         before = {
             path.relative_to(job).as_posix():
@@ -1090,7 +1388,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         expected_tools = {
             "SCENARIO_AC_MAP": "submit_scenario_ac_candidate",
             "AC_TESTCASE_MAP": "submit_ac_testcase_candidate",
-            "TESTCASE": "submit_portable_sv_testcase_candidate",
+            "TESTCASE": "submit_uvm_testcase_candidate",
         }
         for request in generator.requests:
             stage = request["metadata"]["stage"]
@@ -1133,15 +1431,18 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                     set(evidence["properties"]))
             else:
                 self.assertEqual(
-                    "urn:dv:project:portable-sv-testcase-candidate:9.0",
+                    "urn:dv:project:uvm-testcase-candidate:1.0",
                     candidate_tool["input_schema"]["$id"])
                 self.assertEqual(
-                    {"code_units", "assembly", "implemented_testcase_ids"},
+                    {"code_units", "assembly", "implemented_testcase_ids",
+                     "skipped_testcases"},
                     set(candidate_tool["input_schema"]["properties"]))
                 self.assertNotIn("spec_evidence", payload)
                 self.assertIn("scenario_ac_map", payload)
                 self.assertIn("ac_testcase_map", payload)
-        review_schema = reviewer.requests[0]["tools"][0]["input_schema"]
+        review_schema = next(
+            tool["input_schema"] for tool in reviewer.requests[0]["tools"]
+            if tool["name"] == "submit_staged_project_review")
         self.assertEqual(
             "urn:dv:project:testcase-review-candidate:6.0",
             review_schema["$id"])
@@ -1169,13 +1470,13 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             job / "audit/pj002_provider_response.stage3.r000.json")[
                 "tool_calls"][0]["arguments"]
         self.assertTrue(accepted(validate(
-            "portable_sv_testcase_candidate", stage3_raw)))
+            "uvm_testcase_candidate", stage3_raw)))
         self.assertNotIn("implemented_ac_evidence", stage3_raw)
         self.assertNotIn("implemented_ac_evidence", candidate)
         legacy_stage3 = copy.deepcopy(stage3_raw)
         legacy_stage3["implemented_ac_evidence"] = []
         self.assertFalse(accepted(validate(
-            "portable_sv_testcase_candidate", legacy_stage3)))
+            "uvm_testcase_candidate", legacy_stage3)))
         review_raw = load_document(
             job / "audit/pj002_provider_response.review.r001.json")[
                 "tool_calls"][0]["arguments"]
@@ -1191,9 +1492,10 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             checkpoint["bundle_fingerprints"]["testcase"])
         self.assertNotIn("eda_eligibility", checkpoint)
         self.assertFalse((job / "approved").exists())
-        self.assertTrue((job / "runs/stage3").is_dir())
+        self.assertTrue((job / "staging/generated/uvm").is_dir())
         self.assertEqual(1, len(list(job.glob(
-            "audit/stage3_eda_evidence.*.json"))))
+            "audit/uvm_generation/initial/attempt-001/"
+            "xcelium-run-*.result.json"))))
         self.assertFalse(any(
             "FIRST_RUN.R1" in str(path)
             for path in (self.root / "result").rglob("*")))
@@ -1289,6 +1591,67 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         ).is_file())
         self.assertEqual(5, generator.calls)
 
+    def test_stage3_uvm_context_correction_changes_only_diagnosed_testcases(self):
+        staged = StagedProjectWorkflow(ProjectJobWorkflow(
+            self.root, self.root / "result", FakeProvider(),
+            FakeReviewerProvider()))
+        diagnostic = ProjectJobError(
+            "UVM_CONTEXT_SKIP_CONTRADICTION", "invalid skipped testcase")
+        diagnostic.failure_context = {"diagnostics": [{
+            "code": "UVM_CONTEXT_SKIP_CONTRADICTION",
+            "offending_content": "TC.0005: wfi",
+        }, {
+            "code": "UVM_CONTEXT_SKIP_CONTRADICTION",
+            "offending_content": "TC.0006: fault",
+        }]}
+        self.assertEqual(
+            {"TC.0005", "TC.0006"},
+            staged._diagnosed_stage3_testcase_ids("TESTCASE", diagnostic))
+        before = {
+            "assembly": [0],
+            "code_units": [{
+                "role": "TESTCASE",
+                "testcase_ids": ["TC.0012"],
+                "content": "class tc_0012; endclass",
+            }],
+            "implemented_testcase_ids": ["TC.0012"],
+            "skipped_testcases": [{
+                "testcase_id": testcase_id,
+                "reason_kind": "BLOCKED_CONTRACT",
+                "reason": reason,
+                "routing_required": True,
+            } for testcase_id, reason in (
+                ("TC.0005", "No WFI observation point."),
+                ("TC.0006", "No fault observation point."),
+                ("TC.0009", "No unrelated observation point."),
+            )],
+        }
+        corrected = copy.deepcopy(before)
+        corrected["code_units"].append({
+            "role": "TESTCASE",
+            "testcase_ids": ["TC.0005"],
+            "content": "class tc_0005; endclass",
+        })
+        corrected["assembly"].append(1)
+        corrected["implemented_testcase_ids"].append("TC.0005")
+        corrected["skipped_testcases"] = [
+            item for item in corrected["skipped_testcases"]
+            if item["testcase_id"] != "TC.0005"]
+
+        staged._assert_candidate_correction_preserves_semantics(
+            "TESTCASE", before, corrected, [],
+            "UVM_CONTEXT_SKIP_CONTRADICTION", {"TC.0005", "TC.0006"})
+
+        unrelated = copy.deepcopy(corrected)
+        next(item for item in unrelated["skipped_testcases"]
+             if item["testcase_id"] == "TC.0009")["reason"] = \
+            "Rewritten unrelated reason."
+        with self.assertRaises(ProjectJobError) as caught:
+            staged._assert_candidate_correction_preserves_semantics(
+                "TESTCASE", before, unrelated, [],
+                "UVM_CONTEXT_SKIP_CONTRADICTION", {"TC.0005", "TC.0006"})
+        self.assertEqual("CANDIDATE_SEMANTIC_DRIFT", caught.exception.code)
+
     def test_contract_correction_accepts_slash_separator_expansion(self):
         self.assertTrue(StagedProjectWorkflow._separator_equivalent(
             {"failure_condition": (
@@ -1335,8 +1698,8 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                 self.assertFalse(list(job.glob(
                     "staging/requests/*.correction002.json")))
 
-    def test_stage3_verilator_failure_regenerates_in_same_run_with_feedback(self):
-        generator = Stage3ValidatedRetryProvider(["compile"])
+    def test_invalid_uvm_candidate_regenerates_in_same_run_with_feedback(self):
+        generator = Stage3ValidatedRetryProvider(["code"])
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result", generator,
             FakeReviewerProvider())
@@ -1352,15 +1715,11 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             job / "staging/requests/stage3.r000.correction001.json")
         feedback = json.loads(correction["messages"][-1]["content"])[
             "candidate_correction_feedback"]
-        self.assertIn("Verilator", feedback["required_action"])
         self.assertEqual(
-            "VERILATOR_BUILD_FAILED",
+            "INVALID_GENERATED_ARTIFACT",
             feedback["validation_diagnostics"][0]["code"])
-        self.assertIn(
-            "<stage3_testcase>",
-            feedback["validation_diagnostics"][0]["message"])
-        self.assertEqual(2, len(list(job.glob(
-            "audit/stage3_eda_evidence.*.json"))))
+        self.assertEqual(1, len(list(job.glob(
+            "audit/pj002_rejected_stage_response.*.json"))))
         self.assertFalse(list(job.glob(
             "audit/pj002_stage3_evidence_attempt_paused.*.json")))
 
@@ -1597,7 +1956,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         self.assertEqual(3, generator.calls)
         self.assertEqual(1, reviewer.calls)
         self.assertFalse((job / "approved").exists())
-        self.assertTrue((job / "runs/stage3").is_dir())
+        self.assertTrue((job / "staging/generated/uvm").is_dir())
 
     def test_stage3_allows_one_testcase_code_unit(self):
         workflow = ProjectJobWorkflow(
@@ -1629,7 +1988,6 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             "generated/portable_sv/testcase.r000.json")
         self.assertNotIn("BOUNDED_TIMEOUT", candidate["validation"]["checks"])
         self.assertIn("while (timeout_count < 20)", candidate["content"])
-        self.assertIn("always #CLK_HALF", candidate["content"])
 
     def test_stage2_still_rejects_empty_expected_result_before_stage3(self):
         generator = EmptyExpectedResultProvider()
@@ -1650,7 +2008,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             self.root, self.root / "result", generator,
             FakeReviewerProvider())
 
-        with patch("core.project_staged.ProjectVerilatorRunner") as runner:
+        with patch("runtime.staged_workflow.ProjectVerilatorRunner") as runner:
             with self.assertRaises(ProjectJobError) as caught:
                 self.start_checked(workflow)
 
@@ -1689,7 +2047,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result", generator, reviewer)
         original = __import__(
-            "core.project_staged", fromlist=["_raw_generation"]
+            "runtime.staged_workflow", fromlist=["_raw_generation"]
         )._raw_generation
 
         def fail_after_response(response, stage, error):
@@ -1699,7 +2057,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                     "simulated failure after immutable provider response")
             return original(response, stage, error)
 
-        with patch("core.project_staged._raw_generation", fail_after_response):
+        with patch("runtime.staged_workflow._raw_generation", fail_after_response):
             with self.assertRaises(ProjectJobError) as caught:
                 workflow.start(self.project_input())
         self.assertEqual("DEVELOPER_LOGIC_ERROR", caught.exception.code)
@@ -1734,7 +2092,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             FakeReviewerProvider())
 
         with patch(
-                "core.project_staged._raw_generation",
+                "runtime.staged_workflow._raw_generation",
                 side_effect=ProjectJobError(
                     "DEVELOPER_LOGIC_ERROR",
                     "simulated failure after immutable provider response")):
@@ -1762,7 +2120,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             FakeReviewerProvider())
 
         with patch(
-                "core.project_staged._raw_generation",
+                "runtime.staged_workflow._raw_generation",
                 side_effect=ProjectJobError(
                     "DEVELOPER_LOGIC_ERROR",
                     "simulated failure after immutable provider response")):
@@ -1989,7 +2347,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
     def test_no_rtl_gate_rejects_injected_field_before_call(self):
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result")
-        manifest = workflow.bootstrap(self.project_input())
+        manifest = workflow.bootstrap_handler.handle(self.project_input())
         request = {
             "messages": [{"role": "USER", "content": "Spec only"}],
             "metadata": {"rtl_path": "tiny.sv"},
@@ -2034,13 +2392,12 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             self.root, self.root / "result",
             FakeProvider(), FakeReviewerProvider(),
             max_total_provider_calls=2)
-        with self.assertRaises(ProjectJobError) as caught:
-            self.start_checked(limited)
-        self.assertEqual("TOOL_LIMIT_EXCEEDED", caught.exception.code)
+        paused = self.start_checked(limited)
+        self.assertEqual("PAUSED_BUDGET", paused["state"])
         job = self.root / "result/jobs/JOB.PROJECT.TINY.001"
         self.assertTrue((
             job / "staging/mappings/ac_testcase_map.r000.json").is_file())
-        self.assertTrue((
+        self.assertFalse((
             job / "staging/generated/portable_sv/testcase.r000.json").exists())
 
     def test_local_provider_request_error_keeps_its_real_code(self):
@@ -2102,6 +2459,8 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                 encoding="utf-8")
             __import__("shutil").copytree(
                 self.root / "config", root / "config")
+            __import__("shutil").copytree(
+                self.root / "uvm", root / "uvm")
             submission = self.project_input()
             submission["job_id"] = "JOB.PROJECT.TINY.{}".format(suffix)
             workflow = ProjectJobWorkflow(

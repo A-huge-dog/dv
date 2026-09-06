@@ -15,11 +15,11 @@ from adapters.llm import (
     ProviderContractError,
 )
 from contracts.validator import load_document, load_schema
-from core.project_staged import (
+from runtime.staged_workflow import (
     STAGE1, STAGE2, STAGE3, _generation_tools)
-from core.project_tools import (
+from agents.project_tools import (
     ORCHESTRATOR_READ_TOOLS, STAGE_READ_TOOLS, read_tool_definitions)
-from core.project_reviewer import provider_review_request
+from domain.review import provider_review_request
 from scripts.run_project_job import configured_provider
 
 
@@ -403,8 +403,11 @@ class ConfiguredProviderTests(unittest.TestCase):
         translated = OpenAICompatibleProvider(
             config(), lambda **kwargs: None)._request_parameters(request)
         self.assertEqual("auto", translated["tool_choice"])
-        self.assertEqual(1, len(translated["tools"]))
-        sent = OpenAICompatibleProvider._chat_tool(request["tools"][0])
+        self.assertEqual(2, len(translated["tools"]))
+        review_tool = next(
+            tool for tool in request["tools"]
+            if tool["name"] == "submit_staged_project_review")
+        sent = OpenAICompatibleProvider._chat_tool(review_tool)
         parameters = sent["function"]["parameters"]
         issue = parameters["properties"]["findings"]["items"]
         self.assertEqual(
@@ -640,7 +643,7 @@ class ConfiguredProviderTests(unittest.TestCase):
             submission["agent_profile"])
         profile = load_document(ROOT / "config/agents/project_default.yaml")
         self.assertEqual(
-            "dv/config/llm/openrouter_gpt_5_6_terra.yaml",
+            "dv/config/llm/openrouter_primary.yaml",
             profile["initial"]["stage1"])
         self.assertEqual(
             "dv/config/llm/openrouter_primary.yaml",

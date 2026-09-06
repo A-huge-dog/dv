@@ -8,10 +8,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.project_oches003 import (
+from infrastructure.persistence.repair_records import (
     RepairRecordStore, SerialRepairExecutor, build_prompt_contract,
-    canonical_repair_groups, map_provider_stop,
+    map_provider_stop,
 )
+from domain.repair import canonical_repair_groups
 
 
 FP = "a" * 64

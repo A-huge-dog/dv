@@ -12,11 +12,13 @@ from unittest.mock import patch
 import yaml
 
 from contracts.validator import load_document
-from core.project_job import ProjectJobError, ProjectJobWorkflow
-from core.project_stage3 import StandaloneStage3Workflow
+from runtime.errors import ProjectJobError
+from runtime.project_job import ProjectJobWorkflow
+from runtime.standalone_stage3 import StandaloneStage3Workflow
 from tests.agent_runtime.test_project_job_workflow import (
-    FakeProvider, FakeReviewerProvider, SPEC,
+    FakeProvider, FakeReviewerProvider, FakeUvmProvider, SPEC,
     Stage3ValidatedRetryProvider,
+    install_project_uvm_test_dependencies,
 )
 
 
@@ -48,12 +50,18 @@ class AlternateModelProvider(FakeProvider):
 
 class StandaloneStage3Tests(unittest.TestCase):
     def setUp(self):
+        install_project_uvm_test_dependencies(self)
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         (self.root / "spec.md").write_text(SPEC, encoding="utf-8")
         (self.root / "tiny.sv").write_text(
             "module tiny(input logic clk, output logic y);\n"
             "  assign y = clk;\nendmodule\n", encoding="utf-8")
+        (self.root / "uvm").mkdir()
+        (self.root / "uvm/pkg.sv").write_text(
+            "package tiny_uvm_pkg; endpackage\n", encoding="utf-8")
+        (self.root / "uvm/base_test.svh").write_text(
+            "class tiny_base_test; endclass\n", encoding="utf-8")
         (self.root / "config").mkdir()
         generator = {
             "schema_version": "1.0",
@@ -78,15 +86,33 @@ class StandaloneStage3Tests(unittest.TestCase):
             yaml.safe_dump(generator, sort_keys=False), encoding="utf-8")
         (self.root / "config/reviewer.yaml").write_text(
             yaml.safe_dump(reviewer, sort_keys=False), encoding="utf-8")
+        uvm = {
+            **generator,
+            "schema_version": "2.0",
+            "provider_kind": "OPENROUTER",
+            "provider_id": FakeUvmProvider.provider_id,
+            "model_id": FakeUvmProvider.model_id,
+            "endpoint": "https://openrouter.ai/api/v1",
+            "auth_env": "OPENAI_API_KEY",
+            "api_version": "responses-v1",
+            "reasoning_effort": "medium",
+        }
+        uvm.pop("enable_thinking")
+        (self.root / "config/uvm.yaml").write_text(
+            yaml.safe_dump(uvm, sort_keys=False), encoding="utf-8")
         profile = {
             "schema_version": "1.0",
             "profile_id": "PROJECT_AGENT_PROFILE.STAGE3_TEST",
-            "initial": {key: "config/generator.yaml" for key in (
-                "stage1", "stage2", "stage3")},
+            "initial": {
+                **{key: "config/generator.yaml" for key in (
+                    "stage1", "stage2", "stage3")},
+                "uvm": "config/uvm.yaml",
+            },
             "repair": {
                 "orchestrator": "config/generator.yaml",
                 **{key: "config/generator.yaml" for key in (
                     "stage1", "stage2", "stage3")},
+                "uvm": "config/uvm.yaml",
             },
             "review": {key: "config/reviewer.yaml" for key in (
                 "initial", "final")},
@@ -118,9 +144,13 @@ class StandaloneStage3Tests(unittest.TestCase):
                 "top": "tiny",
                 "parameters": {},
             },
+            "uvm_testcase_context": {
+                "files": ["uvm/pkg.sv", "uvm/base_test.svh"],
+                "generated_files": ["uvm/base_test.svh"],
+            },
             "agent_profile": "config/agents.yaml",
             "eda": {
-                "profile_id": "EDAPROFILE.VERILATOR.PROJECT.V1",
+                "profile_id": "EDAPROFILE.XCELIUM.PROJECT.V1",
                 "timeout_seconds": 60,
             },
             "input_authority": {

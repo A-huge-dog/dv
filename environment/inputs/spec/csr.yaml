@@ -1,0 +1,54 @@
+schema_version: "1.0"
+bus: {protocol: APB3, address_width: 12, data_width: 32, byte_order: little}
+registers:
+  - {name: ID, offset: 0x000, access: RO, reset: 0x52534355, description: "ASCII RSCU"}
+  - {name: VERSION, offset: 0x004, access: RO, reset: 0x00010000, description: "v1.0"}
+  - {name: CAPABILITY, offset: 0x008, access: RO, reset: 0x04040401, description: "4 domains, 4 GPR, 4 OPP, DVFS present"}
+  - name: GLOBAL_CTRL
+    offset: 0x00c
+    fields:
+      - {name: enable, bits: 0, access: RW, reset: 1}
+  - {name: IRQ_RAW, offset: 0x010, access: RO, reset: 0x00000000}
+  - {name: IRQ_MASK, offset: 0x014, access: RW, reset: 0x00000000}
+  - {name: IRQ_STATUS, offset: 0x018, access: RO, reset: 0x00000000}
+  - {name: IRQ_CLEAR, offset: 0x01c, access: W1C, reset: 0x00000000, target: IRQ_RAW}
+  - {name: ERROR_STATUS, offset: 0x020, access: W1C, reset: 0x00000000}
+  - {name: ERROR_INFO, offset: 0x024, access: RO, reset: 0x00000000}
+  - {name: TIMEOUT_CFG, offset: 0x028, access: RW, reset: 0x00000020, writable_bits: "15:0"}
+  - name: DEBUG_OVERRIDE
+    offset: 0x02c
+    fields:
+      - {name: test_override, bits: 0, access: RW, reset: 0}
+  - {name: GPR_CTRL0, offset: 0x040, access: RW, reset: 0}
+  - {name: GPR_CTRL1, offset: 0x044, access: RW, reset: 0}
+  - {name: GPR_CTRL2, offset: 0x048, access: RW, reset: 0}
+  - {name: GPR_CTRL3, offset: 0x04c, access: RW, reset: 0}
+  - {name: GPR_STATUS0, offset: 0x060, access: RO, reset: 0}
+  - {name: GPR_STATUS1, offset: 0x064, access: RO, reset: 0}
+  - {name: GPR_STATUS2, offset: 0x068, access: RO, reset: 0}
+  - {name: GPR_STATUS3, offset: 0x06c, access: RO, reset: 0}
+  - name: DOMAIN_CMD
+    offset: 0x080
+    access: WO
+    fields:
+      - {name: domain_id, bits: "2:0", access: WO}
+      - {name: target_state, bits: "5:4", access: WO}
+      - {name: start, bits: 8, access: WO, side_effect: command_pulse}
+  - {name: DOMAIN_STATUS, offset: 0x084, access: RO, reset: 0, description: "selected domain from last command: state[1:0], busy[2], error[6:3], id[10:8]"}
+  - {name: DOMAIN_STATE_VECTOR, offset: 0x088, access: RO, reset: 0, description: "2 bits per domain"}
+  - {name: DOMAIN_BUSY_VECTOR, offset: 0x08c, access: RO, reset: 0}
+  - {name: DEP_MASK0, offset: 0x0a0, access: RO, reset: 0x00000006}
+  - {name: DEP_MASK1, offset: 0x0a4, access: RO, reset: 0x00000008}
+  - {name: DEP_MASK2, offset: 0x0a8, access: RO, reset: 0x00000008}
+  - {name: DEP_MASK3, offset: 0x0ac, access: RO, reset: 0x00000000}
+  - name: DVFS_CMD
+    offset: 0x100
+    access: WO
+    fields:
+      - {name: target_opp, bits: "2:0", access: WO}
+      - {name: start, bits: 8, access: WO, side_effect: command_pulse}
+  - {name: DVFS_STATUS, offset: 0x104, access: RO, reset: 0, description: "current[1:0], target[5:4], busy[8], error[15:12]"}
+  - {name: OPP0, offset: 0x110, access: RW_IDLE, reset: 0x01900320, description: "frequency[31:16], voltage[15:0]"}
+  - {name: OPP1, offset: 0x114, access: RW_IDLE, reset: 0x02580352}
+  - {name: OPP2, offset: 0x118, access: RW_IDLE, reset: 0x03200384}
+  - {name: OPP3, offset: 0x11c, access: RW_IDLE, reset: 0x03e803e8}

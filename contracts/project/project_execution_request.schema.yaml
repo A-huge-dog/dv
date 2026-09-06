@@ -1,0 +1,42 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, execution_id, job_id,
+  binding_path, binding_fingerprint, authorization_fingerprint,
+  profile_id, executable_ref, environment_identity, environment_fingerprint,
+  configuration, request_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: PROJECT_EXECUTION_REQUEST}
+  execution_id: {type: string, pattern: '^EXECUTION\.PROJECT\.[A-Z0-9_.-]+$'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  binding_path: {type: string, const: audit/pj003_execution_bundle.json}
+  binding_fingerprint: {$ref: '#/$defs/fingerprint'}
+  authorization_fingerprint: {$ref: '#/$defs/fingerprint'}
+  profile_id: {type: string, const: EDAPROFILE.XCELIUM.PROJECT.V1}
+  executable_ref: {type: string, const: EDAEXEC.XCELIUM}
+  environment_identity:
+    {type: string, pattern: '^XCELIUMENV\.[A-Z0-9_.-]+$'}
+  environment_fingerprint: {$ref: '#/$defs/fingerprint'}
+  configuration:
+    type: object
+    additionalProperties: false
+    required: [sources, top, pass_marker, seed, uvm, coverage, waves,
+      timeout_seconds]
+    properties:
+      sources:
+        type: array
+        minItems: 2
+        maxItems: 193
+        uniqueItems: true
+        items: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.s?vh?$'}
+      top: {type: string, pattern: '^tb_project_[0-9a-f]{16}$'}
+      pass_marker: {type: string, pattern: '^DV_PROJECT_[A-F0-9]{16}_PASS$'}
+      seed: {type: integer, minimum: 1, maximum: 2147483647}
+      uvm: {type: boolean}
+      coverage: {type: boolean}
+      waves: {type: boolean}
+      timeout_seconds: {type: integer, minimum: 1, maximum: 3600}
+  request_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}

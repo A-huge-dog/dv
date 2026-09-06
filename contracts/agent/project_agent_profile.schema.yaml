@@ -9,19 +9,21 @@ properties:
   initial:
     type: object
     additionalProperties: false
-    required: [stage1, stage2, stage3]
+    required: [stage1, stage2, uvm, stage3]
     properties:
       stage1: {$ref: '#/$defs/provider_path'}
       stage2: {$ref: '#/$defs/provider_path'}
+      uvm: {$ref: '#/$defs/provider_path'}
       stage3: {$ref: '#/$defs/provider_path'}
   repair:
     type: object
     additionalProperties: false
-    required: [orchestrator, stage1, stage2, stage3]
+    required: [orchestrator, stage1, stage2, uvm, stage3]
     properties:
       orchestrator: {$ref: '#/$defs/provider_path'}
       stage1: {$ref: '#/$defs/provider_path'}
       stage2: {$ref: '#/$defs/provider_path'}
+      uvm: {$ref: '#/$defs/provider_path'}
       stage3: {$ref: '#/$defs/provider_path'}
   review:
     type: object

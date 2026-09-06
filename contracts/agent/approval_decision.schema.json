@@ -15,7 +15,7 @@
     "decision": {"enum": ["APPROVE", "REJECT", "REQUEST_REVISION"]},
     "approver_identity": {"type": "string", "minLength": 1},
     "approver_role": {"enum": ["SPEC_OWNER", "DESIGN_OWNER", "HARDWARE_APPROVER",
-      "DV_REVIEWER", "EDA_OWNER"]},
+      "DV_OWNER"]},
     "reason": {"type": "string", "minLength": 1},
     "evidence_ids": {"type": "array", "items": {"type": "string"}},
     "candidate_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

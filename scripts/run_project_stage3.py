@@ -15,9 +15,10 @@ if str(DV_ROOT) not in sys.path:
     sys.path.insert(0, str(DV_ROOT))
 
 from adapters.llm import OpenAICompatibleProvider, ProviderConfigError
-from core.project_job import ProjectJobError, ProjectJobWorkflow
-from core.recovery import stop_result
-from core.project_stage3 import (
+from runtime.errors import ProjectJobError
+from runtime.project_job import ProjectJobWorkflow
+from runtime.recovery import stop_result
+from runtime.standalone_stage3 import (
     StandaloneStage3Workflow, load_stage3_provider_config,
     validate_stage3_submission,
 )

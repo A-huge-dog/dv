@@ -1,0 +1,55 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, evidence_id, execution_id,
+  request_fingerprint, job_id, binding_fingerprint,
+  authorization_fingerprint, execution_status, build, run,
+  diagnostic_codes, qualification_scope, evidence_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: PROJECT_EXECUTION_EVIDENCE}
+  evidence_id: {type: string, pattern: '^EVIDENCE\.PROJECT\.[A-Z0-9_.-]+$'}
+  execution_id: {type: string, pattern: '^EXECUTION\.PROJECT\.[A-Z0-9_.-]+$'}
+  request_fingerprint: {$ref: '#/$defs/fingerprint'}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  binding_fingerprint: {$ref: '#/$defs/fingerprint'}
+  authorization_fingerprint: {$ref: '#/$defs/fingerprint'}
+  execution_status: {enum: [PASS, FAIL, BLOCKED]}
+  build:
+    oneOf:
+      - {type: 'null'}
+      - {$ref: '#/$defs/adapter_result'}
+  run:
+    oneOf:
+      - {type: 'null'}
+      - {$ref: '#/$defs/adapter_result'}
+  diagnostic_codes:
+    type: array
+    uniqueItems: true
+    items: {type: string, pattern: '^[A-Z][A-Z0-9_]*$'}
+  qualification_scope:
+    {type: string, const: PORTABLE_TESTCASE_XCELIUM_EXECUTION}
+  evidence_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  adapter_result:
+    type: object
+    additionalProperties: false
+    required: [request_path, evidence_path, request_fingerprint,
+      evidence_fingerprint, phase, status, output_subdir,
+      output_tree_fingerprint, output_tree_size_bytes,
+      output_tree_file_count]
+    properties:
+      request_path:
+        {type: string, pattern: '^audit/xcelium/[A-Za-z0-9._-]+\.request\.json$'}
+      evidence_path:
+        {type: string, pattern: '^audit/xcelium/[A-Za-z0-9._-]+\.evidence\.json$'}
+      request_fingerprint: {$ref: '#/$defs/fingerprint'}
+      evidence_fingerprint: {$ref: '#/$defs/fingerprint'}
+      phase: {enum: [BUILD, RUN]}
+      status: {enum: [PASS, FAIL, BLOCKED_TOOL]}
+      output_subdir:
+        {type: string, pattern: '^runs/xcelium/[A-Za-z0-9][A-Za-z0-9._/-]*$'}
+      output_tree_fingerprint: {$ref: '#/$defs/fingerprint'}
+      output_tree_size_bytes: {type: integer, minimum: 0}
+      output_tree_file_count: {type: integer, minimum: 1}

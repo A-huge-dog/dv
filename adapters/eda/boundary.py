@@ -29,7 +29,7 @@ class TrustedEdaBoundaryError(ValueError):
 
 def _error(code: str, message: str, path: str, artifact: str):
     return TrustedEdaBoundaryError(message, [diagnostic(
-        code, message, path, required_owner="EDA_OWNER",
+        code, message, path, required_owner="DV_OWNER",
         required_artifact_kind=artifact)])
 
 

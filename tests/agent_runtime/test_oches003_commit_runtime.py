@@ -12,16 +12,18 @@ from contracts.validator import (
     eda_probe_request_fingerprint,
     load_document,
 )
-from core.project_commit_runtime import (
+from runtime.commit_runtime import (
     COMMIT_PATH,
     FINAL_PATH,
     ProjectCommitRuntime,
 )
-from core.project_job import ProjectJobError
+from runtime.errors import ProjectJobError
 from tests.agent_runtime.test_oches002_repair_runtime import (
     Oches002RepairRuntimeTests,
 )
-from tests.agent_runtime.test_project_job_workflow import FakeReviewerProvider
+from tests.agent_runtime.test_project_job_workflow import (
+    FakeReviewerProvider, FakeUvmProvider,
+)
 
 
 class FinalSemanticReviewer(FakeReviewerProvider):
@@ -143,6 +145,7 @@ class Oches003CommitRuntimeTests(unittest.TestCase):
         self.job = self.fixture.job
         self.value = self.fixture.value
         self.reviewer = FinalSemanticReviewer()
+        self.uvm = FakeUvmProvider()
         self.compile_runner = None
 
     def tearDown(self):
@@ -157,7 +160,10 @@ class Oches003CommitRuntimeTests(unittest.TestCase):
         return ProjectCommitRuntime(
             workspace_root=self.fixture.fixture.root,
             result_root=self.fixture.fixture.root / "result",
-            provider_factory=lambda *_: self.reviewer,
+            provider_factory=lambda _root, _value, role: (
+                self.uvm if role.endswith(".uvm") else
+                self.reviewer if role.startswith("review.") else
+                self.fixture.generator),
             compile_runner_factory=compile_factory,
             checkpoint_hook=checkpoint_hook)
 
@@ -173,7 +179,7 @@ class Oches003CommitRuntimeTests(unittest.TestCase):
         candidate = load_document(self.job / result["candidate_metadata_path"])
         request = load_document(self.job / result["review_request_path"])
         self.assertNotIn("implemented_ac_evidence", candidate)
-        self.assertEqual("FINAL_REVIEW_REQUIRED", candidate["traceability_status"])
+        self.assertEqual("PASS", candidate["validation"]["status"])
         self.assertEqual([
             "ORCHESTRATOR_PLAN", "ROUTER_RECEIPT", "FORMAL_DISPATCH",
             "SCOPED_REPLACEMENT", "VALIDATION_RESULT", "GROUP_COMMIT",

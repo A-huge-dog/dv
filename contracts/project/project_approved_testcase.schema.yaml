@@ -1,0 +1,67 @@
+schema_version: "1.0"
+type: object
+additionalProperties: false
+required: [schema_version, artifact_kind, job_id, input_fingerprint,
+  source_checkpoint_path, source_checkpoint_fingerprint,
+  testcase_decision_path, testcase_decision_fingerprint,
+  approved_testcase_path, approved_testcase_fingerprint,
+  approved_manifest_path, approved_manifest_fingerprint,
+  candidate_id, candidate_fingerprint, effective_uvm_root,
+  approved_uvm_files, bundle_fingerprints,
+  authority_fingerprint]
+properties:
+  schema_version: {type: string, const: "1.0"}
+  artifact_kind: {type: string, const: PROJECT_APPROVED_TESTCASE}
+  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
+  input_fingerprint: {$ref: '#/$defs/fingerprint'}
+  source_checkpoint_path:
+    {type: string, const: audit/oches001_human_review_checkpoint.json}
+  source_checkpoint_fingerprint: {$ref: '#/$defs/fingerprint'}
+  testcase_decision_path:
+    {type: string, const: audit/pj003_testcase_decision.json}
+  testcase_decision_fingerprint: {$ref: '#/$defs/fingerprint'}
+  approved_testcase_path:
+    {type: string, const: approved/generated/uvm/generated_tests.sv}
+  approved_testcase_fingerprint: {$ref: '#/$defs/fingerprint'}
+  approved_manifest_path:
+    {type: string, const: approved/generated/uvm/generated_tests_manifest.json}
+  approved_manifest_fingerprint: {$ref: '#/$defs/fingerprint'}
+  candidate_id: {type: string, minLength: 1, maxLength: 256}
+  candidate_fingerprint: {$ref: '#/$defs/fingerprint'}
+  effective_uvm_root: {$ref: '#/$defs/fingerprint'}
+  approved_uvm_files:
+    type: array
+    minItems: 1
+    maxItems: 128
+    items:
+      type: object
+      additionalProperties: false
+      required: [logical_path, path, byte_fingerprint]
+      properties:
+        logical_path: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.(sv|svh|v)$'}
+        path: {type: string, pattern: '^approved/generated/uvm/effective/[A-Za-z0-9][A-Za-z0-9._/-]*\.(sv|svh|v)$'}
+        byte_fingerprint: {$ref: '#/$defs/fingerprint'}
+  bundle_fingerprints: {$ref: '#/$defs/bundle'}
+  authority_fingerprint: {$ref: '#/$defs/fingerprint'}
+$defs:
+  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+  bundle:
+    type: object
+    additionalProperties: false
+    required: [input, scenario_ac_map, ac_testcase_map, testcase, effective_uvm, review,
+      review_validation, stage1_units, stage2_units, stage3_units,
+      stage3_assembly, review_units, checkpoint]
+    properties:
+      input: {$ref: '#/$defs/fingerprint'}
+      scenario_ac_map: {$ref: '#/$defs/fingerprint'}
+      ac_testcase_map: {$ref: '#/$defs/fingerprint'}
+      testcase: {$ref: '#/$defs/fingerprint'}
+      effective_uvm: {$ref: '#/$defs/fingerprint'}
+      review: {$ref: '#/$defs/fingerprint'}
+      review_validation: {$ref: '#/$defs/fingerprint'}
+      stage1_units: {$ref: '#/$defs/fingerprint'}
+      stage2_units: {$ref: '#/$defs/fingerprint'}
+      stage3_units: {$ref: '#/$defs/fingerprint'}
+      stage3_assembly: {$ref: '#/$defs/fingerprint'}
+      review_units: {$ref: '#/$defs/fingerprint'}
+      checkpoint: {$ref: '#/$defs/fingerprint'}
