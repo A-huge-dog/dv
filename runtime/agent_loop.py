@@ -1,6 +1,11 @@
 """Deterministic control for exact-one and continuous Agent loop protocols."""
 from __future__ import annotations
 
+from domain.budgets import (
+    MAX_MODEL_TURNS, MAX_TOOL_ACTIONS, MAX_RETRIEVAL_TURNS,
+    MAX_TOTAL_TOKENS, MAX_TIME_SECONDS,
+)
+
 import copy
 import json
 import time
@@ -39,8 +44,9 @@ class Transcript(Protocol):
 class AgentLoopPolicy:
     """Role-specific tool permissions and finite Worker budgets.
 
-    ``retrieval_tools``/``submission_tools`` retain the original exact-one
-    protocol.  The three newer sets opt a session into the continuous Worker
+    ``retrieval_tools``/``submission_tools`` use a submission protocol. An
+    optional completion validator permits rejected candidates to be corrected.
+    The three newer sets opt a session into the continuous Worker
     protocol, where observations and actions may be repeated and only an
     accepted terminal result completes the loop.
     """
@@ -48,14 +54,14 @@ class AgentLoopPolicy:
     role: str
     retrieval_tools: frozenset[str] = frozenset()
     submission_tools: frozenset[str] = frozenset()
-    max_retrieval_turns: int = 3
+    max_retrieval_turns: int = MAX_RETRIEVAL_TURNS
     observation_tools: frozenset[str] = frozenset()
     action_tools: frozenset[str] = frozenset()
     terminal_tools: frozenset[str] = frozenset()
-    max_turns: int | None = None
-    max_time_seconds: float | None = None
-    max_tokens: int | None = None
-    max_actions: int | None = None
+    max_turns: int | None = MAX_MODEL_TURNS
+    max_time_seconds: float | None = MAX_TIME_SECONDS
+    max_tokens: int | None = MAX_TOTAL_TOKENS
+    max_actions: int | None = MAX_TOOL_ACTIONS
 
     def __post_init__(self) -> None:
         groups = (
@@ -66,7 +72,7 @@ class AgentLoopPolicy:
         continuous = bool(
             self.observation_tools or self.action_tools or self.terminal_tools)
         if (not self.role or len(all_names) != len(set(all_names)) or
-                not 0 <= self.max_retrieval_turns <= 3 or
+                not 0 <= self.max_retrieval_turns <= MAX_RETRIEVAL_TURNS or
                 (continuous and (self.retrieval_tools or self.submission_tools)) or
                 (continuous and not self.terminal_tools) or
                 (not continuous and not self.submission_tools) or
@@ -91,7 +97,7 @@ class AgentLoopPolicy:
 
 
 class AgentLoop:
-    """Run either a legacy exact-one session or a continuous Worker session.
+    """Run a candidate submission session or a continuous Worker session.
 
     Continuous action handlers receive a deterministic ``action_id`` in their
     context.  A terminal request completes only when its validator decision is
@@ -175,10 +181,6 @@ class AgentLoop:
             raise AgentLoopError(
                 "INVALID_TOOL_CALL",
                 "Agent loop requires exactly one Provider invocation boundary")
-        if completion_validator is not None and not policy.continuous:
-            raise AgentLoopError(
-                "INVALID_TOOL_CALL",
-                "completion validator requires the continuous Worker protocol")
         recovery_handlers = dict(action_recovery_handlers or {})
         if (worker_state_store is None and recovery_handlers) or (
                 worker_state_store is not None and (
@@ -445,7 +447,6 @@ class AgentLoop:
                 terminal["code"], "persisted Agent loop is terminal")
 
         messages = copy.deepcopy(self.initial_messages)
-        used_names: set[str] = set()
         cursor = 0
         turn = 0
         self._started_at = self.clock()
@@ -454,8 +455,7 @@ class AgentLoop:
         result_sequence = None
         try:
             while True:
-                if self.policy.continuous:
-                    self._pause_if_budget_exhausted()
+                self._pause_if_budget_exhausted()
                 turn += 1
                 self.turn_count = turn
                 expected = self._request(turn, messages)
@@ -511,8 +511,8 @@ class AgentLoop:
                         tool_calls=calls,
                         legal_tools=self.retrieval_handlers,
                         submission_tools=self.submission_handlers,
-                        used_retrievals=used_names,
                         retrieval_count=self.retrieval_count,
+                        retrieval_limit=self.policy.max_retrieval_turns,
                         arguments_valid=(len(calls) == 1 and isinstance(
                             calls[0].get("arguments"), dict)))
                 if stop not in {"COMPLETED", "TOOL_RESULT_REQUIRED"}:
@@ -529,8 +529,7 @@ class AgentLoop:
                     self.action_count += 1
                     call["action_id"] = "{}.ACTION.{:03d}".format(
                         self.session_id, self.action_count)
-                if self.policy.continuous:
-                    self._pause_if_budget_exhausted(before_tool=True)
+                self._pause_if_budget_exhausted(before_tool=True)
                 persisted_call = transcript.value(cursor, "TOOL_CALL")
                 if persisted_call is None:
                     transcript.record("TOOL_CALL", call)
@@ -549,9 +548,14 @@ class AgentLoop:
                         "MALFORMED_MODEL_OUTPUT", "tool arguments must be an object")
                 selected_tools = [item for item in self.tools
                                   if item["name"] == name]
-                if (len(selected_tools) != 1 or validate_schema(
-                        arguments, selected_tools[0]["input_schema"],
-                        "tool_arguments")):
+                schema_errors = (validate_schema(
+                    arguments, selected_tools[0]["input_schema"],
+                    "tool_arguments") if len(selected_tools) == 1 else
+                    ["selected tool schema is unavailable"])
+                correctable_submission = (
+                    name in self.submission_handlers and
+                    self.completion_validator is not None)
+                if schema_errors and not correctable_submission:
                     raise AgentLoopError(
                         "MALFORMED_MODEL_OUTPUT",
                         "tool arguments violate the selected tool schema")
@@ -575,14 +579,34 @@ class AgentLoop:
                 if name in self.submission_handlers:
                     result = persisted_result
                     if result is None:
-                        result = self.submission_handlers[str(name)](
+                        result = ({
+                            "status": "REJECTED",
+                            "diagnostic": {
+                                "code": "MALFORMED_MODEL_OUTPUT",
+                                "message": "; ".join(schema_errors),
+                            },
+                        } if schema_errors else self.submission_handlers[str(name)](
                             copy.deepcopy(arguments), {
                                 "request": copy.deepcopy(request),
                                 "response": copy.deepcopy(response),
                                 "retrieval_rounds": self.retrieval_count,
-                            })
+                            }))
                         transcript.record("TOOL_RESULT", result)
                     cursor += 1
+                    if self.completion_validator is not None:
+                        decision = self.completion_validator(
+                            copy.deepcopy(arguments), {
+                                **context, "terminal_result": copy.deepcopy(result),
+                            })
+                        if not self._completion_accepted(decision):
+                            messages.append(self._history_message(
+                                "MODEL_RESPONSE", response, "ASSISTANT"))
+                            messages.append(self._history_message(
+                                "TOOL_RESULT", {
+                                    "call_id": call.get("call_id", ""),
+                                    "tool_name": name, "result": result,
+                                }, "USER"))
+                            continue
                     final_status, final_code = "COMPLETED", "COMPLETED"
                     result_sequence = cursor
                     return result
@@ -733,15 +757,10 @@ class AgentLoop:
                     raise AgentLoopError(
                         "TOOL_PROTOCOL_VIOLATION",
                         "tool is outside the role-specific retrieval allow-list")
-                if name in used_names:
-                    raise AgentLoopError(
-                        "TOOL_PROTOCOL_VIOLATION",
-                        "a retrieval tool name may be used only once per Agent loop")
                 if self.retrieval_count >= self.policy.max_retrieval_turns:
                     raise AgentLoopError(
                         "TOOL_PROTOCOL_VIOLATION",
-                        "Agent loop requested a fourth retrieval turn")
-                used_names.add(str(name))
+                        "Agent loop retrieval budget is exhausted")
                 self.retrieval_count += 1
                 result = persisted_result
                 if result is None:
@@ -761,7 +780,11 @@ class AgentLoop:
             if caught_code in {
                     "PAUSED_BUDGET", "PAUSED_RETRYABLE",
                     "PAUSED_RECOVERY_REQUIRED"}:
-                final_status = None
+                # Planning retries use a fresh scheduler session after a pause.
+                # Seal their rejected-candidate evidence for history validation.
+                final_status = (
+                    "FAILED" if not self.policy.continuous and
+                    self.completion_validator is not None else None)
             else:
                 final_status = (
                     "CANCELLED" if caught_code == "CANCELLED" else "FAILED")

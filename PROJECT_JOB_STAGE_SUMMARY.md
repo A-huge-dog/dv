@@ -1,197 +1,99 @@
-# Project Job staged workflow summary
+# 项目阶段与执行结果
 
-Updated: 2026-08-18
+项目主循环 ProjectLoop 负责推进生成、审核、修复和执行。
+术语、输入字段和人工审核规则见 [项目说明](README.md)。
 
-当前 active contract 是 workflow `6.0` / policy `OCHES001`。本文件描述从 immutable Project input
-到 Human-review 路径，或从 OCHES002 validated replacement 经 OCHES003 compile/commit/impact/final review 的
-当前职责。它不授权 production provider、真实 Human decision、promotion 或 DUT functional qualification。
+## 启动与审核
 
-## End-to-end flow
+普通启动和断点续跑：
 
-```text
-immutable submission + Spec/RTL baseline
-  -> Stage 1 Spec-only Scenario/AC generation and validation
-  -> Human DV Owner Scenario routing
-  -> Scenario/AC semantic units + current aggregate index/root
-  -> Stage 2 Spec-only logical testcase generation and validation
-  -> Framework-derived per-AC coverage units + aggregate index/root
-  -> Stage 3 Spec-only code candidate generation
-  -> Framework candidate-contract validation
-  -> Verilator syntax/elaboration/executable build
-  -> generic shared/testcase code units + deterministic complete assembly/root
-  -> one independent Reviewer call
-  -> per-AC/per-testcase/per-shared local certificates + aggregate report/root
-  -> no repairable ERROR: AWAITING_HUMAN_REVIEW
-  -> repairable ERROR: global FIFO -> Orchestrator 9-tool session
-  -> Framework formalizes semantic repair-plan candidate and computes fingerprint
-  -> Framework derives ordered canonical repair groups
-  -> each group: just-in-time dispatch from exact current roots
-  -> one dispatched Stage 1/2/3 6-tool session + scoped replacement validation
-  -> exact assembled-candidate Verilator build-only validation
-  -> group PASS: numbered atomic commit; group FAIL: NOT_COMMITTED
-  -> roots/dependency/impact recomputation before the next group
-  -> one final Spec-only Reviewer call
-  -> Human review request/checkpoint
-  -> AWAITING_HUMAN_REVIEW
+```bash
+/home/xinyu/.venv/bin/python /home/xinyu/dv/scripts/run_project_job.py \
+  --project-input /home/xinyu/coral_npu.yaml
 ```
 
-Spec remains the only Scenario, AC, stimulus, checker/oracle and expected-behavior authority. RTL is snapshotted
-at bootstrap, but Stage 1/2/3 and Reviewer requests may not contain RTL bytes, path, fingerprint, RTLIR or
-RTL-derived interface evidence.
+Stage 1 完成后返回 `AWAITING_SCENARIO_ROUTING`，等待验证负责人填写
+`owner_review_path` 指向的表单。填写身份、每个场景的处理去向和必要意见后，
+将下面的 `<job_id>` 替换为实际任务标识并提交：
 
-## Fingerprint boundaries
-
-Project workflow 只有一条 active control path：CLI 创建依赖后调用 `runtime/project_loop.py`；Project loop 读取
-`CheckpointRepository` 校验的固定 checkpoint，并把单步动作交给 `application/` handler。需要模型协议时，所有
-initial/repair/review 角色都进入 `runtime/agent_loop.py`；transcript、artifact 与 repair record 分别由
-`infrastructure/persistence/` 的唯一实现保存。旧 `core/` 源码树、包级 re-export facade 与循环 import 已删除。
-
-```text
-CLI -> ProjectLoop -> application handler -> domain rule
-                    -> AgentLoop -> TranscriptStore
-                    -> explicit infrastructure persistence / EDA boundary
+```bash
+/home/xinyu/.venv/bin/python /home/xinyu/dv/scripts/run_project_job.py \
+  --project-input /home/xinyu/coral_npu.yaml \
+  --scenario-routing "/home/xinyu/result/jobs/<job_id>/staging/validations/scenario_owner_review.json"
 ```
 
-Project loop 只决定业务 transition；Agent loop 只决定 request/tool/observation/final-submission 协议。两者都不能
-代替 Human approval、promotion 或 production EDA authority。
+未提交完整审核表时，普通续跑仍会停在场景审核。
+后续评审完成后自动执行，不要求最终人工批准或单独执行授权。
 
-Each semantic unit separates:
+## 流程
 
-- `content_fingerprint`: only the unit's semantic body;
-- `dependency_fingerprint`: only canonical exact direct dependencies;
-- `artifact_fingerprint`: the complete identity/version/lineage/evidence record;
-- index `root_fingerprint`: the complete current child set, paths and completeness metadata.
+1. 冻结项目配置、Spec、RTL、模型角色配置和 UVM 输入。
+2. 场景生成：生成场景与验收条件映射，等待人工审核。
+3. 用例规划：根据审核结果生成验收条件与用例映射。
+4. 验证环境生成：UVM Worker 完成环境生成或修复，通过不含 RTL 的隔离 Xcelium 检查。
+5. 测试代码生成：生成测试用例类，明确已实现和已跳过的用例，并进行初始评审。
+6. 评审修复：存在可修复错误时，执行修复调度、结构校验、串行提交及最终评审；否则直接进入执行准备。
+7. 自动执行准备：进入 `READY_FOR_EXECUTION_PREPARATION`，冻结测试代码、实际使用的 UVM、
+   映射、评审、来源检查点、工具环境与资源约束，随后进入 `READY_FOR_BINDING`。
+8. 执行绑定：绑定冻结 RTL 和 UVM 编译入口，进入 `READY_FOR_EXECUTION`。
+9. 编译与仿真：完整编译和展开通过后，按清单逐个运行已实现用例。编译失败不运行，也不增加模型修复循环。
+10. 发布结果：`EXECUTION_PASS`、`EXECUTION_FAIL` 或 `EXECUTION_BLOCKED`。
 
-Downstream local units consume direct child lineage, never an entire Stage root as their only reuse key. Aggregate
-roots remain the integrity, checkpoint, Human approval and later RTL/EDA binding boundary. Exact projections,
-producer/consumer relationships and stale propagation are normative in
-`contracts/project/incremental_fingerprint_inventory.md`.
+UVM 环境生成时的隔离编译不包含完整待测设计的功能仿真，不能替代第 9 步。
+Spec 始终是预期行为、刺激和检查条件的唯一依据；RTL 在评审结束后才用于执行绑定和构建。
+最终评审不要求没有任何问题，遗留错误、警告和覆盖缺口都会保留在执行结果中。
 
-## Unit contracts and storage
+## 结果定位
 
-Active incremental contracts:
+任务结果根目录为 `/home/xinyu/result/jobs/<job_id>/`。
+命令最终输出的 `execution_evidence_path` 指向执行证据文件，路径相对于该任务目录；
+`summary`、`testcases`、`build` 同时给出汇总、逐用例结果和构建信息。
 
-- `PROJECT_ARTIFACT_UNIT 1.0`;
-- `PROJECT_ARTIFACT_INDEX 1.0`;
-- `PROJECT_CODE_ASSEMBLY 1.0`;
-- `PROJECT_INCREMENTAL_IMPACT 1.0`;
-- staged Reviewer request `7.0`，report/validation `6.0`;
-- model-semantic repair plan candidate `1.0`；
-- Framework-formalized repair plan/Router receipt/formal dispatch/failure feedback/regeneration state `1.0`；
-- committed testcase、precommit compile validation、serial group commit 和 OCHES003 final checkpoint `1.0`；
-- 十类 versioned repair records、共同 record envelope、四类 repair indexes 和五角色 system prompt contract。
+| 记录 | 定位方式 | 内容 |
+|---|---|---|
+| 评审完成记录 | 执行输入快照的 `source_checkpoint_path`；普通流程为 `audit/project_review_complete.json` | 评审完成及自动执行准备依据 |
+| 执行输入快照 | `EXECUTION_INPUT_PATH` | 测试代码、UVM、用例清单、评审问题、工具环境和资源约束 |
+| 执行源文件 | `execution/inputs/` | 生成用例、清单、UVM 文件和框架编译入口 |
+| 执行绑定 | `EXECUTION_BUNDLE_PATH` | RTL、编译源文件、包含目录和顶层模块 |
+| 执行请求 | `EXECUTION_REQUEST_PATH` | 完整构建及逐用例运行参数 |
+| 工具请求和日志 | `audit/xcelium/`、`runs/xcelium/` | 原生工具请求、执行证据、输出树与日志 |
+| 执行证据 | 输出中的 `execution_evidence_path`，对应 `EXECUTION_EVIDENCE_PATH` | 构建、逐用例结果、原始评审问题、覆盖缺口和计数 |
+| 执行检查点 | `EXECUTION_RESULT_PATH` | 最终执行状态及恢复依据 |
 
-```text
-result/jobs/<job_id>/
-├── input_baseline/                 immutable authority
-├── staging/
-│   ├── mappings/                   aggregate Stage 1/2 artifacts
-│   ├── generated/portable_sv/      aggregate Stage 3 candidate
-│   ├── reviews/                    aggregate review request/report
-│   ├── validations/                deterministic validation
-│   ├── orchestrator/               final repair-plan submissions
-│   ├── dispatch/                   Router dispatch and exact failure feedback
-│   └── units/
-│       ├── stage1/{provider,current}.rNNN/*.json + indexes
-│       ├── stage2/current.rNNN/*.json + index
-│       ├── stage3/current.rNNN/*.json + index + assembly.rNNN.json
-│       ├── review/current.rNNN/*.json + index
-│       └── impact/impact.rNNN.json
-└── audit/                          immutable provider/Human/checkpoint evidence
+表中的 `EXECUTION_*_PATH` 是 [执行模块](application/project_execution.py) 定义的固定路径常量。
+查找实际结果时使用命令返回的路径或这些常量，不按文件时间选版本。
+
+## 恢复与完整性
+
+恢复校验任务标识、来源、内容指纹、文件完整性、工具环境和资源约束。
+完整且匹配的构建和逐用例证据可以复用；缺失或漂移的证据拒绝复用。
+
+既有任务只能从代码明确支持的检查点恢复。框架先验证来源检查点及其引用结果，再追加新的执行记录；
+恢复来源文件保留原文和指纹，新执行检查点优先。已到执行准备阶段且来源完整时，
+恢复不重复调用生成、修复或评审模型。
+
+## 结果含义
+
+- `generation_complete`、`review_complete` 表示阶段是否完成，不代表完整验证通过。
+- `implemented`、`skipped`、`executed`、`passed`、`failed`、`blocked` 分别记录用例数量。
+- 每条执行结果保留用例标识、UVM 类、随机种子、超时、通过标记、UVM 错误及致命错误计数和日志。
+- 跳过用例保留原因，不计为通过；零个可执行用例报告 `EXECUTION_BLOCKED`。
+- `full_spec_coverage_complete` 要求没有跳过用例、没有场景规格问题，且评审将所有验收条件标为已覆盖。
+- `full_verification_passed` 要求存在可执行用例、执行通过、规格覆盖完整，且评审没有遗留问题。
+- `EXECUTION_PASS` 只意味着已实现用例执行通过。存在跳过、规格遗漏或评审问题时，不能据此声称完整验证通过。
+
+Xcelium 先完成整体构建检查，随后逐用例调用 `run()`。
+当前每次 `run()` 都会重新编译、展开和仿真，不复用整体构建产生的仿真数据库。
+工具隔离与日志说明见 [EDA 工具说明](adapters/eda/README.md)。
+
+## 验证
+
+运行统一自测入口：
+
+```bash
+/home/xinyu/.venv/bin/python \
+  /home/xinyu/dv/scripts/validate_project_job_workflow.py
 ```
 
-Paths are relative, readable and append-only. Fingerprints are stored inside artifacts/indexes, never in
-filenames. Absolute/parent/hidden/symlink escape, duplicate ID/path, missing/non-regular child, cross-Job child,
-index substitution and stale root all fail closed.
-
-## Stage responsibilities
-
-### Stage 1
-
-The provider returns semantic Scenario/AC candidate fields and exact Spec line ranges. Framework derives formal
-IDs, exact snippets/fingerprints, canonical order and aggregate completeness. It persists one `SCENARIO` unit per
-Scenario and one `ACCEPTANCE_CRITERION` unit per AC. AC units depend only on cited Scenario units and exact Spec
-evidence, plus the common Job/Spec/policy/Owner/provider authority.
-
-The initial provider index is `PROVIDER`; after exact Human Owner routing, the executable map is persisted as the
-`CURRENT` index. Owner-routed Spec issues do not enter executable testcase generation.
-
-### Stage 2
-
-The provider returns logical testcase semantics and selected existing Scenario/AC IDs. It cannot submit
-`ac_coverage`. Framework derives one `LOGICAL_TESTCASE` unit per testcase and one `AC_COVERAGE` relation per AC
-from the current testcase `ac_ids`. A testcase change dirties only that unit, affected coverage/code/review closure
-and aggregate roots; exact unrelated siblings remain reusable.
-
-### Stage 3
-
-The provider returns one or more generic `SHARED`/`TESTCASE` SystemVerilog code units, one exact complete assembly
-order and all implemented CHECKABLE testcase IDs. A complete candidate may contain one mapped `TESTCASE` unit;
-`SHARED` units are optional. Stage 3 does not return AC-level stimulus/checker evidence, review findings or a
-workflow decision. Framework validates schema, lineage, unit roles, complete TESTCASE mapping, exact assembly,
-size and forbidden-capability/pass/fail/finish policy before any EDA call. It then runs Verilator on the exact
-assembled bytes for syntax, elaboration and executable build. Only a passing candidate is frozen and published.
-
-Framework formalizes the units as `CODE_SHARED`/`CODE_TESTCASE`. Every declared unit appears exactly once;
-deterministic assembly creates the only complete candidate bytes and fingerprint. Stage 3 units retain code,
-testcase dependencies and assembly lineage only; AC-level code evidence is owned exclusively by the Reviewer
-report/certificates.
-
-Stage 3 does not infer bounded-timeout semantics from a source-code regular expression and does not repeat the
-Stage 2 `expected_result` gate. Stage 2 validates its complete mapping before the Stage 3 provider call; the
-independent Reviewer judges timeout behavior, stimulus/checker call chains and oracle validity.
-
-Unit-local Stage 3 records preserve code-unit identity and the complete unit segment, without Generator-owned
-AC selections. Moving a unit globally changes the assembly root but not its semantic content identity. A
-shared-unit change propagates through explicit shared dependencies even if an interface appears unchanged.
-
-### Reviewer
-
-The Reviewer receives exact baseline Spec, both current maps, complete testcase, Owner routing and executable
-scope. One schema-valid response may contain all per-AC assessments and findings. Framework validates every
-executable AC, evidence selection, identity, scope, affected-ID closure and verdict; then emits `REVIEW_AC`, `REVIEW_TESTCASE`
-and `REVIEW_SHARED` certificates and a deterministic aggregate root.
-
-Findings use only `ERROR`/`WARNING` and one combined `problem_and_required_change` field. Warnings do not trigger
-repair. Repairable initial errors enter the append-only global FIFO; the Orchestrator may use at most three distinct
-read tools before its unique plan submission, and Router validates rather than rewrites that plan. The dispatched
-Stage Agent may use at most three authorized read tools before its unique replacement submission. Framework validates
-the replacement without changing current revisions or roots. OCHES003 deterministically groups repairs by Stage、target
-overlap and direct dependency, then runs each group serially from exact current roots. A failed group is recorded as
-`NOT_COMMITTED`; a passing group publishes one numbered atomic commit manifest, then recomputes roots、dependency closure
-and impact before the next dispatch. Prior successful groups remain committed if a later group fails. After all groups
-reach a terminal status, exactly one final complete-bundle review produces a Human review request/checkpoint and the Job
-enters `AWAITING_HUMAN_REVIEW`. The final Reviewer receives only a sanitized compile receipt; exact EDA request/evidence
-with RTL paths and fingerprints remains Framework-owned audit evidence. Spec-origin errors、Warnings and Owner-routed
-Spec issues never enter automatic repair。
-
-## Impact analysis
-
-The deterministic evaluator accepts validated old/new unit-index sets only when Job, input baseline, Spec, policy
-and Owner scope are exact. It emits `dirty_units`, `reused_units`, `removed_units`, old/new fingerprints and exact
-reasons, and verifies current direct-dependency links before computing transitive closure.
-
-Impact evaluation and persistence are deterministic evidence-only operations. They do not invoke providers or Humans,
-approve or promote. OCHES002 sessions are globally serial; OCHES003 binds old/new indexes and commit identity into the
-persisted impact manifest after precommit compile PASS.
-
-## Replay and standalone test Jobs
-
-Exact replay validates provider request/response, aggregate artifacts, every unit/index, assembly/certificates and
-checkpoint roots before returning persisted state. Missing, partial, tampered, stale, cross-Job or conflicting state
-fails closed before a provider call or duplicate Human-gate transition.
-
-Standalone Stage 3 and standalone Reviewer Jobs keep source Jobs read-only. They validate current source
-contracts, then build self-contained local unit indexes in the test Job directory and bind those roots in the test
-result. Their qualification scope remains `TEST_ONLY_NO_PROMOTION_OR_EDA`.
-
-## Qualification ceiling
-
-Scripted/mock tests prove Framework contract, lineage, assembly, compile gating, serial authority switching, impact,
-final review and fail-closed behavior only. They do not prove production Qwen/DeepSeek output, Human approval,
-production Verilator execution, simulation, DUT correctness, full UVM, four-state semantics or coverage closure.
-PJ-003 is implemented and scripted/fake-qualified. The single ProjectLoop now records an exact `DV_OWNER` testcase
-decision, pauses for a separately submitted `DV_OWNER` execution authorization, binds the approved testcase to immutable
-baseline RTL, and executes through the injected trusted Xcelium adapter. Its terminal states are `EXECUTION_PASS`,
-`EXECUTION_FAIL`, and `EXECUTION_BLOCKED`; only PJ-004 may publish `COMPLETE`. This qualification does not grant any real
-Job approval or production EDA authority.
+自测使用模拟模型服务、人工审核输入和模拟 Xcelium，覆盖生成、场景审核、修复提交、
+自动执行、失败与超时、零用例、部分跳过、输入及日志篡改，以及构建和逐用例之间的中断恢复。

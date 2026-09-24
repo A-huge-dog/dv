@@ -271,7 +271,7 @@ class Eda003ProjectIntegrationTests(unittest.TestCase):
             scenario["routing"]["destination"] = \
                 "AC_TESTCASE_MAP_AND_TESTCASE"
         result = workflow.route_scenarios(submission, form)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         self.assertEqual(3, uvm.calls)
         stage3_request = next(item for item in generator.requests
                               if item["metadata"]["stage"] == "TESTCASE")
@@ -290,7 +290,7 @@ class Eda003ProjectIntegrationTests(unittest.TestCase):
         self.assertTrue((job / "transcripts/stage3/").is_dir())
         generator_calls = generator.calls
         replay = workflow.start(submission)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", replay["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", replay["state"])
         self.assertEqual(
             context["effective_uvm_root"],
             replay["bundle_fingerprints"]["effective_uvm"])

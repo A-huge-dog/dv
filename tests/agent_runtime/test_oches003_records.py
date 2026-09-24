@@ -98,7 +98,7 @@ class Oches003RecordTests(unittest.TestCase):
                 role_fingerprint="6" * 64,
                 tool_allow_list=[] if role == "REVIEWER" else ["read"],
                 final_output="candidate", formal_scope={"ids": []})
-            self.assertEqual(0 if role == "REVIEWER" else 3,
+            self.assertEqual(0 if role == "REVIEWER" else 24,
                              prompt["retrieval_call_limit"])
             self.assertIn("Never invent", prompt["instructions"])
         base = {"finish_reason": "TOOL_CALLS",
@@ -108,7 +108,7 @@ class Oches003RecordTests(unittest.TestCase):
         self.assertEqual("COMPLETED", map_provider_stop(
             **{**base, "tool_calls": [{"name": "submit", "arguments": {}}]}))
         self.assertEqual("TOOL_PROTOCOL_VIOLATION", map_provider_stop(
-            **base, retrieval_count=3))
+            **base, retrieval_count=24))
         self.assertEqual("MALFORMED_MODEL_OUTPUT", map_provider_stop(
             finish_reason="STOP"))
         for condition, expected in (
@@ -175,7 +175,7 @@ class Oches003RecordTests(unittest.TestCase):
 
         def human(_state, _review):
             calls["human"] += 1
-            return {"state": "AWAITING_HUMAN_REVIEW"}
+            return {"state": "READY_FOR_EXECUTION_PREPARATION"}
 
         executor = SerialRepairExecutor(self.store)
         result = executor.execute(
@@ -189,7 +189,7 @@ class Oches003RecordTests(unittest.TestCase):
                 "dirty_units": ["SCENARIO.A"], "reused_units": [],
                 "direct_dependency_closure": ["SCENARIO.A"]},
             final_review=review, human_transition=human)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         self.assertEqual({"review": 1, "human": 1}, calls)
         replay = executor.execute(
             repairs=repairs, state={}, dispatch_group=None,

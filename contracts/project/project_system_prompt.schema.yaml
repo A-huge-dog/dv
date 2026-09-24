@@ -22,7 +22,7 @@ properties:
   model_id: {type: string, minLength: 1}
   role_fingerprint: {$ref: '#/$defs/fingerprint'}
   tool_allow_list: {type: array, uniqueItems: true, items: {type: string}}
-  retrieval_call_limit: {type: integer, minimum: 0, maximum: 3}
+  retrieval_call_limit: {type: integer, minimum: 0, maximum: 24}
   final_output: {type: string, minLength: 1}
   instructions: {type: string, minLength: 1}
   formal_scope: {type: object}

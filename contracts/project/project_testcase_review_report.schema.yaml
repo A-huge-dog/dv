@@ -77,7 +77,7 @@ $defs:
       path: {type: string, minLength: 1}
       line_start: {type: integer, minimum: 1}
       line_end: {type: integer, minimum: 1}
-      snippet: {type: string, minLength: 1, maxLength: 4096}
+      snippet: {type: string, minLength: 1, maxUtf8Bytes: 16384}
       snippet_fingerprint: {$ref: '#/$defs/fingerprint'}
   code_evidence:
     type: object
@@ -86,7 +86,7 @@ $defs:
     properties:
       line_start: {type: integer, minimum: 1}
       line_end: {type: integer, minimum: 1}
-      snippet: {type: string, minLength: 1, maxLength: 4096}
+      snippet: {type: string, minLength: 1, maxUtf8Bytes: 16384}
       snippet_fingerprint: {$ref: '#/$defs/fingerprint'}
   affected:
     type: object

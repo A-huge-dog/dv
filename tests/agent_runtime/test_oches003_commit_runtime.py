@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""Stage-local commit, deferred Stage 3 build, and final-review tests."""
+"""Stage-local UVM commit and final-review tests."""
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import unittest
+from unittest.mock import patch
 
 from contracts.validator import (
-    eda_probe_evidence_fingerprint,
-    eda_probe_request_fingerprint,
     load_document,
 )
 from runtime.commit_runtime import (
@@ -57,77 +55,6 @@ class FinalSemanticReviewer(FakeReviewerProvider):
         }
 
 
-class FakeCompileRunner:
-    def __init__(self, workspace_root, project_input, status="PASS"):
-        self.workspace_root = workspace_root
-        self.project_input = project_input
-        self.status = status
-        self.calls = 0
-
-    def build_only(self, source_paths, _top, approval_ref, authority):
-        self.calls += 1
-        source_fingerprints = [{
-            "path": path,
-            "fingerprint": hashlib.sha256(
-                (self.workspace_root / path).read_bytes()).hexdigest(),
-        } for path in sorted(source_paths)]
-        request = {
-            "schema_version": "1.0",
-            "request_id": "EDAPROBE.PROJECT.TINY.PRECOMMIT.{}".format(
-                authority[:16].upper()),
-            "job_id": self.project_input["job_id"],
-            "probe_kind": "PROJECT_BUILD",
-            "executable_ref": "EDAEXEC.VERILATOR",
-            "argv_template": [
-                {"kind": "SOURCE", "value": path}
-                for path in sorted(source_paths)],
-            "environment_fingerprint":
-                self.project_input["eda"]["environment_fingerprint"],
-            "timeout_seconds": 60,
-            "resource_limits": {
-                "cpu_seconds": 60, "memory_mb": 512, "output_files": 16,
-            },
-            "output_subdir": "runs/oches003/fake/build",
-            "expected_artifacts": [],
-            "source_fingerprints": source_fingerprints,
-            "approval_ref": approval_ref,
-            "request_fingerprint": "0" * 64,
-        }
-        request["request_fingerprint"] = eda_probe_request_fingerprint(request)
-        empty = hashlib.sha256(b"").hexdigest()
-        failed = self.status != "PASS"
-        evidence = {
-            "schema_version": "1.0",
-            "evidence_id": "EVIDENCE.EDA.FAKE{}".format(self.status),
-            "request_id": request["request_id"],
-            "request_fingerprint": request["request_fingerprint"],
-            "job_id": self.project_input["job_id"],
-            "probe_kind": "PROJECT_BUILD",
-            "executable_ref": "EDAEXEC.VERILATOR",
-            "environment_fingerprint": request["environment_fingerprint"],
-            "started_at": "2026-01-01T00:00:00Z",
-            "ended_at": "2026-01-01T00:00:01Z",
-            "exit_code": 1 if failed else 0,
-            "execution_status": self.status,
-            "timed_out": False,
-            "logs": [{
-                "kind": kind,
-                "relative_path":
-                    "runs/oches003/fake/{}.log".format(kind.casefold()),
-                "fingerprint": empty,
-                "size_bytes": 0,
-            } for kind in ("STDERR", "STDOUT")],
-            "artifacts": [],
-            "diagnostic_codes": ["PROCESS_EXIT_NONZERO"] if failed else [],
-            "evidence_class": "REAL_EDA_QUALIFICATION",
-            "qualification_scope": "PROJECT_VERILATOR_EXECUTION",
-            "evidence_fingerprint": "0" * 64,
-        }
-        evidence["evidence_fingerprint"] = \
-            eda_probe_evidence_fingerprint(evidence)
-        return {"request": request, "evidence": evidence}
-
-
 class Oches003CommitRuntimeTests(unittest.TestCase):
     def setUp(self):
         self.fixture = Oches002RepairRuntimeTests(methodName="runTest")
@@ -146,17 +73,16 @@ class Oches003CommitRuntimeTests(unittest.TestCase):
         self.value = self.fixture.value
         self.reviewer = FinalSemanticReviewer()
         self.uvm = FakeUvmProvider()
-        self.compile_runner = None
+        self.verilator_patch = patch(
+            "adapters.eda.ProjectVerilatorRunner",
+            side_effect=AssertionError("UVM repair must not invoke Verilator"))
+        self.verilator = self.verilator_patch.start()
+        self.addCleanup(self.verilator_patch.stop)
 
     def tearDown(self):
         self.fixture.tearDown()
 
-    def runtime(self, status="PASS", checkpoint_hook=None):
-        def compile_factory(workspace_root, _result_root, project_input):
-            self.compile_runner = FakeCompileRunner(
-                workspace_root, project_input, status)
-            return self.compile_runner
-
+    def runtime(self, checkpoint_hook=None):
         return ProjectCommitRuntime(
             workspace_root=self.fixture.fixture.root,
             result_root=self.fixture.fixture.root / "result",
@@ -164,18 +90,17 @@ class Oches003CommitRuntimeTests(unittest.TestCase):
                 self.uvm if role.endswith(".uvm") else
                 self.reviewer if role.startswith("review.") else
                 self.fixture.generator),
-            compile_runner_factory=compile_factory,
             checkpoint_hook=checkpoint_hook)
 
-    def test_compile_commit_impact_final_review_and_replay(self):
+    def test_uvm_commit_impact_final_review_and_replay_without_verilator(self):
         runtime = self.runtime()
         result = runtime.advance(self.value["job_id"])
 
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         self.assertFalse((self.job / COMMIT_PATH).exists())
         self.assertTrue((self.job / FINAL_PATH).is_file())
         self.assertTrue((self.job /
-                         "audit/oches001_human_review_checkpoint.json").is_file())
+                         "audit/project_review_complete.json").is_file())
         candidate = load_document(self.job / result["candidate_metadata_path"])
         request = load_document(self.job / result["review_request_path"])
         self.assertNotIn("implemented_ac_evidence", candidate)
@@ -186,7 +111,7 @@ class Oches003CommitRuntimeTests(unittest.TestCase):
             "IMPACT_RESULT", "REPAIR_EPISODE", "VALIDATION_RESULT",
             "GROUP_COMMIT", "IMPACT_RESULT", "REPAIR_EPISODE",
         ], [item["record_type"] for item in request["repair_lineage"]])
-        self.assertEqual(1, self.compile_runner.calls)
+        self.verilator.assert_not_called()
         self.assertEqual(1, self.reviewer.calls)
         records = [load_document(path) for path in sorted(
             (self.job / "audit/repair_records").glob("*.json"))]
@@ -216,26 +141,8 @@ class Oches003CommitRuntimeTests(unittest.TestCase):
 
         replay = runtime.advance(self.value["job_id"])
         self.assertEqual(result, replay)
-        self.assertEqual(1, self.compile_runner.calls)
+        self.verilator.assert_not_called()
         self.assertEqual(1, self.reviewer.calls)
-
-    def test_compile_failure_preserves_stage2_authority_and_skips_reviewer(self):
-        before = copy.deepcopy(self.fixture.runtime.model.artifact_roots)
-        runtime = self.runtime("FAIL")
-        result = runtime.advance(self.value["job_id"])
-
-        self.assertEqual("PAUSED_COMPILE_REPAIR_REQUIRED", result["state"])
-        self.assertFalse((self.job / COMMIT_PATH).exists())
-        self.assertFalse((self.job / FINAL_PATH).exists())
-        self.assertNotEqual(before["ac_testcase_map"], result[
-            "artifact_roots"]["ac_testcase_map"])
-        self.assertEqual(before["testcase"], result[
-            "artifact_roots"]["testcase"])
-        self.assertEqual(0, self.reviewer.calls)
-        replay = runtime.advance(self.value["job_id"])
-        self.assertEqual(result, replay)
-        self.assertEqual(1, self.compile_runner.calls)
-        self.assertEqual(0, self.reviewer.calls)
 
     def test_restart_after_stage2_commit_does_not_repeat_stage2_provider(self):
         stage2_transcripts = self.job / "transcripts/stage2"
@@ -249,18 +156,18 @@ class Oches003CommitRuntimeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "injected stage2"):
             self.runtime(checkpoint_hook=interrupt).advance(
                 self.value["job_id"])
-        self.assertIsNone(self.compile_runner)
+        self.verilator.assert_not_called()
         self.assertEqual(0, self.reviewer.calls)
         after_commit = sorted(path.read_bytes() for path in
                               stage2_transcripts.rglob("*.json"))
         self.assertEqual(before, after_commit)
 
         result = self.runtime().advance(self.value["job_id"])
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         after_restart = sorted(path.read_bytes() for path in
                                stage2_transcripts.rglob("*.json"))
         self.assertEqual(after_commit, after_restart)
-        self.assertEqual(1, self.compile_runner.calls)
+        self.verilator.assert_not_called()
         self.assertEqual(1, self.reviewer.calls)
 
     def test_tampered_replacement_fails_before_compile(self):
@@ -275,7 +182,7 @@ class Oches003CommitRuntimeTests(unittest.TestCase):
         with self.assertRaises(ProjectJobError) as caught:
             self.runtime().advance(self.value["job_id"])
         self.assertEqual("STALE_EVIDENCE", caught.exception.code)
-        self.assertIsNone(self.compile_runner)
+        self.verilator.assert_not_called()
         self.assertFalse((self.job / COMMIT_PATH).exists())
 
 

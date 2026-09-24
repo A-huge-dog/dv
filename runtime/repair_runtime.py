@@ -220,7 +220,7 @@ class ProjectRepairRuntime:
         tools.append(_submission_tool(
             "submit_repair_plan", "project_repair_plan_candidate"))
 
-        def submit(
+        def formalize(
                 candidate: dict[str, Any], context: dict[str, Any]
                 ) -> dict[str, Any]:
             handler = CreateRepairPlanHandler(CreateRepairPlanDependencies(
@@ -243,6 +243,28 @@ class ProjectRepairRuntime:
             ))
             return result.tool_result
 
+        def submit(candidate: dict[str, Any], context: dict[str, Any]
+                   ) -> dict[str, Any]:
+            try:
+                return formalize(candidate, context)
+            except self.error as caught:
+                if caught.code != "INVALID_REPAIR_PLAN":
+                    raise
+                return {"status": "REJECTED", "diagnostic": {
+                    "code": caught.code, "message": str(caught),
+                }}
+
+        def completion(_candidate: dict[str, Any], context: dict[str, Any]
+                       ) -> dict[str, str]:
+            result = context["terminal_result"]
+            if result.get("receipt", {}).get("diagnostic", {}).get(
+                    "code") == "INSUFFICIENT_EVIDENCE":
+                raise self.error(
+                    "REPAIR_PLAN_REJECTED", "repair evidence retrieval budget exhausted")
+            return {"status": "PASS" if (
+                result.get("status") == "ACCEPTED" and
+                result.get("dispatch") is not None) else "FAIL"}
+
         orchestrator_binding = self._role_binding(
             "repair", "orchestrator", "ORCHESTRATOR", "PROFILED")
         prompt = self._prompt(
@@ -252,12 +274,7 @@ class ProjectRepairRuntime:
             formal_scope=request["coverage_scope"], dependencies=[])
         messages = [{
             "role": "SYSTEM",
-            "content": prompt["instructions"] + (
-                " Testcase-related findings, including findings suspected at "
-                "STAGE_3, must be repaired at STAGE_2. Never invent a "
-                "UVM_GENERATION destination: after the Stage 2 replacement, "
-                "Framework automatically runs UVM Generation, Stage 3, and "
-                "Reviewer in that order.\n") + _json_message(prompt),
+            "content": prompt["instructions"] + "\n" + _json_message(prompt),
         }, {
             "role": "USER",
             "content": _json_message({
@@ -271,6 +288,16 @@ class ProjectRepairRuntime:
                     for name, index in sorted(self.model.indexes.items())},
                 "coverage_scope": request["coverage_scope"],
                 "review_report": report,
+                "repairable_issue_ids": sorted(
+                    item["issue_id"] for item in report["findings"]
+                    if item["severity"] == "ERROR" and
+                    item["suspected_origin_stage"] != "SPEC"),
+                "forbidden_issue_ids": sorted(
+                    item["issue_id"] for item in report["findings"]
+                    if item["severity"] != "ERROR" or
+                    item["suspected_origin_stage"] == "SPEC"),
+                "target_ids_by_kind": {
+                    kind: sorted(ids) for kind, ids in self.inventory.items()},
             }),
         }]
         lineage = {
@@ -289,6 +316,7 @@ class ProjectRepairRuntime:
             initial_messages=messages, tools=tools,
             retrieval_handlers=self.model.handlers(ORCHESTRATOR_READ_TOOLS),
             submission_handlers={"submit_repair_plan": submit},
+            completion_validator=completion,
             provider_binding=self._provider_identity(self._role_binding(
                 "repair", "orchestrator", "ORCHESTRATOR", "PROFILED")),
             policy=AgentLoopPolicy(

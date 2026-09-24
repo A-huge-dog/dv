@@ -39,7 +39,7 @@ class IncrementalArtifactTests(unittest.TestCase):
             self.root, self.root / "result", generator, reviewer)
         submission = self.fixture.project_input()
         checkpoint = self.fixture.start_checked(workflow, submission)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", checkpoint["state"])
         job = self.root / "result/jobs" / submission["job_id"]
         map1 = load_document(job / checkpoint["scenario_ac_map_path"])
         map2 = load_document(job / checkpoint["ac_testcase_map_path"])
@@ -271,7 +271,7 @@ class IncrementalArtifactTests(unittest.TestCase):
             FakeReviewerProvider())
         result = self.fixture.start_checked(
             workflow, self.fixture.project_input())
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         self.assertEqual(2, invalid.stage3_calls)
         job = self.root / "result/jobs/JOB.PROJECT.TINY.001"
         self.assertTrue((

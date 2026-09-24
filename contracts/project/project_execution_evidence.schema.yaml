@@ -1,55 +1,235 @@
-schema_version: "1.0"
+schema_version: '1.0'
 type: object
 additionalProperties: false
-required: [schema_version, artifact_kind, evidence_id, execution_id,
-  request_fingerprint, job_id, binding_fingerprint,
-  authorization_fingerprint, execution_status, build, run,
-  diagnostic_codes, qualification_scope, evidence_fingerprint]
+required:
+- schema_version
+- artifact_kind
+- job_id
+- evidence_id
+- execution_id
+- request_fingerprint
+- binding_fingerprint
+- execution_status
+- build
+- runs
+- testcases
+- skipped_testcases
+- findings
+- ac_reviews
+- summary
+- diagnostic_codes
+- qualification_scope
+- evidence_fingerprint
 properties:
-  schema_version: {type: string, const: "1.0"}
-  artifact_kind: {type: string, const: PROJECT_EXECUTION_EVIDENCE}
-  evidence_id: {type: string, pattern: '^EVIDENCE\.PROJECT\.[A-Z0-9_.-]+$'}
-  execution_id: {type: string, pattern: '^EXECUTION\.PROJECT\.[A-Z0-9_.-]+$'}
-  request_fingerprint: {$ref: '#/$defs/fingerprint'}
-  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
-  binding_fingerprint: {$ref: '#/$defs/fingerprint'}
-  authorization_fingerprint: {$ref: '#/$defs/fingerprint'}
-  execution_status: {enum: [PASS, FAIL, BLOCKED]}
+  schema_version:
+    const: '1.0'
+  artifact_kind:
+    const: PROJECT_EXECUTION_EVIDENCE
+  job_id:
+    type: string
+    pattern: ^JOB\.PROJECT\.[A-Z0-9_.-]+$
+  evidence_id: &id001
+    type: string
+    minLength: 1
+  execution_id: *id001
+  request_fingerprint: &id002
+    type: string
+    pattern: ^[0-9a-f]{64}$
+  binding_fingerprint: *id002
+  execution_status:
+    enum:
+    - PASS
+    - FAIL
+    - BLOCKED
   build:
     oneOf:
-      - {type: 'null'}
-      - {$ref: '#/$defs/adapter_result'}
-  run:
-    oneOf:
-      - {type: 'null'}
-      - {$ref: '#/$defs/adapter_result'}
-  diagnostic_codes:
+    - type: 'null'
+    - &id003
+      type: object
+      additionalProperties: false
+      required:
+      - request_path
+      - evidence_path
+      - request_fingerprint
+      - evidence_fingerprint
+      - phase
+      - status
+      - output_subdir
+      - output_tree_fingerprint
+      - output_tree_size_bytes
+      - output_tree_file_count
+      properties:
+        request_path:
+          type: string
+          pattern: ^audit/xcelium/[A-Za-z0-9._-]+\.request\.json$
+        evidence_path:
+          type: string
+          pattern: ^audit/xcelium/[A-Za-z0-9._-]+\.evidence\.json$
+        request_fingerprint:
+          $ref: '#/$defs/fingerprint'
+        evidence_fingerprint:
+          $ref: '#/$defs/fingerprint'
+        phase:
+          enum:
+          - BUILD
+          - RUN
+        status:
+          enum:
+          - PASS
+          - FAIL
+          - BLOCKED_TOOL
+        output_subdir:
+          type: string
+          pattern: ^runs/xcelium/[A-Za-z0-9][A-Za-z0-9._/-]*$
+        output_tree_fingerprint:
+          $ref: '#/$defs/fingerprint'
+        output_tree_size_bytes:
+          type: integer
+          minimum: 0
+        output_tree_file_count:
+          type: integer
+          minimum: 1
+  runs:
+    type: array
+    items: *id003
+  testcases:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+      - testcase_id
+      - uvm_class
+      - uvm_testname
+      - seed
+      - timeout_seconds
+      - pass_marker
+      - status
+      - exit_code
+      - pass_marker_observed
+      - uvm_error_count
+      - uvm_fatal_count
+      - logs
+      - diagnostic_codes
+      properties:
+        testcase_id:
+          type: string
+          pattern: ^TC\.[A-Z0-9_.-]+$
+        uvm_class:
+          type: string
+          pattern: ^uvm_tc_[a-z0-9_]+_[0-9a-f]{12}$
+        uvm_testname:
+          type: string
+          pattern: ^uvm_tc_[a-z0-9_]+_[0-9a-f]{12}$
+        seed:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 3600
+        pass_marker:
+          type: string
+          pattern: ^DV_UVM_[A-F0-9]{16}_PASS$
+        status:
+          enum:
+          - PASS
+          - FAIL
+          - BLOCKED
+        exit_code:
+          type:
+          - integer
+          - 'null'
+        pass_marker_observed:
+          type:
+          - boolean
+          - 'null'
+        uvm_error_count:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+        uvm_fatal_count:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+        logs:
+          type: array
+          items:
+            type: object
+        diagnostic_codes:
+          type: array
+          items: *id001
+  skipped_testcases:
     type: array
     uniqueItems: true
-    items: {type: string, pattern: '^[A-Z][A-Z0-9_]*$'}
-  qualification_scope:
-    {type: string, const: PORTABLE_TESTCASE_XCELIUM_EXECUTION}
-  evidence_fingerprint: {$ref: '#/$defs/fingerprint'}
-$defs:
-  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
-  adapter_result:
+    items:
+      type: object
+      additionalProperties: false
+      required:
+      - testcase_id
+      - reason_kind
+      - reason
+      - routing_required
+      properties:
+        testcase_id:
+          type: string
+          pattern: ^TC\.[A-Z0-9_.-]+$
+        reason_kind:
+          enum:
+          - SPEC_AMBIGUITY
+          - BLOCKED_CONTRACT
+          - RTL_CONTRACT_MISMATCH
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        routing_required:
+          type: boolean
+          const: true
+  findings:
+    type: array
+    items:
+      type: object
+  ac_reviews:
+    type: array
+    items:
+      type: object
+  summary:
     type: object
     additionalProperties: false
-    required: [request_path, evidence_path, request_fingerprint,
-      evidence_fingerprint, phase, status, output_subdir,
-      output_tree_fingerprint, output_tree_size_bytes,
-      output_tree_file_count]
+    required:
+    - generation_complete
+    - review_complete
+    - implemented
+    - skipped
+    - executed
+    - passed
+    - failed
+    - blocked
+    - full_spec_coverage_complete
+    - full_verification_passed
     properties:
-      request_path:
-        {type: string, pattern: '^audit/xcelium/[A-Za-z0-9._-]+\.request\.json$'}
-      evidence_path:
-        {type: string, pattern: '^audit/xcelium/[A-Za-z0-9._-]+\.evidence\.json$'}
-      request_fingerprint: {$ref: '#/$defs/fingerprint'}
-      evidence_fingerprint: {$ref: '#/$defs/fingerprint'}
-      phase: {enum: [BUILD, RUN]}
-      status: {enum: [PASS, FAIL, BLOCKED_TOOL]}
-      output_subdir:
-        {type: string, pattern: '^runs/xcelium/[A-Za-z0-9][A-Za-z0-9._/-]*$'}
-      output_tree_fingerprint: {$ref: '#/$defs/fingerprint'}
-      output_tree_size_bytes: {type: integer, minimum: 0}
-      output_tree_file_count: {type: integer, minimum: 1}
+      generation_complete: &id004
+        type: boolean
+      review_complete: *id004
+      implemented: &id005
+        type: integer
+        minimum: 0
+      skipped: *id005
+      executed: *id005
+      passed: *id005
+      failed: *id005
+      blocked: *id005
+      full_spec_coverage_complete: *id004
+      full_verification_passed: *id004
+  diagnostic_codes:
+    type: array
+    items: *id001
+  qualification_scope:
+    const: IMPLEMENTED_TESTCASE_XCELIUM_EXECUTION
+  evidence_fingerprint: *id002
+$defs:
+  fingerprint: *id002

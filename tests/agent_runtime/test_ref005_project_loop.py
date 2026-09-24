@@ -31,8 +31,10 @@ class Ref005ProjectLoopTests(unittest.TestCase):
         def provider_factory(_job_root, _manifest, role):
             return self.reviewer if role.startswith("review.") else self.generator
 
+        from tests.agent_runtime.test_pj003_project_execution import install_xcelium
         self.loop = ProjectLoop(
-            self.workflow, provider_factory=provider_factory)
+            self.workflow, provider_factory=provider_factory,
+            eda_adapter_factory=install_xcelium(self.root))
 
     def project_input(self):
         return self.fixture.project_input()
@@ -53,8 +55,8 @@ class Ref005ProjectLoopTests(unittest.TestCase):
             form, "AC_TESTCASE_MAP_AND_TESTCASE", "")
         second = self.loop.run_until_pause(ProjectLoopRequest(
             submission, scenario_routing=routed))
-        self.assertEqual("AWAITING_HUMAN_REVIEW", second["state"])
-        self.assertEqual(ResumePolicy.HUMAN.value, second["resume_policy"])
+        self.assertEqual("EXECUTION_PASS", second["state"])
+        self.assertEqual(ResumePolicy.TERMINAL.value, second["resume_policy"])
         self.assertEqual(3, self.generator.calls)
         self.assertEqual(1, self.reviewer.calls)
 
@@ -82,8 +84,8 @@ class Ref005ProjectLoopTests(unittest.TestCase):
             WorkflowState.AWAITING_SCOPED_REPLACEMENT: ResumePolicy.AUTO,
             WorkflowState.SCOPED_REPLACEMENT_VALIDATED: ResumePolicy.AUTO,
             WorkflowState.AWAITING_SCENARIO_ROUTING: ResumePolicy.HUMAN,
-            WorkflowState.AWAITING_HUMAN_REVIEW: ResumePolicy.HUMAN,
-            WorkflowState.AWAITING_EXECUTION_AUTHORIZATION: ResumePolicy.HUMAN,
+            WorkflowState.AWAITING_HUMAN_REVIEW: ResumePolicy.AUTO,
+            WorkflowState.READY_FOR_EXECUTION_PREPARATION: ResumePolicy.AUTO,
             WorkflowState.READY_FOR_BINDING: ResumePolicy.AUTO,
             WorkflowState.READY_FOR_EXECUTION: ResumePolicy.AUTO,
             WorkflowState.EXECUTION_PASS: ResumePolicy.TERMINAL,

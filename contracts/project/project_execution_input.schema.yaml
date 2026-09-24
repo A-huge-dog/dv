@@ -1,0 +1,209 @@
+schema_version: '1.0'
+type: object
+additionalProperties: false
+required:
+- schema_version
+- artifact_kind
+- job_id
+- input_fingerprint
+- source_checkpoint_path
+- source_checkpoint_fingerprint
+- bundle_fingerprints
+- references
+- candidate_id
+- testcase
+- uvm
+- testcases
+- skipped_testcases
+- findings
+- ac_reviews
+- full_spec_coverage_complete
+- execution
+- snapshot_fingerprint
+properties:
+  schema_version:
+    const: '1.0'
+  artifact_kind:
+    const: PROJECT_EXECUTION_INPUT
+  job_id:
+    type: string
+    pattern: ^JOB\.PROJECT\.[A-Z0-9_.-]+$
+  input_fingerprint: &id001
+    type: string
+    pattern: ^[0-9a-f]{64}$
+  source_checkpoint_path: &id002
+    type: string
+    pattern: ^[A-Za-z0-9][A-Za-z0-9._/-]*$
+  source_checkpoint_fingerprint: *id001
+  bundle_fingerprints:
+    type: object
+    additionalProperties: *id001
+  references:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+      - path
+      - byte_fingerprint
+      properties:
+        path: *id002
+        byte_fingerprint: *id001
+  candidate_id: &id003
+    type: string
+    minLength: 1
+  testcase:
+    type: object
+    additionalProperties: false
+    required:
+    - path
+    - byte_fingerprint
+    - manifest_path
+    - manifest_byte_fingerprint
+    properties:
+      path: *id002
+      byte_fingerprint: *id001
+      manifest_path: *id002
+      manifest_byte_fingerprint: *id001
+  uvm:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+      - path
+      - byte_fingerprint
+      - logical_path
+      properties:
+        path: *id002
+        byte_fingerprint: *id001
+        logical_path: *id002
+  testcases:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+      - testcase_id
+      - uvm_class
+      - uvm_testname
+      - seed
+      - timeout_seconds
+      - pass_marker
+      properties:
+        testcase_id:
+          type: string
+          pattern: ^TC\.[A-Z0-9_.-]+$
+        uvm_class:
+          type: string
+          pattern: ^uvm_tc_[a-z0-9_]+_[0-9a-f]{12}$
+        uvm_testname:
+          type: string
+          pattern: ^uvm_tc_[a-z0-9_]+_[0-9a-f]{12}$
+        seed:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 3600
+        pass_marker:
+          type: string
+          pattern: ^DV_UVM_[A-F0-9]{16}_PASS$
+  skipped_testcases:
+    type: array
+    uniqueItems: true
+    items:
+      type: object
+      additionalProperties: false
+      required:
+      - testcase_id
+      - reason_kind
+      - reason
+      - routing_required
+      properties:
+        testcase_id:
+          type: string
+          pattern: ^TC\.[A-Z0-9_.-]+$
+        reason_kind:
+          enum:
+          - SPEC_AMBIGUITY
+          - BLOCKED_CONTRACT
+          - RTL_CONTRACT_MISMATCH
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        routing_required:
+          type: boolean
+          const: true
+  findings:
+    type: array
+    items:
+      type: object
+  ac_reviews:
+    type: array
+    items:
+      type: object
+  full_spec_coverage_complete: &id004
+    type: boolean
+  execution:
+    type: object
+    additionalProperties: false
+    required:
+    - profile_id
+    - executable_ref
+    - profile_fingerprint
+    - environment_identity
+    - environment_fingerprint
+    - constraints
+    - resource_limits
+    properties:
+      profile_id:
+        const: EDAPROFILE.XCELIUM.PROJECT.V1
+      executable_ref:
+        const: EDAEXEC.XCELIUM
+      profile_fingerprint: *id001
+      environment_identity: *id003
+      environment_fingerprint: *id001
+      constraints:
+        type: object
+        additionalProperties: false
+        required:
+        - timeout_seconds
+        - seed
+        - uvm
+        - coverage
+        - waves
+        properties:
+          timeout_seconds:
+            type: integer
+            minimum: 1
+            maximum: 3600
+          seed:
+            type: integer
+            minimum: 1
+            maximum: 2147483647
+          uvm:
+            const: true
+          coverage: *id004
+          waves: *id004
+      resource_limits:
+        type: object
+        additionalProperties: false
+        required:
+        - cpu_seconds
+        - memory_mb
+        - output_files
+        properties:
+          cpu_seconds:
+            type: integer
+            minimum: 1
+          memory_mb:
+            type: integer
+            minimum: 1
+          output_files:
+            type: integer
+            minimum: 1
+  snapshot_fingerprint: *id001

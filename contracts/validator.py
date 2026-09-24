@@ -56,10 +56,8 @@ SCHEMAS = {
         ROOT / "contracts/eda/uvm_testcase_binding.schema.yaml",
     "uvm_testcase_final_result":
         ROOT / "contracts/eda/uvm_testcase_final_result.schema.yaml",
-    "project_execution_authorization":
-        ROOT / "contracts/project/project_execution_authorization.schema.yaml",
-    "project_approved_testcase":
-        ROOT / "contracts/project/project_approved_testcase.schema.yaml",
+    "project_execution_input":
+        ROOT / "contracts/project/project_execution_input.schema.yaml",
     "project_execution_bundle":
         ROOT / "contracts/project/project_execution_bundle.schema.yaml",
     "project_execution_request":

@@ -6,6 +6,8 @@ the injected Xcelium build result is the sole candidate PASS/FAIL authority.
 """
 from __future__ import annotations
 
+from domain.budgets import MAX_TOOL_ACTIONS
+
 import copy
 import hashlib
 import json
@@ -23,7 +25,7 @@ from scripts.dvlib import canonical_hash
 
 
 UVM_GENERATION = "UVM_GENERATION"
-UVM_WORKER_ACTION_BUDGET = 6
+UVM_WORKER_ACTION_BUDGET = MAX_TOOL_ACTIONS
 UVM_ELABORATION_TOP = "dv_uvm_generation_elaboration_top"
 
 
@@ -255,7 +257,11 @@ class UvmGenerationHandler:
                 "authorized slots, run Xcelium, inspect structured observations, "
                 "repair as needed, and call finish_task only after a current "
                 "PASS. Never request shell execution, unlisted paths, baseline "
-                "edits, RTL, or testcase content.")},
+                "edits, RTL, or testcase content. Every replacement submission "
+                "must include every authorized slot exactly once, including "
+                "unchanged files. Correct REJECTED submissions and resubmit. "
+                "Explicitly declare input/output/inout directions on each "
+                "SystemVerilog task or function argument.")},
             {"role": "USER", "content": json.dumps(
                 payload, sort_keys=True, ensure_ascii=False)},
         ]
@@ -282,6 +288,10 @@ class UvmGenerationHandler:
                 raise self.dependencies.error(
                     "TOOL_PERMISSION_DENIED",
                     "UVM replacement path escapes fixed slots") from caught
+            if path not in slots:
+                raise self.dependencies.error(
+                    "TOOL_PERMISSION_DENIED",
+                    "UVM replacement path is outside authorized slots")
             normalized.append({"logical_path": path,
                                "content": item["content"]})
         by_path = {item["logical_path"]: item for item in normalized}
@@ -875,8 +885,32 @@ class UvmGenerationWorkerFacade:
         response = copy.deepcopy(dict(context["response"]))
         response.setdefault("provider_metadata", {})[
             "worker_action_id"] = context["action_id"]
-        replacements = self.handler._replacement_contents(
-            arguments.get("replacements"), self.slots)
+        try:
+            replacements = self.handler._replacement_contents(
+                arguments.get("replacements"), self.slots)
+        except Exception as caught:
+            if getattr(caught, "code", None) != "TOOL_PROTOCOL_VIOLATION":
+                raise
+            submitted = arguments.get("replacements")
+            paths = [item.get("logical_path") for item in submitted
+                     if isinstance(item, Mapping) and
+                     isinstance(item.get("logical_path"), str)] \
+                if isinstance(submitted, list) else []
+            return {
+                "status": "REJECTED",
+                "code": "INVALID_UVM_REPLACEMENTS",
+                "action_id": context["action_id"],
+                "message": str(caught),
+                "required_slots": list(self.slots),
+                "missing_slots": [path for path in self.slots
+                                  if path not in paths],
+                "duplicate_slots": sorted({path for path in paths
+                                           if paths.count(path) > 1}),
+                "next_action": "write_uvm_replacements",
+                "instructions": "Resubmit every required slot exactly once "
+                                "with complete content, including unchanged files. "
+                                "The current candidate has not been modified.",
+            }
         attempt = len(self._candidates()) + 1
         candidate = self.handler._persist_candidate(
             self.command, attempt, self.baseline, self.baseline_root,

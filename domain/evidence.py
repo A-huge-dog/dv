@@ -69,7 +69,7 @@ def _enrich_evidence(
         if not snippet:
             raise error("SPEC_EVIDENCE_MISMATCH",
                         "Spec evidence range resolves to empty text")
-        if len(snippet) > max_snippet_bytes:
+        if len(snippet.encode("utf-8")) > max_snippet_bytes:
             raise error("FILE_LIMIT_EXCEEDED",
                         "Spec evidence snippet exceeds size budget")
         item = {

@@ -17,21 +17,13 @@ from typing import Any, Callable, Mapping
 
 from application.bootstrap import BootstrapResult
 from application.project_execution import (
-    APPROVED_TESTCASE_PATH,
-    EXECUTION_AUTHORIZATION_PATH,
-    EXECUTION_BUNDLE_PATH,
-    EXECUTION_EVIDENCE_PATH,
-    EXECUTION_REQUEST_PATH,
-    EXECUTION_RESULT_PATH,
-    BindApprovedBundleHandler,
-    BindApprovedBundleInput,
-    ExecuteApprovedTestcaseHandler,
-    ExecuteApprovedTestcaseInput,
-    RecordExecutionAuthorizationHandler,
-    RecordExecutionAuthorizationInput,
-    RecordHumanDecisionHandler,
-    RecordHumanDecisionInput,
+    EXECUTION_INPUT_PATH, EXECUTION_BUNDLE_PATH, EXECUTION_EVIDENCE_PATH,
+    EXECUTION_REQUEST_PATH, EXECUTION_RESULT_PATH, REVIEW_COMPLETE_PATH,
+    PrepareExecutionHandler, PrepareExecutionInput,
+    BindExecutionBundleHandler, BindExecutionBundleInput,
+    ExecuteTestcaseHandler, ExecuteTestcaseInput, load_execution_input, load_execution_bundle,
 )
+
 from contracts.validator import accepted, load_document, validate
 from agents.profile import ROLE_PATHS
 from domain.artifacts import artifact_fingerprint
@@ -89,7 +81,7 @@ class WorkflowState(str, Enum):
     AWAITING_SCOPED_REPLACEMENT = "AWAITING_SCOPED_REPLACEMENT"
     SCOPED_REPLACEMENT_VALIDATED = "SCOPED_REPLACEMENT_VALIDATED"
     AWAITING_HUMAN_REVIEW = "AWAITING_HUMAN_REVIEW"
-    AWAITING_EXECUTION_AUTHORIZATION = "AWAITING_EXECUTION_AUTHORIZATION"
+    READY_FOR_EXECUTION_PREPARATION = "READY_FOR_EXECUTION_PREPARATION"
     READY_FOR_BINDING = "READY_FOR_BINDING"
     READY_FOR_EXECUTION = "READY_FOR_EXECUTION"
     EXECUTION_PASS = "EXECUTION_PASS"
@@ -140,8 +132,6 @@ class ProjectLoopRequest:
 
     submission: dict[str, Any]
     submission_bytes: bytes | None = None
-    human_decision: dict[str, Any] | None = None
-    execution_authorization: dict[str, Any] | None = None
     scenario_routing: dict[str, Any] | None = None
     retry_blocked_review: bool = False
 
@@ -167,8 +157,7 @@ class CheckpointRepository:
 
     _PATHS = {
         "AWAITING_HUMAN_REVIEW": "audit/oches001_human_review_checkpoint.json",
-        "AWAITING_EXECUTION_AUTHORIZATION":
-            "audit/pj003_awaiting_execution_authorization.json",
+        "READY_FOR_EXECUTION_PREPARATION": REVIEW_COMPLETE_PATH,
         "READY_FOR_BINDING": "audit/pj003_ready_for_binding.json",
         "READY_FOR_EXECUTION": "audit/pj003_ready_for_execution.json",
         "EXECUTION_PASS": EXECUTION_RESULT_PATH,
@@ -207,8 +196,8 @@ class CheckpointRepository:
             WorkflowState.AWAITING_SCOPED_REPLACEMENT: ResumePolicy.AUTO,
             WorkflowState.SCOPED_REPLACEMENT_VALIDATED: ResumePolicy.AUTO,
             WorkflowState.AWAITING_SCENARIO_ROUTING: ResumePolicy.HUMAN,
-            WorkflowState.AWAITING_HUMAN_REVIEW: ResumePolicy.HUMAN,
-            WorkflowState.AWAITING_EXECUTION_AUTHORIZATION: ResumePolicy.HUMAN,
+            WorkflowState.AWAITING_HUMAN_REVIEW: ResumePolicy.AUTO,
+            WorkflowState.READY_FOR_EXECUTION_PREPARATION: ResumePolicy.AUTO,
             WorkflowState.READY_FOR_BINDING: ResumePolicy.AUTO,
             WorkflowState.READY_FOR_EXECUTION: ResumePolicy.AUTO,
             WorkflowState.EXECUTION_PASS: ResumePolicy.TERMINAL,
@@ -248,15 +237,6 @@ class CheckpointRepository:
     def _read_pj003(
             self, job_root: Path, manifest: Mapping[str, Any]
             ) -> Checkpoint | None:
-        execution_children = [
-            (job_root / item).exists() for item in (
-                EXECUTION_REQUEST_PATH, EXECUTION_EVIDENCE_PATH)]
-        if any(execution_children) and not (
-                all(execution_children) and
-                (job_root / EXECUTION_RESULT_PATH).is_file()):
-            raise ProjectJobError(
-                "PARTIAL_ARTIFACT",
-                "Project execution request/evidence/checkpoint is incomplete")
         ordered = (
             (EXECUTION_RESULT_PATH, {
                 WorkflowState.EXECUTION_PASS,
@@ -267,10 +247,6 @@ class CheckpointRepository:
              {WorkflowState.READY_FOR_EXECUTION}),
             ("audit/pj003_ready_for_binding.json",
              {WorkflowState.READY_FOR_BINDING}),
-            ("audit/pj003_awaiting_execution_authorization.json",
-             {WorkflowState.AWAITING_EXECUTION_AUTHORIZATION}),
-            ("audit/pj003_paused_by_human.json",
-             {WorkflowState.PAUSED_BY_HUMAN}),
         )
         for relative, expected_states in ordered:
             path = job_root / relative
@@ -288,25 +264,17 @@ class CheckpointRepository:
             if not accepted(validate("project_execution_checkpoint", value)):
                 raise ProjectJobError(
                     "INVALID_SCHEMA", "PJ-003 checkpoint contract is invalid")
+            load_execution_input(job_root, manifest, ProjectJobError)
+            if state is not WorkflowState.READY_FOR_BINDING:
+                binding = load_execution_bundle(job_root, self.workflow.workspace_root, manifest, ProjectJobError)
             authority = self._load_fixed(
                 job_root / value["authority_path"], "PJ-003 authority")
             field = {
-                WorkflowState.AWAITING_EXECUTION_AUTHORIZATION:
-                    "authority_fingerprint",
-                WorkflowState.READY_FOR_BINDING: "authorization_fingerprint",
+                WorkflowState.READY_FOR_BINDING: "snapshot_fingerprint",
                 WorkflowState.READY_FOR_EXECUTION: "binding_fingerprint",
-                WorkflowState.EXECUTION_PASS: "evidence_fingerprint",
-                WorkflowState.EXECUTION_FAIL: "evidence_fingerprint",
-                WorkflowState.EXECUTION_BLOCKED: "evidence_fingerprint",
-            }.get(state, "decision_fingerprint")
-            actual_authority = (
-                canonical_hash(authority)
-                if state is WorkflowState.PAUSED_BY_HUMAN
-                else authority.get(field))
-            valid_authority = (
-                actual_authority == canonical_hash(authority)
-                if state is WorkflowState.PAUSED_BY_HUMAN
-                else actual_authority == artifact_fingerprint(authority, field))
+            }.get(state, "evidence_fingerprint")
+            actual_authority = authority.get(field)
+            valid_authority = actual_authority == artifact_fingerprint(authority, field)
             if actual_authority != value.get("authority_fingerprint") or \
                     not valid_authority:
                 raise ProjectJobError(
@@ -315,6 +283,8 @@ class CheckpointRepository:
                     WorkflowState.EXECUTION_PASS,
                     WorkflowState.EXECUTION_FAIL,
                     WorkflowState.EXECUTION_BLOCKED}:
+                if authority["binding_fingerprint"] != binding["binding_fingerprint"]:
+                    raise ProjectJobError("STALE_EVIDENCE", "execution result binds a different bundle")
                 self._validate_execution_replay(job_root, authority, state)
             return Checkpoint(state, self.policy_for(state), value, relative)
         return None
@@ -332,11 +302,11 @@ class CheckpointRepository:
         if (not accepted(validate("project_execution_request", request)) or
                 request.get("request_fingerprint") != artifact_fingerprint(
                     request, "request_fingerprint") or
-                evidence.get("request_fingerprint") !=
-                    request.get("request_fingerprint")):
+                evidence.get("request_fingerprint") != request.get("request_fingerprint") or
+                evidence.get("binding_fingerprint") != request.get("binding_fingerprint")):
             raise ProjectJobError(
                 "STALE_EVIDENCE", "Project execution request is stale")
-        for summary in (evidence["build"], evidence.get("run")):
+        for summary in (evidence["build"], *evidence["runs"]):
             if summary is None:
                 continue
             adapter_request = self._load_fixed(
@@ -446,8 +416,6 @@ class ProjectLoop:
     def __init__(
             self, workflow: ProjectJobWorkflow, *,
             provider_factory: Callable[[Path, Mapping[str, Any], str], Any],
-            compile_runner_factory: Callable[[Path, Path, Mapping[str, Any]], Any]
-            | None = None,
             checkpoints: CheckpointRepository | None = None,
             eda_adapter_factory: Callable[
                 [Path, Mapping[str, Any], Mapping[str, Any]], Any] | None = None,
@@ -456,7 +424,6 @@ class ProjectLoop:
                 Mapping[str, Any]] | None = None):
         self.workflow = workflow
         self.provider_factory = provider_factory
-        self.compile_runner_factory = compile_runner_factory
         self.checkpoints = checkpoints or CheckpointRepository(workflow)
         self.eda_adapter_factory = eda_adapter_factory
         if uvm_build_runner is not None:
@@ -479,24 +446,22 @@ class ProjectLoop:
                 "ScopedReplacementHandler", self._advance_repair),
             WorkflowState.SCOPED_REPLACEMENT_VALIDATED: Transition(
                 WorkflowState.SCOPED_REPLACEMENT_VALIDATED, ResumePolicy.AUTO,
-                "CompileCandidateHandler", self._advance_commit),
+                "ProjectCommitRuntime", self._advance_commit),
             WorkflowState.AWAITING_SCENARIO_ROUTING: Transition(
                 WorkflowState.AWAITING_SCENARIO_ROUTING, ResumePolicy.HUMAN,
                 "GenerateStage1Handler", self._route_scenarios),
             WorkflowState.AWAITING_HUMAN_REVIEW: Transition(
-                WorkflowState.AWAITING_HUMAN_REVIEW, ResumePolicy.HUMAN,
-                "RecordHumanDecisionHandler", self._record_human_decision),
-            WorkflowState.AWAITING_EXECUTION_AUTHORIZATION: Transition(
-                WorkflowState.AWAITING_EXECUTION_AUTHORIZATION,
-                ResumePolicy.HUMAN,
-                "RecordExecutionAuthorizationHandler",
-                self._record_execution_authorization),
+                WorkflowState.AWAITING_HUMAN_REVIEW, ResumePolicy.AUTO,
+                "PrepareExecutionHandler", self._prepare_execution),
+            WorkflowState.READY_FOR_EXECUTION_PREPARATION: Transition(
+                WorkflowState.READY_FOR_EXECUTION_PREPARATION, ResumePolicy.AUTO,
+                "PrepareExecutionHandler", self._prepare_execution),
             WorkflowState.READY_FOR_BINDING: Transition(
                 WorkflowState.READY_FOR_BINDING, ResumePolicy.AUTO,
-                "BindApprovedBundleHandler", self._bind),
+                "BindExecutionBundleHandler", self._bind),
             WorkflowState.READY_FOR_EXECUTION: Transition(
                 WorkflowState.READY_FOR_EXECUTION, ResumePolicy.AUTO,
-                "ExecuteApprovedTestcaseHandler", self._execute),
+                "ExecuteTestcaseHandler", self._execute),
         }
 
     def _bootstrap(
@@ -542,7 +507,6 @@ class ProjectLoop:
             workspace_root=self.workflow.workspace_root,
             result_root=self.workflow.result_root,
             provider_factory=self.provider_factory,
-            compile_runner_factory=self.compile_runner_factory,
             uvm_build_runner=self.workflow.uvm_build_runner)
         return runtime.advance(str(checkpoint["job_id"]))
 
@@ -557,36 +521,29 @@ class ProjectLoop:
             request.submission, request.scenario_routing,
             request.submission_bytes)
 
-    def _record_human_decision(
-            self, request: ProjectLoopRequest, checkpoint: Mapping[str, Any]
-            ) -> dict[str, Any]:
-        if request.human_decision is None:
-            raise ProjectJobError(
-                "MISSING_HUMAN_DECISION",
-                "Human review requires an explicit Human decision")
+    def _prepare_execution(self, request: ProjectLoopRequest, checkpoint: Mapping[str, Any]) -> dict[str, Any]:
         manifest = self.workflow.bootstrap_handler.handle(
             request.submission, request.submission_bytes, create=False).manifest
         job_root = self.workflow._job_root(manifest)
-        approval = load_document(job_root / checkpoint["approval_request_path"])
-        return RecordHumanDecisionHandler(ProjectJobError).handle(
-            RecordHumanDecisionInput(
-                job_root, manifest, dict(checkpoint), approval,
-                request.human_decision)).checkpoint
-
-    def _record_execution_authorization(
-            self, request: ProjectLoopRequest, checkpoint: Mapping[str, Any]
-            ) -> dict[str, Any]:
-        if request.execution_authorization is None:
-            raise ProjectJobError(
-                "MISSING_EXECUTION_AUTHORIZATION",
-                "execution requires a separate explicit DV_OWNER authorization")
-        manifest = self.workflow.bootstrap_handler.handle(
-            request.submission, request.submission_bytes, create=False).manifest
-        job_root = self.workflow._job_root(manifest)
-        return RecordExecutionAuthorizationHandler(ProjectJobError).handle(
-            RecordExecutionAuthorizationInput(
-                job_root, manifest, dict(checkpoint),
-                request.execution_authorization)).checkpoint
+        if self.eda_adapter_factory is None:
+            raise ProjectJobError("BLOCKED_TOOL", "Xcelium deployment is not configured")
+        settings = {
+            "environment_identity": "XCELIUMENV.PROJECT.EXECUTION.V1",
+            "constraints": {"timeout_seconds": manifest["eda"]["timeout_seconds"],
+                            "seed": 1, "uvm": True, "coverage": False, "waves": False},
+        }
+        adapter = self.eda_adapter_factory(job_root, manifest, settings)
+        if (manifest["eda"]["profile_id"] != "EDAPROFILE.XCELIUM.PROJECT.V1" or
+                manifest["eda"]["executable_ref"] != "EDAEXEC.XCELIUM" or adapter.job_id != manifest["job_id"]):
+            raise ProjectJobError("BLOCKED_TOOL", "Project requires the configured Xcelium profile")
+        settings.update(profile_id=manifest["eda"]["profile_id"],
+                        executable_ref=manifest["eda"]["executable_ref"],
+                        profile_fingerprint=manifest["eda"]["environment_fingerprint"],
+                        environment_identity=adapter.environment_identity,
+                        environment_fingerprint=adapter.environment_fingerprint,
+                        resource_limits=dict(adapter.resource_limits))
+        return PrepareExecutionHandler(ProjectJobError).handle(
+            PrepareExecutionInput(job_root, manifest, dict(checkpoint), settings)).checkpoint
 
     def _bind(
             self, request: ProjectLoopRequest, checkpoint: Mapping[str, Any]
@@ -594,8 +551,8 @@ class ProjectLoop:
         manifest = self.workflow.bootstrap_handler.handle(
             request.submission, request.submission_bytes, create=False).manifest
         job_root = self.workflow._job_root(manifest)
-        return BindApprovedBundleHandler(ProjectJobError).handle(
-            BindApprovedBundleInput(
+        return BindExecutionBundleHandler(ProjectJobError).handle(
+            BindExecutionBundleInput(
                 job_root, self.workflow.workspace_root, manifest,
                 dict(checkpoint))).checkpoint
 
@@ -608,22 +565,22 @@ class ProjectLoop:
         manifest = self.workflow.bootstrap_handler.handle(
             request.submission, request.submission_bytes, create=False).manifest
         job_root = self.workflow._job_root(manifest)
-        authorization = load_document(job_root / EXECUTION_AUTHORIZATION_PATH)
+        execution = load_execution_input(job_root, manifest, ProjectJobError)["execution"]
         adapter_cache: list[Any] = []
 
         def trusted_adapter():
             if not adapter_cache:
                 candidate = self.eda_adapter_factory(
-                    job_root, manifest, authorization)
+                    job_root, manifest, execution)
                 for attribute, expected in (
                         ("job_id", manifest["job_id"]),
                         ("environment_identity",
-                         authorization["environment_identity"]),
-                        ("environment_fingerprint",
-                         authorization["environment_fingerprint"])):
+                         execution["environment_identity"]),
+                        ("environment_fingerprint", execution["environment_fingerprint"]),
+                        ("resource_limits", execution["resource_limits"])):
                     if getattr(candidate, attribute, None) != expected:
                         raise ProjectJobError(
-                            "INVALID_APPROVAL_PROVENANCE",
+                            "STALE_EVIDENCE",
                             "trusted EDA adapter does not match execution authority")
                 adapter_cache.append(candidate)
             return adapter_cache[0]
@@ -631,13 +588,13 @@ class ProjectLoop:
         def configuration(value: Mapping[str, Any]):
             from adapters.eda.xcelium import XceliumRunConfiguration
             return XceliumRunConfiguration(
-                sources=tuple(value["sources"]), top=str(value["top"]),
-                seed=int(value["seed"]), uvm=bool(value["uvm"]),
-                coverage=bool(value["coverage"]), waves=bool(value["waves"]),
-                pass_marker=str(value["pass_marker"]))
+                **{**dict(value), "sources": tuple(value["sources"]),
+                   "include_dirs": tuple(value["include_dirs"]),
+                   "plusargs": tuple(value.get("plusargs", ()))})
 
-        return ExecuteApprovedTestcaseHandler(ProjectJobError).handle(
-            ExecuteApprovedTestcaseInput(
+
+        return ExecuteTestcaseHandler(ProjectJobError).handle(
+            ExecuteTestcaseInput(
                 job_root, self.workflow.workspace_root, manifest,
                 dict(checkpoint),
                 lambda execution_id, value: trusted_adapter().build_only(
@@ -658,21 +615,6 @@ class ProjectLoop:
     def run_until_pause(self, request: ProjectLoopRequest) -> dict[str, Any]:
         """Execute one transition at a time until the first non-AUTO state."""
         checkpoint = self.checkpoints.read(request)
-        if request.human_decision is not None and \
-                request.execution_authorization is not None:
-            raise ProjectJobError(
-                "INVALID_INPUT",
-                "testcase decision and execution authorization are separate submissions")
-        if request.human_decision is not None and \
-                checkpoint.state is not WorkflowState.AWAITING_HUMAN_REVIEW:
-            raise ProjectJobError(
-                "INVALID_TRANSITION",
-                "testcase decision requires the existing Human-review checkpoint")
-        if request.execution_authorization is not None and checkpoint.state is not \
-                WorkflowState.AWAITING_EXECUTION_AUTHORIZATION:
-            raise ProjectJobError(
-                "INVALID_TRANSITION",
-                "execution authorization requires its existing checkpoint")
         if request.retry_blocked_review:
             # This is an explicit retry request, never an automatic replay of
             # a failed Provider attempt.  The staged workflow validates the
@@ -680,7 +622,7 @@ class ProjectLoop:
             result = self.workflow.retry_blocked_review(
                 request.submission, request.submission_bytes)
             checkpoint = self.checkpoints.publish(result)
-        if checkpoint.state is not WorkflowState.BOOTSTRAP:
+        if checkpoint.state in {WorkflowState.INITIAL_GENERATION, WorkflowState.AWAITING_SCENARIO_ROUTING}:
             manifest = self.workflow.bootstrap_handler.handle(
                 request.submission, request.submission_bytes, create=False)
             self._configure_role_providers(manifest.manifest)
@@ -688,13 +630,6 @@ class ProjectLoop:
             has_human_submission = (
                 checkpoint.state is WorkflowState.AWAITING_SCENARIO_ROUTING
                 and request.scenario_routing is not None
-            ) or (
-                checkpoint.state is WorkflowState.AWAITING_HUMAN_REVIEW
-                and request.human_decision is not None
-            ) or (
-                checkpoint.state is
-                    WorkflowState.AWAITING_EXECUTION_AUTHORIZATION
-                and request.execution_authorization is not None
             )
             if checkpoint.policy is not ResumePolicy.AUTO and \
                     not has_human_submission:
@@ -713,7 +648,12 @@ class ProjectLoop:
                 if persisted.state != WorkflowState.INITIAL_GENERATION or \
                         checkpoint.state == WorkflowState.INITIAL_GENERATION:
                     checkpoint = persisted
-        return self._pause(checkpoint)
+        result = self._pause(checkpoint)
+        if checkpoint.state in {WorkflowState.EXECUTION_PASS, WorkflowState.EXECUTION_FAIL, WorkflowState.EXECUTION_BLOCKED}:
+            evidence = load_document(self.workflow._job_root(request.submission) / EXECUTION_EVIDENCE_PATH)
+            result.update(summary=evidence["summary"], testcases=evidence["testcases"],
+                          execution_evidence_path=EXECUTION_EVIDENCE_PATH, build=evidence["build"])
+        return result
 
 
 __all__ = [

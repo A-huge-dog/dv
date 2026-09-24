@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""PJ-003 approval, binding, execution, and replay qualification."""
+"""Automatic Project execution, exact replay, and coverage qualification."""
 from __future__ import annotations
 
 import copy
@@ -7,286 +6,252 @@ import json
 import os
 import unittest
 from importlib import import_module
+from unittest.mock import patch
 
 from adapters.eda import XceliumAdapter
 from contracts.validator import load_document
 from domain.artifacts import artifact_fingerprint
 from runtime.errors import ProjectJobError
 from runtime.project_job import ProjectJobWorkflow
-from runtime.project_loop import ProjectLoop, ProjectLoopRequest
+from runtime.project_loop import ProjectLoop, ProjectLoopRequest, CheckpointRepository
+from application.project_execution import (
+    EXECUTION_INPUT_PATH, EXECUTION_BUNDLE_PATH, EXECUTION_EVIDENCE_PATH,
+    EXECUTION_RESULT_PATH, REVIEW_COMPLETE_PATH, LEGACY_REVIEW_PATH,
+    _human_checkpoint_fingerprint,
+)
 
 try:
-    _fixtures = import_module("test_project_job_workflow")
-    _xcelium = import_module("test_xcelium_adapter")
+    fixtures = import_module("test_project_job_workflow")
+    xcelium = import_module("test_xcelium_adapter")
 except ModuleNotFoundError:
-    _fixtures = import_module("tests.agent_runtime.test_project_job_workflow")
-    _xcelium = import_module("tests.agent_runtime.test_xcelium_adapter")
+    fixtures = import_module("tests.agent_runtime.test_project_job_workflow")
+    xcelium = import_module("tests.agent_runtime.test_xcelium_adapter")
 
 
-class MarkerProvider(_fixtures.FakeProvider):
-    marker = ""
-
-    @classmethod
-    def stage3(cls, payload):
-        result = super().stage3(payload)
-        result["code_units"][0]["content"] += "// {}\n".format(cls.marker)
-        return result
-
-
-class CompileFailureProvider(MarkerProvider):
-    marker = "FAKE_COMPILE_FAILURE"
-
-
-class LicenseBlockedProvider(MarkerProvider):
-    marker = "FAKE_LICENSE_FAILURE"
+def install_xcelium(root):
+    tools = root / "tools"
+    tools.mkdir(exist_ok=True)
+    executable = tools / "xrun"
+    source = xcelium.FAKE_XRUN.replace(
+        'match = re.search(r"DV_[A-Z0-9_]+_PASS", content)',
+        'selected = next((a.split("=",1)[1] for a in args if a.startswith("+UVM_TESTNAME=")), "")\n'
+        '    body = content.split("class " + selected + " extends", 1)[-1] if selected else content\n'
+        '    match = re.search(r"DV_[A-Z0-9_]+_PASS", body)')
+    executable.write_text(source)
+    executable.chmod(0o755)
+    # Test fixtures have only authoring context; supply an explicit testbench top.
+    pkg = root / "uvm/pkg.sv"
+    pkg.write_text(pkg.read_text() + '\nmodule tb_tiny; initial run_test(); endmodule\n')
+    def factory(job_root, manifest, execution):
+        return XceliumAdapter(root, root / "result", manifest["job_id"], executable,
+                              execution["environment_identity"], {"PATH": "/usr/bin", "LC_ALL": "C"},
+                              timeout_seconds=execution["constraints"]["timeout_seconds"])
+    return factory
 
 
 class Pj003ProjectExecutionTests(unittest.TestCase):
-    provider_type = _fixtures.FakeProvider
-
     def setUp(self):
-        self.fixture = _fixtures.ProjectJobWorkflowTests(methodName="runTest")
+        self.fixture = fixtures.ProjectJobWorkflowTests(methodName="runTest")
         self.fixture.setUp()
         self.addCleanup(self.fixture.tearDown)
         self.root = self.fixture.root
-        self.result_root = self.root / "result"
-        self.tools = self.root / "tools"
-        self.tools.mkdir()
-        self.xrun = self.tools / "xrun"
-        self.xrun.write_text(_xcelium.FAKE_XRUN, encoding="utf-8")
-        self.xrun.chmod(0o755)
-        self.generator = self.provider_type()
-        self.reviewer = _fixtures.FakeReviewerProvider()
-        self.workflow = ProjectJobWorkflow(self.root, self.result_root)
-        self.created_adapters = []
+        self.factory = install_xcelium(self.root)
+        self.generator = fixtures.FakeProvider(duplicate_testcases=True)
+        self.reviewer = fixtures.FakeReviewerProvider()
+        self.workflow = ProjectJobWorkflow(self.root, self.root / "result", self.generator, self.reviewer)
+        self.loop = ProjectLoop(self.workflow, provider_factory=lambda *_: self.fail("unexpected provider creation"),
+                                eda_adapter_factory=self.factory)
+        self.submission = self.fixture.project_input()
+        self.job = self.root / "result/jobs" / self.submission["job_id"]
 
-        def provider_factory(_job_root, _manifest, role):
-            return self.reviewer if role.startswith("review.") else self.generator
-
-        def adapter_factory(_job_root, manifest, authorization):
-            adapter = self._adapter(
-                manifest["job_id"], authorization["environment_identity"])
-            self.created_adapters.append(adapter)
-            return adapter
-
-        self.loop = ProjectLoop(
-            self.workflow, provider_factory=provider_factory,
-            eda_adapter_factory=adapter_factory)
-
-    def _adapter(self, job_id, identity="XCELIUMENV.PJ003.TEST.24_09"):
-        return XceliumAdapter(
-            self.root, self.result_root, job_id, self.xrun, identity, {
-                "PATH": "{}{}{}".format(
-                    self.tools, os.pathsep, "/usr/bin"),
-                "LM_LICENSE_FILE": "27000@private-license-host",
-                "LC_ALL": "C",
-            }, timeout_seconds=10)
-
-    def invocation_count(self):
-        path = self.tools / "invocations.txt"
-        return int(path.read_text()) if path.exists() else 0
-
-    def to_human_gate(self):
-        submission = self.fixture.project_input()
-        first = self.loop.run_until_pause(ProjectLoopRequest(submission))
-        job_root = self.result_root / "jobs" / submission["job_id"]
-        form = load_document(job_root / first["owner_review_path"])
-        routing = self.fixture.completed_owner_review(
-            form, "AC_TESTCASE_MAP_AND_TESTCASE", "")
-        checkpoint = self.loop.run_until_pause(ProjectLoopRequest(
-            submission, scenario_routing=routing))
-        self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
-        return submission, job_root, checkpoint
-
-    @staticmethod
-    def decision(submission, checkpoint, approval, kind="APPROVE"):
-        return {
-            "schema_version": "1.0",
-            "decision_id": "DECISION.PJ003.{}".format(kind),
-            "approval_request_id": approval["approval_request_id"],
-            "job_id": submission["job_id"],
-            "thread_id": approval["thread_id"],
-            "decision": kind,
-            "approver_identity": "human.dv.owner",
-            "approver_role": "DV_OWNER",
-            "reason": "scripted PJ-003 qualification decision",
-            "evidence_ids": copy.deepcopy(approval["validation_artifact_ids"]),
-            "candidate_fingerprint": approval["candidate_fingerprint"],
-            "checkpoint_id": checkpoint["checkpoint_id"],
-            "decided_at": "2026-08-18T12:00:00Z",
-        }
-
-    def approve(self):
-        submission, job_root, checkpoint = self.to_human_gate()
-        approval = load_document(job_root / checkpoint["approval_request_path"])
-        result = self.loop.run_until_pause(ProjectLoopRequest(
-            submission,
-            human_decision=self.decision(submission, checkpoint, approval)))
-        self.assertEqual("AWAITING_EXECUTION_AUTHORIZATION", result["state"])
-        return submission, job_root, result
-
-    def authorization(self, submission, job_root):
-        approved = load_document(
-            job_root / "approved/generated/manifests/project_testcase.json")
-        adapter = self._adapter(submission["job_id"])
-        value = {
-            "schema_version": "1.0",
-            "artifact_kind": "PROJECT_EXECUTION_AUTHORIZATION",
-            "authorization_id": "AUTHORIZATION.PROJECT.PJ003.TEST",
-            "job_id": submission["job_id"],
-            "purpose": "EXECUTE_APPROVED_TESTCASE",
-            "authorizer_identity": "human.dv.owner",
-            "authorizer_role": "DV_OWNER",
-            "testcase_approval_fingerprint": approved["authority_fingerprint"],
-            "profile_id": "EDAPROFILE.XCELIUM.PROJECT.V1",
-            "executable_ref": "EDAEXEC.XCELIUM",
-            "environment_identity": adapter.environment_identity,
-            "environment_fingerprint": adapter.environment_fingerprint,
-            "constraints": {
-                "timeout_seconds": 10,
-                "seed": 17,
-                "uvm": False,
-                "coverage": False,
-                "waves": False,
-            },
-            "authorized_at": "2026-08-18T00:00:00Z",
-            "expires_at": "2099-08-18T00:00:00Z",
-            "authorization_fingerprint": "0" * 64,
-        }
-        value["authorization_fingerprint"] = artifact_fingerprint(
-            value, "authorization_fingerprint")
-        return value
+    def prepare(self):
+        return self.fixture.start_checked(self.workflow, self.submission)
 
     def execute(self):
-        submission, job_root, _ = self.approve()
-        authorization = self.authorization(submission, job_root)
-        result = self.loop.run_until_pause(ProjectLoopRequest(
-            submission, execution_authorization=authorization))
-        return submission, job_root, authorization, result
+        return self.loop.run_until_pause(ProjectLoopRequest(self.submission))
 
-    def test_approve_authorize_bind_execute_pass_and_exact_restart(self):
-        submission, job_root, _, result = self.execute()
+    def calls(self):
+        p = self.root / "tools/invocations.txt"
+        return int(p.read_text()) if p.exists() else 0
+
+    def test_no_approval_build_then_each_test_and_exact_terminal_replay(self):
+        checkpoint = self.prepare()
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", checkpoint["state"])
+        result = self.execute()
         self.assertEqual("EXECUTION_PASS", result["state"])
-        self.assertEqual(2, self.invocation_count())
-        evidence = load_document(job_root / "audit/pj003_execution_evidence.json")
-        self.assertEqual("PASS", evidence["execution_status"])
-        self.assertEqual("PASS", evidence["build"]["status"])
-        self.assertEqual("PASS", evidence["run"]["status"])
-        self.assertNotIn("private-license-host", json.dumps(evidence))
-        provider_calls = (self.generator.calls, self.reviewer.calls)
-        replay = self.loop.run_until_pause(ProjectLoopRequest(submission))
-        self.assertEqual(result, replay)
-        self.assertEqual(2, self.invocation_count())
-        self.assertEqual(provider_calls,
-                         (self.generator.calls, self.reviewer.calls))
-        self.assertFalse((job_root / "audit/project_completed.json").exists())
+        self.assertEqual(2, result["summary"]["passed"])
+        self.assertEqual(3, self.calls())
+        self.assertTrue(result["summary"]["full_verification_passed"])
+        self.assertEqual(result, self.execute())
+        self.assertEqual(3, self.calls())
+        for path in ("audit/pj003_testcase_decision.json", "audit/pj003_execution_authorization.json",
+                     "staging/validations/human_review_request.json"):
+            self.assertFalse((self.job / path).exists())
 
-    def test_reject_is_a_terminal_human_pause_without_approval(self):
-        submission, job_root, checkpoint = self.to_human_gate()
-        approval = load_document(job_root / checkpoint["approval_request_path"])
-        result = self.loop.run_until_pause(ProjectLoopRequest(
-            submission, human_decision=self.decision(
-                submission, checkpoint, approval, "REJECT")))
-        self.assertEqual("PAUSED_BY_HUMAN", result["state"])
-        self.assertFalse((job_root /
-            "approved/generated/manifests/project_testcase.json").exists())
-        self.assertEqual(0, self.invocation_count())
-        self.assertEqual(result, self.loop.run_until_pause(
-            ProjectLoopRequest(submission)))
-
-    def test_revision_request_is_a_terminal_human_pause(self):
-        submission, job_root, checkpoint = self.to_human_gate()
-        approval = load_document(job_root / checkpoint["approval_request_path"])
-        result = self.loop.run_until_pause(ProjectLoopRequest(
-            submission, human_decision=self.decision(
-                submission, checkpoint, approval, "REQUEST_REVISION")))
-        self.assertEqual("PAUSED_BY_HUMAN", result["state"])
-        self.assertEqual("REQUEST_REVISION", result["decision"])
-        self.assertEqual(0, self.invocation_count())
-
-    def test_testcase_approval_cannot_substitute_for_execution_authority(self):
-        submission, job_root, _ = self.approve()
-        decision = load_document(job_root / "audit/pj003_testcase_decision.json")
-        with self.assertRaises(ProjectJobError) as caught:
-            self.loop.run_until_pause(ProjectLoopRequest(
-                submission, execution_authorization=decision))
-        self.assertEqual("INVALID_SCHEMA", caught.exception.code)
-        self.assertEqual(0, self.invocation_count())
-
-    def test_cross_job_authorization_fails_before_eda(self):
-        submission, job_root, _ = self.approve()
-        authorization = self.authorization(submission, job_root)
-        authorization["job_id"] = "JOB.PROJECT.CROSS.JOB"
-        authorization["authorization_fingerprint"] = artifact_fingerprint(
-            authorization, "authorization_fingerprint")
-        with self.assertRaises(ProjectJobError) as caught:
-            self.loop.run_until_pause(ProjectLoopRequest(
-                submission, execution_authorization=authorization))
-        self.assertEqual("INVALID_APPROVAL_PROVENANCE", caught.exception.code)
-        self.assertEqual(0, self.invocation_count())
-
-    def test_tampered_approved_testcase_fails_before_eda(self):
-        submission, job_root, _ = self.approve()
-        approved = load_document(
-            job_root / "approved/generated/manifests/project_testcase.json")
-        (job_root / approved["approved_testcase_path"]).write_text(
-            "tampered", encoding="utf-8")
-        with self.assertRaises(ProjectJobError) as caught:
-            self.loop.run_until_pause(ProjectLoopRequest(
-                submission,
-                execution_authorization=self.authorization(
-                    submission, job_root)))
-        self.assertEqual("STALE_EVIDENCE", caught.exception.code)
-        self.assertEqual(0, self.invocation_count())
-
-    def test_partial_project_execution_pair_fails_closed(self):
-        submission, job_root, _, result = self.execute()
+    def test_legacy_checkpoint_resumes_without_provider_or_old_bytes_changes(self):
+        checkpoint = self.prepare()
+        (self.job / REVIEW_COMPLETE_PATH).unlink()
+        checkpoint["state"] = "AWAITING_HUMAN_REVIEW"
+        checkpoint["checked_testcases_complete"] = True
+        checkpoint["checkpoint_fingerprint"] = _human_checkpoint_fingerprint(checkpoint)
+        checkpoint["bundle_fingerprints"]["checkpoint"] = checkpoint["checkpoint_fingerprint"]
+        path = self.job / LEGACY_REVIEW_PATH
+        path.write_text(json.dumps(checkpoint))
+        original = path.read_bytes()
+        result = self.execute()
         self.assertEqual("EXECUTION_PASS", result["state"])
-        (job_root / "audit/pj003_execution_result.json").unlink()
-        with self.assertRaises(ProjectJobError) as caught:
-            self.loop.run_until_pause(ProjectLoopRequest(submission))
-        self.assertEqual("PARTIAL_ARTIFACT", caught.exception.code)
-        self.assertEqual(2, self.invocation_count())
+        self.assertEqual(original, path.read_bytes())
+        self.assertEqual(result, self.execute())
 
-    def test_unregistered_output_tamper_is_rejected_on_restart(self):
-        submission, job_root, _, result = self.execute()
-        self.assertEqual("EXECUTION_PASS", result["state"])
-        evidence = load_document(job_root / "audit/pj003_execution_evidence.json")
-        output = job_root / evidence["run"]["output_subdir"]
-        (output / "unregistered.bin").write_bytes(b"tamper")
-        with self.assertRaises(ProjectJobError) as caught:
-            self.loop.run_until_pause(ProjectLoopRequest(submission))
-        self.assertEqual("STALE_EVIDENCE", caught.exception.code)
-        self.assertEqual(2, self.invocation_count())
+    def test_binding_interruption_resumes_without_generation(self):
+        self.prepare()
+        with patch.object(self.loop, '_bind', side_effect=KeyboardInterrupt):
+            self.loop.transitions = self.loop._transitions()
+            with self.assertRaises(KeyboardInterrupt): self.execute()
+        self.assertEqual(0, self.calls())
+        self.loop.transitions = self.loop._transitions()
+        self.assertEqual("EXECUTION_PASS", self.execute()["state"])
+        self.assertEqual(3, self.calls())
 
-    def test_compile_failure_stops_before_run(self):
-        self.generator = CompileFailureProvider()
-        _, _, _, result = self.execute()
+    def test_build_and_case_interruptions_reuse_complete_adapter_evidence(self):
+        self.prepare()
+        original = XceliumAdapter.run
+        calls = 0
+        def interrupt(adapter, execution_id, configuration):
+            nonlocal calls
+            calls += 1
+            if calls == 2: raise KeyboardInterrupt()
+            return original(adapter, execution_id, configuration)
+        with patch.object(XceliumAdapter, 'run', interrupt):
+            with self.assertRaises(KeyboardInterrupt): self.execute()
+        self.assertEqual(2, self.calls())
+        self.assertEqual("EXECUTION_PASS", self.execute()["state"])
+        self.assertEqual(3, self.calls())
+
+    def test_interrupt_after_build_does_not_recompile(self):
+        self.prepare()
+        with patch.object(XceliumAdapter, 'run', side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt): self.execute()
+        self.assertEqual(1, self.calls())
+        self.assertEqual("EXECUTION_PASS", self.execute()["state"])
+        self.assertEqual(3, self.calls())
+
+    def test_compile_failure_never_runs_testcases(self):
+        (self.root / 'uvm/pkg.sv').write_text((self.root / 'uvm/pkg.sv').read_text() + '// FAKE_COMPILE_FAILURE\n')
+        self.prepare()
+        result = self.execute()
         self.assertEqual("EXECUTION_FAIL", result["state"])
-        self.assertEqual(1, self.invocation_count())
+        self.assertEqual(0, result["summary"]["executed"])
+        self.assertEqual(2, result["summary"]["blocked"])
+        self.assertEqual(1, self.calls())
 
-    def test_license_failure_is_typed_blocked_and_stops_before_run(self):
-        self.generator = LicenseBlockedProvider()
-        _, _, _, result = self.execute()
+    def test_uvm_error_is_failure_even_with_marker_and_zero_exit(self):
+        (self.root / 'uvm/pkg.sv').write_text((self.root / 'uvm/pkg.sv').read_text() + '// FAKE_UVM_FAILURE\n')
+        self.prepare()
+        result = self.execute()
+        self.assertEqual("EXECUTION_FAIL", result["state"])
+        self.assertEqual(2, result["summary"]["failed"])
+
+    def test_missing_or_changed_frozen_input_is_rejected(self):
+        self.prepare()
+        with patch.object(self.loop, '_bind', side_effect=KeyboardInterrupt):
+            self.loop.transitions = self.loop._transitions()
+            with self.assertRaises(KeyboardInterrupt): self.execute()
+        self.loop.transitions = self.loop._transitions()
+        snapshot = load_document(self.job / EXECUTION_INPUT_PATH)
+        (self.job / snapshot["uvm"][0]["path"]).write_text("drift")
+        with self.assertRaises(ProjectJobError) as caught: self.execute()
+        self.assertEqual("STALE_EVIDENCE", caught.exception.code)
+        self.assertEqual(0, self.calls())
+
+    def test_terminal_generated_entry_tampering_is_rejected(self):
+        self.prepare()
+        self.execute()
+        (self.job / "execution/inputs/project_tests_pkg.sv").write_text("drift")
+        with self.assertRaises(ProjectJobError): self.execute()
+
+    def test_terminal_log_tampering_is_rejected(self):
+        self.prepare()
+        result = self.execute()
+        log = result["testcases"][0]["logs"][0]["relative_path"]
+        (self.job / log).write_text('tampered')
+        with self.assertRaises(ProjectJobError): self.execute()
+
+    def test_skips_and_findings_do_not_block_but_never_imply_full_verification(self):
+        original = self.generator.stage3
+        def partial(payload):
+            value = original(payload)
+            skipped = value["implemented_testcase_ids"].pop()
+            value["code_units"] = [u for u in value["code_units"] if skipped not in u['testcase_ids']]
+            value['assembly'] = list(range(len(value['code_units'])))
+            value["skipped_testcases"] = [{"testcase_id": skipped, "reason_kind": "BLOCKED_CONTRACT",
+                                             "reason": "Missing public observation", "routing_required": True}]
+            return value
+        self.generator.stage3 = partial
+        report = self.reviewer._report
+        def findings(review):
+            value = report(review)
+            ac = review["scenario_ac_map"]["acceptance_criteria"][0]
+            value["verdict"] = "FINDINGS_REPORTED"
+            value["findings"] = [{"severity": "ERROR", "suspected_origin_stage": "SPEC",
+                "affected": {"scenario_ids": ac["scenario_ids"], "ac_ids": [ac["ac_id"]],
+                             "testcase_ids": [], "code_unit_ids": []},
+                "spec_evidence": [{k: ac["spec_evidence"][0][k] for k in ("path", "line_start", "line_end")}],
+                "testcase_evidence": [], "problem_and_required_change": "Public observation is unspecified."}]
+            return value
+        self.reviewer._report = findings
+        self.prepare()
+        result = self.execute()
+        self.assertEqual("EXECUTION_PASS", result["state"])
+        self.assertEqual(1, result["summary"]["passed"])
+        self.assertEqual(1, result["summary"]["skipped"])
+        self.assertFalse(result["summary"]["full_verification_passed"])
+
+    def test_zero_executable_cases_are_blocked_without_xcelium(self):
+        def skipped(payload):
+            return {"code_units": [{"role": "SHARED", "testcase_ids": [], "content": "// No executable testcase\n"}],
+                    "assembly": [0], "implemented_testcase_ids": [],
+                    "skipped_testcases": [{"testcase_id": t["testcase_id"], "reason_kind": "BLOCKED_CONTRACT",
+                                           "reason": "No public driver", "routing_required": True}
+                                          for t in payload["generated_testcase_manifest"]["testcases"]]}
+        self.generator.stage3 = skipped
+        def omitted(review):
+            ac = review["scenario_ac_map"]["acceptance_criteria"][0]
+            evidence = [{k: ac["spec_evidence"][0][k] for k in ("path", "line_start", "line_end")}]
+            return {"verdict": "FINDINGS_REPORTED", "findings": [{
+                        "severity": "WARNING", "suspected_origin_stage": "STAGE_3",
+                        "affected": {"scenario_ids": ac["scenario_ids"], "ac_ids": [ac["ac_id"]],
+                                     "testcase_ids": [], "code_unit_ids": []},
+                        "spec_evidence": evidence, "testcase_evidence": [],
+                        "problem_and_required_change": "No public driver: coverage omitted."}], "diagnostics": [],
+                    "ac_reviews": [{"ac_id": ac["ac_id"], "status": "OMITTED",
+                        "spec_evidence": [{k: ac["spec_evidence"][0][k] for k in ("path", "line_start", "line_end")}],
+                        "stimulus_evidence": [], "checker_evidence": [], "omission": "No public driver"}]}
+        self.reviewer._report = omitted
+        self.prepare()
+        result = self.execute()
         self.assertEqual("EXECUTION_BLOCKED", result["state"])
-        self.assertEqual(1, self.invocation_count())
+        self.assertEqual(0, result["summary"]["executed"])
+        self.assertEqual(2, result["summary"]["skipped"])
+        self.assertFalse(result["summary"]["full_verification_passed"])
+        self.assertEqual(0, self.calls())
 
-    def test_unavailable_trusted_adapter_publishes_blocked_evidence(self):
-        submission, job_root, _ = self.approve()
-
-        def unavailable(_job_root, _manifest, _authorization):
-            raise ProjectJobError("BLOCKED_TOOL", "fake tool unavailable")
-
-        self.loop.eda_adapter_factory = unavailable
-        result = self.loop.run_until_pause(ProjectLoopRequest(
-            submission,
-            execution_authorization=self.authorization(submission, job_root)))
+    def test_run_timeout_is_recorded_for_each_case(self):
+        self.prepare()
+        import subprocess
+        original = subprocess.Popen.communicate
+        def timeout(process, *args, **kwargs):
+            if "-elaborate" not in process.args and not getattr(process, "injected_timeout", False):
+                process.injected_timeout = True
+                raise subprocess.TimeoutExpired(process.args, kwargs["timeout"])
+            return original(process, *args, **kwargs)
+        with patch.object(subprocess.Popen, "communicate", timeout):
+            result = self.execute()
         self.assertEqual("EXECUTION_BLOCKED", result["state"])
-        evidence = load_document(job_root / "audit/pj003_execution_evidence.json")
-        self.assertIsNone(evidence["build"])
-        self.assertIn("BLOCKED_TOOL", evidence["diagnostic_codes"])
-        self.assertEqual(0, self.invocation_count())
+        self.assertEqual(2, result["summary"]["blocked"])
+        for row in result["testcases"]:
+            self.assertIn("TIMEOUT", " ".join(row["diagnostic_codes"]))
 
 
-if __name__ == "__main__":
-    unittest.main()
+
+if __name__ == '__main__': unittest.main()

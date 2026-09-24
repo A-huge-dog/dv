@@ -1,42 +1,150 @@
-schema_version: "1.0"
+schema_version: '1.0'
 type: object
 additionalProperties: false
-required: [schema_version, artifact_kind, execution_id, job_id,
-  binding_path, binding_fingerprint, authorization_fingerprint,
-  profile_id, executable_ref, environment_identity, environment_fingerprint,
-  configuration, request_fingerprint]
+required:
+- schema_version
+- artifact_kind
+- job_id
+- execution_id
+- binding_path
+- binding_fingerprint
+- configuration
+- testcases
+- execution
+- request_fingerprint
 properties:
-  schema_version: {type: string, const: "1.0"}
-  artifact_kind: {type: string, const: PROJECT_EXECUTION_REQUEST}
-  execution_id: {type: string, pattern: '^EXECUTION\.PROJECT\.[A-Z0-9_.-]+$'}
-  job_id: {type: string, pattern: '^JOB\.PROJECT\.[A-Z0-9_.-]+$'}
-  binding_path: {type: string, const: audit/pj003_execution_bundle.json}
-  binding_fingerprint: {$ref: '#/$defs/fingerprint'}
-  authorization_fingerprint: {$ref: '#/$defs/fingerprint'}
-  profile_id: {type: string, const: EDAPROFILE.XCELIUM.PROJECT.V1}
-  executable_ref: {type: string, const: EDAEXEC.XCELIUM}
-  environment_identity:
-    {type: string, pattern: '^XCELIUMENV\.[A-Z0-9_.-]+$'}
-  environment_fingerprint: {$ref: '#/$defs/fingerprint'}
+  schema_version:
+    const: '1.0'
+  artifact_kind:
+    const: PROJECT_EXECUTION_REQUEST
+  job_id:
+    type: string
+    pattern: ^JOB\.PROJECT\.[A-Z0-9_.-]+$
+  execution_id: &id002
+    type: string
+    minLength: 1
+  binding_path:
+    const: audit/pj003_execution_bundle.json
+  binding_fingerprint: &id004
+    type: string
+    pattern: ^[0-9a-f]{64}$
   configuration:
     type: object
     additionalProperties: false
-    required: [sources, top, pass_marker, seed, uvm, coverage, waves,
-      timeout_seconds]
+    required:
+    - sources
+    - include_dirs
+    - top
+    - timeout_seconds
+    - seed
+    - uvm
+    - coverage
+    - waves
     properties:
       sources:
         type: array
-        minItems: 2
-        maxItems: 193
-        uniqueItems: true
-        items: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._/-]*\.s?vh?$'}
-      top: {type: string, pattern: '^tb_project_[0-9a-f]{16}$'}
-      pass_marker: {type: string, pattern: '^DV_PROJECT_[A-F0-9]{16}_PASS$'}
-      seed: {type: integer, minimum: 1, maximum: 2147483647}
-      uvm: {type: boolean}
-      coverage: {type: boolean}
-      waves: {type: boolean}
-      timeout_seconds: {type: integer, minimum: 1, maximum: 3600}
-  request_fingerprint: {$ref: '#/$defs/fingerprint'}
-$defs:
-  fingerprint: {type: string, pattern: '^[0-9a-f]{64}$'}
+        items: &id001
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/-]*$
+      include_dirs:
+        type: array
+        items: *id001
+      top: *id002
+      timeout_seconds: &id005
+        type: integer
+        minimum: 1
+        maximum: 3600
+      seed: &id006
+        type: integer
+        minimum: 1
+        maximum: 2147483647
+      uvm: &id007
+        const: true
+      coverage: &id003
+        type: boolean
+      waves: *id003
+  testcases:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+      - testcase_id
+      - uvm_class
+      - uvm_testname
+      - seed
+      - timeout_seconds
+      - pass_marker
+      properties:
+        testcase_id:
+          type: string
+          pattern: ^TC\.[A-Z0-9_.-]+$
+        uvm_class:
+          type: string
+          pattern: ^uvm_tc_[a-z0-9_]+_[0-9a-f]{12}$
+        uvm_testname:
+          type: string
+          pattern: ^uvm_tc_[a-z0-9_]+_[0-9a-f]{12}$
+        seed:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 3600
+        pass_marker:
+          type: string
+          pattern: ^DV_UVM_[A-F0-9]{16}_PASS$
+  execution:
+    type: object
+    additionalProperties: false
+    required:
+    - profile_id
+    - executable_ref
+    - profile_fingerprint
+    - environment_identity
+    - environment_fingerprint
+    - constraints
+    - resource_limits
+    properties:
+      profile_id:
+        const: EDAPROFILE.XCELIUM.PROJECT.V1
+      executable_ref:
+        const: EDAEXEC.XCELIUM
+      profile_fingerprint: *id004
+      environment_identity: *id002
+      environment_fingerprint: *id004
+      constraints:
+        type: object
+        additionalProperties: false
+        required:
+        - timeout_seconds
+        - seed
+        - uvm
+        - coverage
+        - waves
+        properties:
+          timeout_seconds: *id005
+          seed: *id006
+          uvm: *id007
+          coverage: *id003
+          waves: *id003
+      resource_limits:
+        type: object
+        additionalProperties: false
+        required:
+        - cpu_seconds
+        - memory_mb
+        - output_files
+        properties:
+          cpu_seconds:
+            type: integer
+            minimum: 1
+          memory_mb:
+            type: integer
+            minimum: 1
+          output_files:
+            type: integer
+            minimum: 1
+  request_fingerprint: *id004

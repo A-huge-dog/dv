@@ -71,7 +71,7 @@ properties:
     items:
       enum: [get_issue, get_unit, get_direct_dependencies,
         get_spec_evidence, get_repair_history, compare_unit_revisions]
-  retrieval_call_limit: {type: integer, const: 3}
+  retrieval_call_limit: {type: integer, minimum: 0, maximum: 24}
   stage_agent:
     type: object
     additionalProperties: false

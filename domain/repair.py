@@ -1,6 +1,8 @@
 """Pure repair planning, routing, replacement, grouping, and impact rules."""
 from __future__ import annotations
 
+from domain.budgets import MAX_RETRIEVAL_TURNS
+
 import copy
 import re
 from datetime import datetime, timezone
@@ -250,7 +252,7 @@ def build_scoped_dispatch(
         "direct_dependencies": dependencies,
         "authorized_spec_evidence": authorized_evidence,
         "tool_allow_list": sorted(STAGE_READ_TOOLS),
-        "retrieval_call_limit": 3,
+        "retrieval_call_limit": MAX_RETRIEVAL_TURNS,
         "stage_agent": {
             "runtime_role": "STAGE_AGENT",
             **copy.deepcopy(dict(stage_binding)),
@@ -645,14 +647,14 @@ def formalize_repair_plan(
         raise error(
             "INVALID_REPAIR_PLAN",
             "Orchestrator candidate must contain only status and repairs")
-    if not 0 <= retrieval_rounds <= 3:
+    if not 0 <= retrieval_rounds <= MAX_RETRIEVAL_TURNS:
         raise error(
             "INVALID_REPAIR_PLAN", "retrieval round count is invalid")
     if candidate["status"] == "INSUFFICIENT_EVIDENCE":
-        if candidate["repairs"] or retrieval_rounds != 3:
+        if candidate["repairs"] or retrieval_rounds != MAX_RETRIEVAL_TURNS:
             raise error(
                 "INVALID_REPAIR_PLAN",
-                "insufficient evidence requires three retrievals and no repairs")
+                "insufficient evidence requires the full retrieval budget and no repairs")
     elif not candidate["repairs"]:
         raise error(
             "INVALID_REPAIR_PLAN", "a ready candidate requires repairs")
@@ -766,13 +768,13 @@ def validate_repair_plan(
             plan, "REJECTED", "SCOPE_EXPANSION",
             "plan scope differs from the current Owner-routed scope"), None
     if plan["status"] == "INSUFFICIENT_EVIDENCE":
-        if plan["repairs"] or plan["retrieval_rounds"] != 3:
+        if plan["repairs"] or plan["retrieval_rounds"] != MAX_RETRIEVAL_TURNS:
             return _receipt(
                 plan, "REJECTED", "INVALID_REPAIR_PLAN",
-                "insufficient evidence requires three rounds and no repairs"), None
+                "insufficient evidence requires the full retrieval budget and no repairs"), None
         return _receipt(
             plan, "REJECTED", "INSUFFICIENT_EVIDENCE",
-            "Orchestrator stopped after three bounded retrieval rounds"), None
+            "Orchestrator stopped after exhausting the retrieval budget"), None
     if not plan["repairs"]:
         return _receipt(
             plan, "REJECTED", "INVALID_REPAIR_PLAN",
@@ -793,7 +795,10 @@ def validate_repair_plan(
             if issue_id not in findings or issue_id not in error_ids:
                 return _receipt(
                     plan, "REJECTED", "UNKNOWN_OR_UNREPAIRABLE_ISSUE",
-                    "plan references a warning, Spec issue, or unknown finding"), None
+                    "issue {} is not repairable: only existing ERROR findings "
+                    "whose origin is not SPEC may be submitted; remove this "
+                    "issue and submit the complete corrected plan".format(
+                        issue_id)), None
             if issue_id in seen_issues:
                 return _receipt(
                     plan, "REJECTED", "DUPLICATE_ISSUE_ROUTE",

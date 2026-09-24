@@ -1,0 +1,74 @@
+{
+  "authority_fingerprint": "b65ac6b6ff37cf0b621234cc61c9d2e7788a20a6b5da8f9b1f0a708554d7e598",
+  "authority_path": "audit/pj003_execution_evidence.json",
+  "build": {
+    "evidence_fingerprint": "c029ce4fff0a88b89d1b8718e5f6e9c90032640abaa01af071cede363db8ed5e",
+    "evidence_path": "audit/xcelium/project.coral_npu.spec_auth.r007.pj003.build.6f33baff3fa77a19.build.evidence.json",
+    "output_subdir": "runs/xcelium/pj003.build.6f33baff3fa77a19/build",
+    "output_tree_file_count": 50,
+    "output_tree_fingerprint": "020e9aab0b42b32c873354f9d176202cf02c9994ca87a26bddcdc12df57c01b4",
+    "output_tree_size_bytes": 52167069,
+    "phase": "BUILD",
+    "request_fingerprint": "7be9a53c3d07a036327e85eb7f572cf420b68ec652968955937546e57dee921a",
+    "request_path": "audit/xcelium/project.coral_npu.spec_auth.r007.pj003.build.6f33baff3fa77a19.build.request.json",
+    "status": "FAIL"
+  },
+  "checkpoint_fingerprint": "4deb759d9123784dbdb7ba51c5e2067f9baeb3a8296519047cb60d6b7e42e336",
+  "checkpoint_id": "CHECKPOINT.PROJECT.PJ003.C06B51DFBAEC5863",
+  "current_state_modified": false,
+  "execution_evidence_path": "audit/pj003_execution_evidence.json",
+  "input_fingerprint": "be7d0d01a112fcc8641b5723bbc4ec471b14ae61a1d2ca28f6ec9860e7c70e50",
+  "job_id": "JOB.PROJECT.CORAL_NPU.SPEC_AUTH.R007",
+  "resume_policy": "TERMINAL",
+  "schema_version": "1.0",
+  "state": "EXECUTION_FAIL",
+  "summary": {
+    "blocked": 2,
+    "executed": 0,
+    "failed": 0,
+    "full_spec_coverage_complete": false,
+    "full_verification_passed": false,
+    "generation_complete": true,
+    "implemented": 2,
+    "passed": 0,
+    "review_complete": true,
+    "skipped": 28
+  },
+  "testcases": [
+    {
+      "diagnostic_codes": [
+        "BUILD_NOT_PASSED"
+      ],
+      "exit_code": null,
+      "logs": [],
+      "pass_marker": "DV_UVM_A3A6FD1D6106DCE6_PASS",
+      "pass_marker_observed": null,
+      "seed": 598146335,
+      "status": "BLOCKED",
+      "testcase_id": "TC.0012",
+      "timeout_seconds": 120,
+      "uvm_class": "uvm_tc_tc_0012_a3a6fd1d6106",
+      "uvm_error_count": null,
+      "uvm_fatal_count": null,
+      "uvm_testname": "uvm_tc_tc_0012_a3a6fd1d6106"
+    },
+    {
+      "diagnostic_codes": [
+        "BUILD_NOT_PASSED"
+      ],
+      "exit_code": null,
+      "logs": [],
+      "pass_marker": "DV_UVM_313D1C5C03ECC8AF_PASS",
+      "pass_marker_observed": null,
+      "seed": 826088541,
+      "status": "BLOCKED",
+      "testcase_id": "TC.0025",
+      "timeout_seconds": 120,
+      "uvm_class": "uvm_tc_tc_0025_313d1c5c03ec",
+      "uvm_error_count": null,
+      "uvm_fatal_count": null,
+      "uvm_testname": "uvm_tc_tc_0025_313d1c5c03ec"
+    }
+  ],
+  "workflow_version": "PJ-003.2"
+}

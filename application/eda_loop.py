@@ -61,13 +61,9 @@ class ExecuteEdaSuiteInLoopHandler:
         if (not isinstance(suite, dict) or set(suite) - required - optional or
                 not required.issubset(suite) or not isinstance(suite["coverage"], bool)):
             raise _error("INVALID_SCHEMA", "EDA suite request is invalid")
-        # CLEAN review remains a Project quality gate, not an EDA approval.
-        # The EDA tool's sole execution authority is the binding built below.
-        if (review.get("state") != "AWAITING_HUMAN_REVIEW" or
-                review.get("job_id") != command.manifest["job_id"] or
-                review.get("error_count") != 0 or
-                review.get("review_verdict") != "CLEAN"):
-            raise _error("STALE_EVIDENCE", "EDA suite requires the exact CLEAN review checkpoint")
+        if (review.get("state") != "READY_FOR_EXECUTION_PREPARATION" or
+                review.get("job_id") != command.manifest["job_id"]):
+            raise _error("STALE_EVIDENCE", "EDA suite requires this Job's completed review")
         try:
             binding_path, binding = build_eda_test_suite_binding(
                 job_root=command.job_root, workspace_root=command.workspace_root,

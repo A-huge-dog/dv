@@ -408,7 +408,7 @@ class FakeReviewerProvider:
 
     def select_tools(self, request):
         self.requests.append(copy.deepcopy(request))
-        review = json.loads(request["messages"][-1]["content"])
+        review = json.loads(request["messages"][1]["content"])
         report = self._report(review)
         self.calls += 1
         return {
@@ -837,7 +837,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         completed = self.completed_owner_review(
             form, "AC_TESTCASE_MAP_AND_TESTCASE", "")
         result = workflow.route_scenarios(submission, completed)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         snapshot = load_document(
             job / "audit/scenario_owner_review_submission.json")
         self.assertEqual(completed, snapshot["submitted_form"])
@@ -862,9 +862,10 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             FakeProvider(), FakeReviewerProvider())
         submission = self.project_input()
         checkpoint = self.start_checked(workflow, submission)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", checkpoint["state"])
         job = self.root / "result/jobs" / submission["job_id"]
-        self.assertTrue((job / checkpoint["approval_request_path"]).is_file())
+        self.assertTrue((job / "audit/project_review_complete.json").is_file())
+        self.assertNotIn("approval_request_path", checkpoint)
         self.assertFalse(hasattr(workflow, "resume"))
         self.assertFalse((job / "audit/project_completed.json").exists())
 
@@ -889,11 +890,8 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         form = load_document(job / checkpoint["owner_review_path"])
         routing = self.completed_owner_review(
             form, "AC_TESTCASE_MAP_AND_TESTCASE", "")
-        with self.assertRaises(ProjectJobError) as paused:
-            workflow.route_scenarios(submission, routing)
-        self.assertEqual("ATTEMPT_PAUSED", paused.exception.code)
         result = workflow.route_scenarios(submission, routing)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         self.assertEqual(2, reviewer.calls)
         self.assertTrue((job /
             "audit/pj002_provider_response.review.r001.retry001.json"
@@ -1342,8 +1340,8 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                 route["routing"]["destination"] = \
                     "AC_TESTCASE_MAP_AND_TESTCASE"
         result = workflow.route_scenarios(submission, routing)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
-        self.assertTrue(result["checked_testcases_complete"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
+        self.assertTrue(result["generation_complete"])
         self.assertFalse(result["full_spec_coverage_complete"])
         spec_issues = load_document(
             job / result["scenario_partition_paths"]["spec_issues"])
@@ -1361,7 +1359,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result", generator, reviewer)
         checkpoint = self.start_checked(workflow)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", checkpoint["state"])
         self.assertEqual(3, generator.calls)
         self.assertEqual(1, reviewer.calls)
         self.assertEqual(checkpoint, workflow.start(self.project_input()))
@@ -1521,7 +1519,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         self.assertEqual("AWAITING_SCENARIO_ROUTING", first["state"])
         result = self.start_checked(workflow, submission)
         original_bytes = original_path.read_bytes()
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         self.assertEqual(4, generator.calls)
         self.assertEqual(original_bytes, original_path.read_bytes())
         original = load_document(original_path)
@@ -1573,84 +1571,16 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         checkpoint = workflow.start(submission)
         job = self.root / "result/jobs" / submission["job_id"]
         form = load_document(job / checkpoint["owner_review_path"])
-        with self.assertRaises(ProjectJobError) as caught:
-            workflow.route_scenarios(
-                submission, self.completed_owner_review(
-                    form, "AC_TESTCASE_MAP_AND_TESTCASE", ""))
-        self.assertEqual(
-            "ATTEMPT_PAUSED", caught.exception.code)
-        self.assertEqual(3, generator.calls)
-        self.assertEqual(1, len(list(job.glob(
-            "audit/pj002_candidate_attempt_paused.*.json"))))
         result = workflow.route_scenarios(
             submission, self.completed_owner_review(
                 form, "AC_TESTCASE_MAP_AND_TESTCASE", ""))
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual(1, len(list(job.glob(
+            "audit/pj002_candidate_attempt_paused.*.json"))))
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         self.assertTrue((job /
             "audit/pj002_provider_response.stage2.r000.correction002.json"
         ).is_file())
         self.assertEqual(5, generator.calls)
-
-    def test_stage3_uvm_context_correction_changes_only_diagnosed_testcases(self):
-        staged = StagedProjectWorkflow(ProjectJobWorkflow(
-            self.root, self.root / "result", FakeProvider(),
-            FakeReviewerProvider()))
-        diagnostic = ProjectJobError(
-            "UVM_CONTEXT_SKIP_CONTRADICTION", "invalid skipped testcase")
-        diagnostic.failure_context = {"diagnostics": [{
-            "code": "UVM_CONTEXT_SKIP_CONTRADICTION",
-            "offending_content": "TC.0005: wfi",
-        }, {
-            "code": "UVM_CONTEXT_SKIP_CONTRADICTION",
-            "offending_content": "TC.0006: fault",
-        }]}
-        self.assertEqual(
-            {"TC.0005", "TC.0006"},
-            staged._diagnosed_stage3_testcase_ids("TESTCASE", diagnostic))
-        before = {
-            "assembly": [0],
-            "code_units": [{
-                "role": "TESTCASE",
-                "testcase_ids": ["TC.0012"],
-                "content": "class tc_0012; endclass",
-            }],
-            "implemented_testcase_ids": ["TC.0012"],
-            "skipped_testcases": [{
-                "testcase_id": testcase_id,
-                "reason_kind": "BLOCKED_CONTRACT",
-                "reason": reason,
-                "routing_required": True,
-            } for testcase_id, reason in (
-                ("TC.0005", "No WFI observation point."),
-                ("TC.0006", "No fault observation point."),
-                ("TC.0009", "No unrelated observation point."),
-            )],
-        }
-        corrected = copy.deepcopy(before)
-        corrected["code_units"].append({
-            "role": "TESTCASE",
-            "testcase_ids": ["TC.0005"],
-            "content": "class tc_0005; endclass",
-        })
-        corrected["assembly"].append(1)
-        corrected["implemented_testcase_ids"].append("TC.0005")
-        corrected["skipped_testcases"] = [
-            item for item in corrected["skipped_testcases"]
-            if item["testcase_id"] != "TC.0005"]
-
-        staged._assert_candidate_correction_preserves_semantics(
-            "TESTCASE", before, corrected, [],
-            "UVM_CONTEXT_SKIP_CONTRADICTION", {"TC.0005", "TC.0006"})
-
-        unrelated = copy.deepcopy(corrected)
-        next(item for item in unrelated["skipped_testcases"]
-             if item["testcase_id"] == "TC.0009")["reason"] = \
-            "Rewritten unrelated reason."
-        with self.assertRaises(ProjectJobError) as caught:
-            staged._assert_candidate_correction_preserves_semantics(
-                "TESTCASE", before, unrelated, [],
-                "UVM_CONTEXT_SKIP_CONTRADICTION", {"TC.0005", "TC.0006"})
-        self.assertEqual("CANDIDATE_SEMANTIC_DRIFT", caught.exception.code)
 
     def test_contract_correction_accepts_slash_separator_expansion(self):
         self.assertTrue(StagedProjectWorkflow._separator_equivalent(
@@ -1689,7 +1619,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                 submission["job_id"] = \
                     "JOB.PROJECT.TINY.CORRECTION.{}".format(suffix)
                 result = self.start_checked(workflow, submission)
-                self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+                self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
                 self.assertEqual(4, generator.calls)
                 job = self.root / "result/jobs" / submission["job_id"]
                 requests = list(job.glob(
@@ -1708,7 +1638,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
 
         result = self.start_checked(workflow, submission)
 
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         self.assertEqual(2, generator.stage3_calls)
         job = self.root / "result/jobs" / submission["job_id"]
         correction = load_document(
@@ -1754,7 +1684,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                 submission["job_id"] = \
                     "JOB.PROJECT.TINY.MISSING.{}".format(suffix)
                 result = self.start_checked(workflow, submission)
-                self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+                self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
                 self.assertEqual(4, generator.calls)
 
     def test_each_initial_stage_semantic_error_receives_one_minimal_correction(self):
@@ -1788,7 +1718,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                 submission["job_id"] = \
                     "JOB.PROJECT.TINY.SEMANTIC.{}".format(suffix)
                 result = self.start_checked(workflow, submission)
-                self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+                self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
                 self.assertEqual(4, generator.calls)
 
         class Stage3SemanticCorrectionProvider(FakeProvider):
@@ -1808,7 +1738,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         submission = self.project_input()
         submission["job_id"] = "JOB.PROJECT.TINY.SEMANTIC.STAGE3"
         result = self.start_checked(workflow, submission)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         self.assertEqual(4, stage3.calls)
 
     def test_candidate_correction_budget_and_tamper_fail_closed(self):
@@ -1844,7 +1774,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             workflow.start(submission)
         self.assertEqual(
             "ATTEMPT_PAUSED", exhausted.exception.code)
-        self.assertEqual(2, provider.calls)
+        self.assertEqual(4, provider.calls)
         job = self.root / "result/jobs" / submission["job_id"]
         response_path = job / (
             "audit/pj002_provider_response.stage1.r000.correction001.json")
@@ -1856,7 +1786,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         with self.assertRaises(ProjectJobError) as stale:
             workflow.start(submission)
         self.assertEqual("STALE_EVIDENCE", stale.exception.code)
-        self.assertEqual(2, provider.calls)
+        self.assertEqual(4, provider.calls)
 
     def test_testcase_content_selection_unique_match_and_fail_closed(self):
         content = (
@@ -1946,7 +1876,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
 
         result = self.start_checked(workflow, submission)
 
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         job = self.root / "result/jobs" / submission["job_id"]
         candidate = load_document(
             job / "staging/generated/portable_sv/testcase.r000.json")
@@ -1965,7 +1895,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
 
         result = self.start_checked(workflow)
 
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         job = self.root / "result/jobs/JOB.PROJECT.TINY.001"
         candidate = load_document(
             job / "staging/generated/portable_sv/testcase.r000.json")
@@ -1982,7 +1912,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
 
         result = self.start_checked(workflow)
 
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         candidate = load_document(
             self.root / "result/jobs/JOB.PROJECT.TINY.001/staging/"
             "generated/portable_sv/testcase.r000.json")
@@ -2000,7 +1930,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
 
         self.assertEqual(
             "ATTEMPT_PAUSED", caught.exception.code)
-        self.assertEqual(3, generator.calls)
+        self.assertEqual(5, generator.calls)
 
     def test_stage3_testcase_mapping_overreach_still_fails_closed(self):
         generator = TestcaseMappingOverreachProvider()
@@ -2014,7 +1944,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
 
         self.assertEqual(
             "ATTEMPT_PAUSED", caught.exception.code)
-        self.assertEqual(4, generator.calls)
+        self.assertEqual(6, generator.calls)
         runner.assert_not_called()
 
     def test_stage3_clock_semantics_are_not_a_framework_regex_gate(self):
@@ -2033,7 +1963,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
 
         result = self.start_checked(workflow)
 
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         candidate = load_document(
             self.root / "result/jobs/JOB.PROJECT.TINY.001/staging/"
             "generated/portable_sv/testcase.r000.json")
@@ -2155,7 +2085,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
 
         checkpoint = self.start_checked(workflow, submission)
 
-        self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", checkpoint["state"])
         self.assertEqual(generator.provider_id, reviewer.provider_id)
         self.assertEqual(generator.model_id, reviewer.model_id)
 
@@ -2199,7 +2129,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
                 with self.assertRaises(ProjectJobError) as caught:
                     workflow.start(submission)
                 self.assertEqual(code, caught.exception.code)
-                self.assertEqual(2, provider.calls)
+                self.assertEqual(4, provider.calls)
                 self.assertEqual(0, reviewer.calls)
                 job = self.root / "result/jobs" / submission["job_id"]
                 self.assertFalse((
@@ -2239,7 +2169,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
             self.root, self.root / "result", generator,
             FakeReviewerProvider())
         checkpoint = self.start_checked(workflow)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", checkpoint["state"])
 
         expected_lines = [
             {"line_number": index, "text": text}
@@ -2382,7 +2312,7 @@ class ProjectJobWorkflowTests(unittest.TestCase):
         self.assertEqual(2, len(index["shards"]))
         self.assertEqual([], index["logical_testcases"])
         (job / index["shards"][0]["path"]).unlink()
-        (job / "audit/oches001_human_review_checkpoint.json").unlink()
+        (job / "audit/project_review_complete.json").unlink()
         with self.assertRaises(ProjectJobError) as caught:
             workflow.start(self.project_input())
         self.assertEqual("PARTIAL_ARTIFACT", caught.exception.code)

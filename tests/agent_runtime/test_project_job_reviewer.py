@@ -212,11 +212,11 @@ class ProjectJobReviewerTests(ProjectJobWorkflowTests):
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result", FakeProvider(), reviewer)
         checkpoint = self.start_checked(workflow)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", checkpoint["state"])
         self.assertEqual(1, reviewer.calls)
         job = self.root / "result/jobs/JOB.PROJECT.TINY.001"
         self.assertTrue((
-            job / "audit/oches001_human_review_checkpoint.json").exists())
+            job / "audit/project_review_complete.json").exists())
 
     def test_structured_authority_scope_mutation_fails_closed(self):
         reviewer = StructuredScopeViolationReviewer()
@@ -225,7 +225,7 @@ class ProjectJobReviewerTests(ProjectJobWorkflowTests):
         with self.assertRaises(ProjectJobError) as caught:
             self.start_checked(workflow)
         self.assertEqual("ATTEMPT_PAUSED", caught.exception.code)
-        self.assertEqual(1, reviewer.calls)
+        self.assertEqual(4, reviewer.calls)
 
     def test_owner_routed_spec_issue_cannot_enter_stage1_repair(self):
         generator = MixedRoutingProvider()
@@ -247,7 +247,7 @@ class ProjectJobReviewerTests(ProjectJobWorkflowTests):
             workflow.route_scenarios(submission, routing)
         self.assertEqual("ATTEMPT_PAUSED", caught.exception.code)
         self.assertEqual(3, generator.calls)
-        self.assertEqual(1, reviewer.calls)
+        self.assertEqual(4, reviewer.calls)
         request = load_document(
             job / "staging/reviews/review_request.r001.json")
         self.assertFalse(request["coverage_scope"][
@@ -399,10 +399,10 @@ class ProjectJobReviewerTests(ProjectJobWorkflowTests):
             self.root, self.root / "result",
             FakeProvider(), AuthorityReviewer())
         checkpoint = self.start_checked(workflow)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", checkpoint["state"])
         job = self.root / "result/jobs/JOB.PROJECT.TINY.001"
         self.assertTrue((
-            job / "audit/oches001_human_review_checkpoint.json").exists())
+            job / "audit/project_review_complete.json").exists())
         self.assertFalse((job / "approved").exists())
 
     def test_review_spec_ambiguity_fails_closed_without_closing_job(self):
@@ -411,14 +411,14 @@ class ProjectJobReviewerTests(ProjectJobWorkflowTests):
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result", generator, reviewer)
         checkpoint = self.start_checked(workflow)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", checkpoint["state"])
         self.assertEqual(1, checkpoint["error_count"])
         self.assertEqual(3, generator.calls)
         self.assertEqual(1, reviewer.calls)
         self.assertEqual(checkpoint, workflow.start(self.project_input()))
         job = self.root / "result/jobs/JOB.PROJECT.TINY.001"
         self.assertTrue((
-            job / "audit/oches001_human_review_checkpoint.json").is_file())
+            job / "audit/project_review_complete.json").is_file())
 
 
 def load_tests(loader, tests, pattern):

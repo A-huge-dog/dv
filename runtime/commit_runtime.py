@@ -9,13 +9,9 @@ from dataclasses import replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping
 
-from application.compile_candidate import (
-    CompileCandidateDependencies, CompileCandidateHandler,
-    CompileCandidateInput,
-)
 from application.bootstrap import INTERNAL_MANIFEST_PATH
 from application.commit_group import (
-    CommitGroupDependencies, CommitGroupFailureInput, CommitGroupHandler,
+    CommitGroupDependencies, CommitGroupHandler,
     CommitGroupInput,
 )
 from application.recompute_impact import (
@@ -71,7 +67,6 @@ FINAL_PATH = "audit/oches003_final_review_checkpoint.json"
 RECOVERED_FINAL_PATH = "audit/oches004_final_review_checkpoint.json"
 SOURCE_CHECKPOINT_PATH = "audit/oches002_scoped_replacement_validated.json"
 
-CompileRunnerFactory = Callable[[Path, Path, Mapping[str, Any]], Any]
 ProviderFactory = Callable[[Path, Mapping[str, Any], str], Any]
 
 
@@ -272,7 +267,6 @@ class ProjectCommitRuntime:
     def __init__(
             self, *, workspace_root: Path, result_root: Path,
             provider_factory: ProviderFactory,
-            compile_runner_factory: CompileRunnerFactory | None = None,
             uvm_build_runner: Callable[
                 [Mapping[str, Any], Path, Mapping[str, Any]],
                 Mapping[str, Any]] | None = None,
@@ -280,17 +274,8 @@ class ProjectCommitRuntime:
         self.workspace_root = Path(workspace_root).resolve()
         self.result_root = Path(result_root).resolve()
         self.provider_factory = provider_factory
-        self.compile_runner_factory = compile_runner_factory
         self.uvm_build_runner = uvm_build_runner
         self.checkpoint_hook = checkpoint_hook
-        self.compile_candidate_handler = CompileCandidateHandler(
-            CompileCandidateDependencies(
-                workspace_root=self.workspace_root,
-                result_root=self.result_root,
-                error=ProjectJobError,
-                persist_json=_persist_json,
-                runner_factory=self.compile_runner_factory,
-            ))
         self.commit_group_handler = CommitGroupHandler(
             CommitGroupDependencies(
                 error=ProjectJobError,
@@ -1345,15 +1330,6 @@ class ProjectCommitRuntime:
             "candidate": checkpoint["candidate_metadata_path"],
             **paths,
         }
-        repairable_errors = [
-            item for item in report["findings"]
-            if item["severity"] == "ERROR" and
-            item["suspected_origin_stage"] != "SPEC"]
-        if repairable_errors:
-            return review_workflow._awaiting_repair_plan(
-                job_root, dict(project_input), map1, map2, candidate,
-                report, validation, final_paths,
-                artifact_suffix=suffix)
         human = review_workflow.create_human_gate_handler.handle(
             CreateHumanGateInput(
                 job_root, dict(project_input), map1, map2, candidate, report,
@@ -1670,42 +1646,9 @@ class ProjectCommitRuntime:
                             "the same Job to resume its persisted attempt"),
                     },
                 }
-            compile_entry = entries3[-1] if entries3 else fallback_entry
-            compile_result = self.compile_candidate_handler.handle(
-                CompileCandidateInput(
-                    job_root, project_input, authority, compile_entry[1],
-                    prepared3["candidate"]))
-            compile_path = compile_result.output_reference
-            compile_value = compile_result.validation
-            if compile_value["status"] != "PASS":
-                failure_value = {
-                    **compile_value,
-                    "base_artifact_roots": copy.deepcopy(
-                        authority["artifact_roots"]),
-                }
-                self.commit_group_handler.handle_failure(
-                    CommitGroupFailureInput(
-                        job_root, project_input, compile_entry[0],
-                        compile_entry[1], failure_value))
-                return {
-                    "schema_version": "1.0",
-                    "workflow_version": WORKFLOW_VERSION,
-                    "state": "PAUSED_COMPILE_REPAIR_REQUIRED",
-                    "job_id": project_input["job_id"],
-                    "input_fingerprint": project_input["input_fingerprint"],
-                    "scenario_ac_map_path": authority[
-                        "scenario_ac_map_path"],
-                    "ac_testcase_map_path": authority[
-                        "ac_testcase_map_path"],
-                    "candidate_metadata_path": authority[
-                        "candidate_metadata_path"],
-                    "pending_candidate_metadata_path": prepared3[
-                        "new_artifact_paths"]["testcase"],
-                    "compile_validation_path": compile_path,
-                    "artifact_roots": copy.deepcopy(authority["artifact_roots"]),
-                    "checkpoint_fingerprint": compile_value[
-                        "validation_fingerprint"],
-                }
+            # Match initial UVM testcase generation: structural validation and
+            # semantic review precede the Human-authorized Xcelium execution.
+            # The UVM environment already passed its isolated build above.
             stage3_commits = entries3 or [fallback_entry]
             for dispatch, replacement, _ in stage3_commits:
                 commit_result = self.commit_group_handler.handle(

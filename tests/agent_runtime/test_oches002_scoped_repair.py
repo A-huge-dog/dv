@@ -145,7 +145,7 @@ class Oches002ScopedRepairTests(unittest.TestCase):
         self.assertTrue(accepted(validate("project_formal_dispatch", dispatch)))
         self.assertEqual("2.0", dispatch["schema_version"])
         self.assertEqual(sorted(STAGE_READ_TOOLS), dispatch["tool_allow_list"])
-        self.assertEqual(3, dispatch["retrieval_call_limit"])
+        self.assertEqual(24, dispatch["retrieval_call_limit"])
         self.assertEqual(
             self.job_value["agent_profile"]["bindings"]["repair"][
                 "stage2"]["model_id"],

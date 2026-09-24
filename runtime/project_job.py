@@ -1,6 +1,10 @@
 """Verilator-first real Project Job vertical workflow."""
 from __future__ import annotations
 
+from domain.budgets import (
+    MAX_MODEL_TURNS, MAX_TOTAL_TOKENS, MAX_TIME_SECONDS,
+)
+
 import copy
 import hashlib
 import json
@@ -489,9 +493,9 @@ class ProjectJobWorkflow:
             provider: Any | None = None,
             reviewer_provider: Any | None = None,
             role_providers: dict[str, Any] | None = None,
-            max_total_provider_calls: int = 12,
-            max_total_tokens: int = 1000000,
-            max_elapsed_seconds: int = 900,
+            max_total_provider_calls: int = MAX_MODEL_TURNS,
+            max_total_tokens: int = MAX_TOTAL_TOKENS,
+            max_elapsed_seconds: int = MAX_TIME_SECONDS,
             max_mapping_items_per_shard: int = 32,
             max_stage_revisions: int = 4,
             max_staged_file_bytes: int = 1024 * 1024,

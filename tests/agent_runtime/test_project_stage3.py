@@ -172,7 +172,7 @@ class StandaloneStage3Tests(unittest.TestCase):
         form = load_document(job / checkpoint["owner_review_path"])
         result = workflow.route_scenarios(
             submission, self._completed_owner_review(form))
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", result["state"])
         self.assertTrue((job /
             "staging/generated/portable_sv/testcase.r000.json").is_file())
         self.assertEqual(1, provider.stage3_calls)

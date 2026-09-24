@@ -398,36 +398,32 @@ class AgentLoopTests(unittest.TestCase):
         self.assertEqual("PAUSED_BUDGET", caught.exception.code)
         self.assertEqual([], observed)
 
-    def test_fourth_and_duplicate_retrievals_are_not_executed(self):
-        for session_id, turns, expected_code in (
-            ("PLANNING.LIMIT.001", [
-                [call(1, "get_issue")],
-                [call(2, "get_unit")],
-                [call(3, "get_spec_evidence")],
-                [call(4, "get_direct_dependencies")],
-            ], "TOOL_PROTOCOL_VIOLATION"),
-            ("PLANNING.DUPLICATE.001", [
-                [call(1, "get_issue")],
-                [call(2, "get_issue")],
-            ], "TOOL_PROTOCOL_VIOLATION"),
-        ):
-            executed = []
-            handlers = {
-                name: (lambda arguments, selected=name:
-                       executed.append(selected) or {"items": []})
-                for name in (
-                    "get_issue", "get_unit", "get_spec_evidence",
-                    "get_direct_dependencies")
-            }
-            session = self.session(
-                session_id, ScriptedProvider(turns), handlers,
-                lambda arguments: self.fail("submission must not run"))
-            with self.assertRaises(AgentLoopError) as caught:
-                session.run()
-            self.assertEqual(expected_code, caught.exception.code)
-            self.assertEqual(
-                3 if "LIMIT" in session_id else 1,
-                len(executed))
+    def test_repeated_retrievals_can_finish_after_the_old_limit(self):
+        executed = []
+        provider = ScriptedProvider(
+            [[call(i, "get_issue")] for i in range(1, 6)] +
+            [[call(6, "submit_repair_plan")]])
+        session = self.session(
+            "PLANNING.REPEAT.SUCCESS", provider,
+            {"get_issue": lambda arguments: executed.append(arguments) or {}},
+            lambda arguments: {"accepted": True})
+        result = session.run()
+        self.assertEqual({"accepted": True}, result)
+        self.assertEqual(5, len(executed))
+        self.assertEqual(6, len(provider.requests))
+
+    def test_repeated_retrievals_use_the_expanded_budget(self):
+        executed = []
+        session = self.session(
+            "PLANNING.EXPANDED.001",
+            ScriptedProvider([[call(i, "get_issue")] for i in range(1, 26)]),
+            {"get_issue": lambda arguments: executed.append(arguments) or {}},
+            lambda arguments: self.fail("submission must not run"))
+        with self.assertRaises(AgentLoopError) as caught:
+            session.run()
+        self.assertEqual("TOOL_PROTOCOL_VIOLATION", caught.exception.code)
+        self.assertEqual(24, len(executed))
+
 
     def test_multiple_and_forbidden_calls_fail_before_any_handler(self):
         cases = (

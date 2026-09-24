@@ -209,6 +209,64 @@ class M3UvmWorkerTests(unittest.TestCase):
             "manifest.json")
         self.assertEqual("COMPLETED", manifest["terminal"]["status"])
 
+    def test_incomplete_repair_is_returned_to_model_and_resubmitted(self):
+        self.value["uvm_testcase_context"]["generated_files"].append("uvm/pkg.sv")
+
+        class IncompleteRepairProvider(ScriptedUvmProvider):
+            def select_tools(self, request):
+                response = super().select_tools(request)
+                if len(self.requests) == 3:
+                    response["tool_calls"][0]["arguments"]["replacements"].pop()
+                return response
+
+        provider = IncompleteRepairProvider([
+            "write_uvm_replacements", "run_xcelium_compile",
+            "write_uvm_replacements", "write_uvm_replacements",
+            "run_xcelium_compile", "finish_task",
+        ])
+        result, provider, runs, _runtime = self.run_worker(
+            [], ["FAIL", "PASS"], provider=provider)
+        self.assertEqual("UVM_GENERATION_PASS", result.state)
+        self.assertEqual([1, 2], [run["attempt"] for run in runs])
+        feedback = json.dumps(provider.requests[3]["messages"])
+        self.assertIn("REJECTED", feedback)
+        self.assertIn("missing_slots", feedback)
+        self.assertIn("INVALID_UVM_REPLACEMENTS", feedback)
+        self.assertEqual("SUCCEEDED", self.load_state().current["status"])
+        self.assertFalse((self.job /
+            "staging/generated/uvm/initial/attempt-003").exists())
+
+    def test_repeated_duplicate_submissions_pause_at_budget(self):
+        class DuplicateProvider(ScriptedUvmProvider):
+            def select_tools(self, request):
+                response = super().select_tools(request)
+                replacements = response["tool_calls"][0]["arguments"]["replacements"]
+                replacements.append(copy.deepcopy(replacements[0]))
+                return response
+
+        provider = DuplicateProvider(["write_uvm_replacements"] * 4)
+        result, provider, runs, _runtime = self.run_worker(
+            [], [], provider=provider, calls=3)
+        self.assertEqual("PAUSED_BUDGET", result.state)
+        self.assertEqual([], runs)
+        self.assertIn("duplicate_slots", json.dumps(provider.requests[1]["messages"]))
+        self.assertIsNone(self.load_state().current["latest_candidate_fingerprint"])
+
+    def test_unlisted_replacement_remains_a_permission_failure(self):
+        class UnlistedProvider(ScriptedUvmProvider):
+            def select_tools(self, request):
+                response = super().select_tools(request)
+                response["tool_calls"][0]["arguments"]["replacements"][0][
+                    "logical_path"] = "rtl/unauthorized.sv"
+                return response
+
+        result, _provider, runs, _runtime = self.run_worker(
+            [], [], provider=UnlistedProvider(["write_uvm_replacements"]))
+        self.assertEqual("FAILED_POLICY", result.state)
+        self.assertEqual("TOOL_PERMISSION_DENIED",
+                         self.load_state().current["current_error"]["code"])
+        self.assertEqual([], runs)
+
     def test_early_finish_is_rejected_and_budget_pause_is_not_success(self):
         result, provider, runs, _runtime = self.run_worker([
             "finish_task", "write_uvm_replacements",
@@ -312,21 +370,21 @@ class M3UvmWorkerTests(unittest.TestCase):
 
     def test_candidate_attempts_are_bounded_by_worker_action_budget(self):
         tools = []
-        for _ in range(3):
+        for _ in range(15):
             tools.extend([
                 "write_uvm_replacements", "run_xcelium_compile"])
         tools.append("write_uvm_replacements")
 
         paused, provider, runs, _runtime = self.run_worker(
-            tools, ["FAIL", "FAIL", "FAIL"])
+            tools, ["FAIL"] * 15, calls=60)
 
         self.assertEqual("PAUSED_BUDGET", paused.state)
         self.assertEqual("PAUSED_BUDGET", self.load_state().current["status"])
-        self.assertEqual(7, len(provider.requests))
-        self.assertEqual(3, len(runs))
+        self.assertEqual(31, len(provider.requests))
+        self.assertEqual(15, len(runs))
         self.assertFalse((
             self.job /
-            "staging/generated/uvm/initial/attempt-004/candidate.json"
+            "staging/generated/uvm/initial/attempt-016/candidate.json"
         ).exists())
 
     def test_fourth_candidate_is_legal_when_action_budget_remains(self):

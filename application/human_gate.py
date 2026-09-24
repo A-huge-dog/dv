@@ -1,14 +1,12 @@
-"""Create one Human review gate from an exact reviewed artifact bundle."""
+"""Publish execution preparation from an exact reviewed artifact bundle."""
 from __future__ import annotations
 
-import copy
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from contracts.validator import accepted, validate
-from domain.evidence import _utc
+from contracts.validator import load_document
 from domain.review import WORKFLOW_VERSION
 from scripts.dvlib import canonical_hash
 
@@ -33,7 +31,7 @@ class CreateHumanGateInput:
 @dataclass(frozen=True)
 class HumanGateResult:
     checkpoint: dict[str, Any]
-    output_references: tuple[str, str]
+    output_references: tuple[str, ...]
     replayed: bool
 
 
@@ -84,17 +82,19 @@ class CreateHumanGateHandler:
                 "validation_fingerprint"],
             **roots,
         }
-        checkpoint_id = "CHECKPOINT.PROJECT.HUMAN.{}".format(
+        checkpoint_id = "CHECKPOINT.PROJECT.REVIEW.{}".format(
             canonical_hash(seed)[:16].upper())
-        approval_path = (
-            "staging/validations/human_review_request{}.json".format(suffix))
         paths = command.artifact_paths
         map1, map2 = command.scenario_ac_map, command.ac_testcase_map
         candidate, report = command.candidate, command.review_report
+        issue_path = command.routing_summary.get("spec_issues")
+        has_spec_issues = (bool(load_document(command.job_root / issue_path).get("scenario_ids"))
+                           if issue_path else command.routing_summary.get("has_spec_issues", False))
         checkpoint = {
             "schema_version": "1.0",
             "workflow_version": WORKFLOW_VERSION,
-            "state": "AWAITING_HUMAN_REVIEW",
+            "state": "READY_FOR_EXECUTION_PREPARATION",
+            "source_checkpoint_path": "audit/project_review_complete{}.json".format(suffix),
             "job_id": command.project_input["job_id"],
             "input_fingerprint": command.project_input["input_fingerprint"],
             "scenario_ac_map_path": paths["map1"],
@@ -104,7 +104,6 @@ class CreateHumanGateHandler:
             "review_report_path": paths["review_report"],
             "review_validation_path": paths["review_validation"],
             "review_unit_index_path": paths["review_units"],
-            "approval_request_path": approval_path,
             "checkpoint_id": checkpoint_id,
             "artifact_unit_index_paths": {
                 "stage1": (
@@ -129,9 +128,14 @@ class CreateHumanGateHandler:
                 "provider_calls": command.budget["calls"],
                 "tokens": command.budget["tokens"],
             },
-            "checked_testcases_complete": True,
+            "generation_complete": True,
+            "review_complete": True,
+            "implemented_testcase_count": len(candidate["implemented_testcase_ids"]),
+            "skipped_testcase_count": len(candidate["skipped_testcases"]),
             "full_spec_coverage_complete":
-                not command.routing_summary.get("has_spec_issues", False),
+                (not has_spec_issues
+                 and not candidate["skipped_testcases"]
+                 and all(row["status"] == "COVERED" for row in report["ac_reviews"])),
             "scenario_partition_paths": {
                 key: command.routing_summary[key]
                 for key in ("checked", "commented", "spec_issues")
@@ -148,40 +152,11 @@ class CreateHumanGateHandler:
             deps.checkpoint_fingerprint(checkpoint))
         checkpoint["bundle_fingerprints"]["checkpoint"] = (
             checkpoint["checkpoint_fingerprint"])
-        approval = {
-            "schema_version": "2.0",
-            "approval_request_id": "APPROVAL.HUMAN_REVIEW.{}".format(
-                report["report_fingerprint"][:16].upper()),
-            "job_id": command.project_input["job_id"],
-            "thread_id": "THREAD.{}".format(command.project_input["job_id"]),
-            "approval_kind": "ARTIFACT_PROMOTION",
-            "candidate_artifact_id": candidate["candidate_id"],
-            "candidate_fingerprint": candidate["candidate_fingerprint"],
-            "candidate_tool_call_id": candidate["provider"]["request_id"],
-            "validation_artifact_ids": [
-                map1["map_id"], map2["map_id"], report["report_id"],
-                command.review_validation["validation_id"],
-            ],
-            "validation_status": "PASS",
-            "required_role": "DV_OWNER",
-            "checkpoint_id": checkpoint_id,
-            "bundle_fingerprints": copy.deepcopy(
-                checkpoint["bundle_fingerprints"]),
-            "requested_at": _utc(),
-        }
-        if not accepted(validate("approval_request", approval)):
-            raise deps.error(
-                "INVALID_SCHEMA", "Human review request contract is invalid")
-        checkpoint_relative = (
-            "audit/oches001_human_review_checkpoint{}.json".format(suffix))
-        replayed = (
-            (command.job_root / approval_path).exists()
-            and (command.job_root / checkpoint_relative).exists())
-        deps.immutable_json(command.job_root / approval_path, approval)
-        deps.immutable_json(
-            command.job_root / checkpoint_relative, checkpoint)
+        checkpoint_relative = "audit/project_review_complete{}.json".format(suffix)
+        replayed = (command.job_root / checkpoint_relative).exists()
+        deps.immutable_json(command.job_root / checkpoint_relative, checkpoint)
         if not suffix:
             deps.write_traceability(
                 command.job_root, map1, map2, report)
         return HumanGateResult(
-            checkpoint, (approval_path, checkpoint_relative), replayed)
+            checkpoint, (checkpoint_relative,), replayed)

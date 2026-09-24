@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Start or resume the Verilator-first Project Job workflow."""
+"""Start or resume the Project Job workflow."""
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path, PurePosixPath
 
@@ -44,14 +45,19 @@ def snapshot_provider(
     return configured_provider(job_root / relative)
 
 
-def authorized_xcelium(job_root: Path, manifest: dict, authorization: dict):
-    """Resolve only the environment named by an explicit DV_OWNER authority."""
-    return XceliumAdapter.from_preloaded_environment(
-        workspace_root=ROOT,
-        result_root=ROOT / "result",
-        job_id=manifest["job_id"],
-        environment_identity=authorization["environment_identity"],
-        timeout_seconds=authorization["constraints"]["timeout_seconds"],
+def execution_xcelium(job_root: Path, manifest: dict, execution: dict):
+    """Resolve the Xcelium deployment; bind its actual environment privately."""
+    deployment = load_document(Path(__file__).resolve().parents[1] / "environment/xcelium.json")
+    environment = deployment["environment"]
+    private = {name: os.environ[name] for name in environment["allowlist"] if os.environ.get(name)}
+    private.setdefault("LC_ALL", "C")
+    return XceliumAdapter(
+        workspace_root=ROOT, result_root=ROOT / "result", job_id=manifest["job_id"],
+        xrun_path=Path(environment["xrun"]), environment_identity=environment["identity"],
+        private_environment=private,
+        timeout_seconds=execution["constraints"]["timeout_seconds"],
+        resource_limits=deployment["defaults"]["resource_limits"],
+        expected_version_pattern=environment["expected_version_pattern"],
     )
 
 
@@ -100,39 +106,15 @@ def main() -> int:
             "Bootstrap or resume a Project Job from one user-authored YAML"))
     parser.add_argument("--project-input", type=Path, required=True)
     parser.add_argument("--job-id")
-    parser.add_argument("--resume", action="store_true")
     parser.add_argument(
         "--retry-blocked-review", action="store_true")
     parser.add_argument(
         "--scenario-routing", type=Path,
         help="completed DV Owner direct-review JSON form")
-    parser.add_argument("--decision", type=Path)
-    parser.add_argument(
-        "--execution-authorization", type=Path,
-        help="separate DV_OWNER Project execution authorization JSON")
     args = parser.parse_args()
     try:
-        if args.retry_blocked_review and (
-                args.resume or args.decision or args.scenario_routing or
-                args.execution_authorization):
-            raise ProjectJobError(
-                "INVALID_INPUT",
-                "--retry-blocked-review cannot be combined with "
-                "--resume, --decision, or --scenario-routing")
-        if args.scenario_routing and (args.resume or args.decision):
-            raise ProjectJobError(
-                "INVALID_INPUT",
-                "--scenario-routing cannot be combined with "
-                "--resume or --decision")
-        if args.decision and args.execution_authorization:
-            raise ProjectJobError(
-                "INVALID_INPUT",
-                "testcase decision and execution authorization must be "
-                "submitted separately")
-        if args.resume and args.decision is None:
-            raise ProjectJobError(
-                "MISSING_HUMAN_DECISION",
-                "--resume requires --decision")
+        if args.retry_blocked_review and args.scenario_routing:
+            raise ProjectJobError("INVALID_INPUT", "review retry and scenario routing are separate actions")
         try:
             submission_bytes = args.project_input.read_bytes()
         except FileNotFoundError as error:
@@ -159,16 +141,11 @@ def main() -> int:
             ROOT, ROOT / "result", project_input_root=args.project_input.parent)
         loop = ProjectLoop(
             workflow, provider_factory=snapshot_provider,
-            eda_adapter_factory=authorized_xcelium,
+            eda_adapter_factory=execution_xcelium,
             uvm_build_runner=generation_xcelium)
         result = loop.run_until_pause(ProjectLoopRequest(
             submission=project_submission,
             submission_bytes=submission_bytes,
-            human_decision=(load_document(args.decision)
-                            if args.decision is not None else None),
-            execution_authorization=(
-                load_document(args.execution_authorization)
-                if args.execution_authorization is not None else None),
             scenario_routing=(load_document(args.scenario_routing)
                               if args.scenario_routing is not None else None),
             retry_blocked_review=args.retry_blocked_review,
@@ -177,8 +154,7 @@ def main() -> int:
             result, sort_keys=True, indent=2, ensure_ascii=False))
         state = result.get("state") or result.get("status")
         return 0 if state in {
-            "AWAITING_SCENARIO_ROUTING", "AWAITING_HUMAN_REVIEW",
-            "AWAITING_EXECUTION_AUTHORIZATION", "SCOPED_REPLACEMENT_VALIDATED",
+            "AWAITING_SCENARIO_ROUTING", "SCOPED_REPLACEMENT_VALIDATED",
             "SPEC_ISSUES_RECORDED", "PAUSED_BY_HUMAN",
             "EXECUTION_PASS", "EXECUTION_FAIL", "EXECUTION_BLOCKED",
             "PAUSED_BUDGET", "PAUSED_RETRYABLE", "PAUSED_RECOVERY_REQUIRED",

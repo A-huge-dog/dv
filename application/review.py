@@ -1,6 +1,8 @@
 """Independent initial and final review application handlers."""
 from __future__ import annotations
 
+from domain.budgets import MAX_CORRECTION_ATTEMPTS
+
 import copy
 import json
 import re
@@ -81,6 +83,16 @@ class _ReviewHandler:
         self.dependencies = dependencies
 
     def handle(self, command: ReviewInput) -> ReviewResult:
+        """Allow an initial review plus three automatic correction attempts."""
+        for attempt in range(MAX_CORRECTION_ATTEMPTS + 1):
+            try:
+                return self._handle_once(command)
+            except self.dependencies.error as caught:
+                if (caught.code != "ATTEMPT_PAUSED" or
+                        attempt == MAX_CORRECTION_ATTEMPTS):
+                    raise
+
+    def _handle_once(self, command: ReviewInput) -> ReviewResult:
         if command.phase != self.phase:
             raise self.dependencies.error(
                 "INVALID_INPUT",

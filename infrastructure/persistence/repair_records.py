@@ -5,6 +5,8 @@ disposable pointers and can always be rebuilt from validated records/units.
 """
 from __future__ import annotations
 
+from domain.budgets import MAX_RETRIEVAL_TURNS
+
 import copy
 import json
 import re
@@ -58,8 +60,8 @@ def map_provider_stop(
         *, finish_reason: str | None = None, exception_code: str | None = None,
         tool_calls: Iterable[Mapping[str, Any]] = (), legal_tools: Iterable[str] = (),
         submission_tools: Iterable[str] = (),
-        used_retrievals: Iterable[str] = (),
         retrieval_count: int = 0, arguments_valid: bool = True,
+        retrieval_limit: int = MAX_RETRIEVAL_TURNS,
         cancel_requested: bool = False) -> str:
     """Map every Provider termination to the OCHES003 public stop vocabulary."""
     if cancel_requested or exception_code == "CANCELLED":
@@ -90,10 +92,9 @@ def map_provider_stop(
     if not arguments_valid or not isinstance(call.get("arguments"), dict):
         return "MALFORMED_MODEL_OUTPUT"
     legal, submissions = set(legal_tools), set(submission_tools)
-    used = set(used_retrievals)
     if name in submissions:
         return "COMPLETED"
-    if name not in legal or name in used or retrieval_count >= 3:
+    if name not in legal or retrieval_count >= retrieval_limit:
         return "TOOL_PROTOCOL_VIOLATION"
     return "TOOL_RESULT_REQUIRED"
 
@@ -120,8 +121,33 @@ def build_prompt_contract(
         "promotion, waiver, RTL, or EDA state. "
         + ("Use no retrieval tools and submit exactly one final output."
            if role == "REVIEWER" else
-           "Use at most three distinct sequential retrieval tools and submit "
+           f"Use at most {MAX_RETRIEVAL_TURNS} sequential retrieval calls; "
+           "tools may be repeated. Submit "
            "exactly one final output."))
+    if role == "ORCHESTRATOR":
+        instructions = instructions.replace(
+            "Submit exactly one final output.",
+            "Submit a complete repair candidate. A rejected candidate is not "
+            "a final result: read the validation diagnostics, correct the "
+            "candidate, and call submit_repair_plan again in this session. "
+            "Stop only after acceptance or exhaustion of the session budget.")
+        instructions += (
+            " Only findings with severity ERROR and suspected_origin_stage "
+            "other than SPEC are eligible for repairs. Include every eligible "
+            "issue_id exactly once across the complete plan. Never include "
+            "WARNING findings, SPEC findings, unknown issue IDs, or duplicate "
+            "issue IDs. Do not change a finding's severity or origin to make "
+            "it eligible. Use only existing target IDs within the authorized "
+            "Owner scope and legal target kinds for the selected stage. "
+            "Testcase-related findings, including findings suspected at "
+            "STAGE_3, must be repaired at STAGE_2 with TESTCASE targets. "
+            "Never invent a UVM_GENERATION destination: Framework runs UVM "
+            "Generation, Stage 3, and Reviewer after the Stage 2 replacement. "
+            "READY requires a nonempty complete repair plan. Submit "
+            "INSUFFICIENT_EVIDENCE with no repairs only after using all "
+            f"{MAX_RETRIEVAL_TURNS} retrieval calls. Submit only schema_version, "
+            "status, and repairs; Framework owns plan IDs, fingerprints, "
+            "dispatches, and session identities.")
     value = {
         "schema_version": "1.0", "artifact_kind": "PROJECT_SYSTEM_PROMPT",
         "role": role, "job_id": job_id,
@@ -134,7 +160,7 @@ def build_prompt_contract(
         "dependencies": copy.deepcopy(list(dependencies)),
         "provider_id": provider_id, "model_id": model_id,
         "role_fingerprint": role_fingerprint,
-        "tool_allow_list": tools, "retrieval_call_limit": 0 if role == "REVIEWER" else 3,
+        "tool_allow_list": tools, "retrieval_call_limit": 0 if role == "REVIEWER" else MAX_RETRIEVAL_TURNS,
         "final_output": final_output,
         "instructions": instructions,
         "formal_scope": copy.deepcopy(dict(formal_scope)),
@@ -411,7 +437,7 @@ class SerialRepairExecutor:
                 "spec_identities": copy.deepcopy(dispatch.get(
                     "spec_identities", [])),
                 "tool_allow_list": copy.deepcopy(dispatch["tool_allow_list"]),
-                "retrieval_call_limit": 3,
+                "retrieval_call_limit": MAX_RETRIEVAL_TURNS,
             })
             replacement = produce_replacement(
                 copy.deepcopy(dispatch), copy.deepcopy(current))
@@ -483,14 +509,14 @@ class SerialRepairExecutor:
 
         review = final_review(copy.deepcopy(current), copy.deepcopy(episode_refs))
         human = human_transition(copy.deepcopy(current), copy.deepcopy(review))
-        if human.get("state") != "AWAITING_HUMAN_REVIEW":
-            raise ValueError("final transition must enter Human review")
+        if human.get("state") != "READY_FOR_EXECUTION_PREPARATION":
+            raise ValueError("final transition must enter execution preparation")
         _, link = self.store.append("REVIEW_LINK", {
             "initial_report_path": review["initial_report_path"],
             "repair_episodes": episode_refs,
             "final_request_path": review["final_request_path"],
             "final_report_path": review["final_report_path"],
-            "state": "AWAITING_HUMAN_REVIEW", "result": human,
+            "state": "READY_FOR_EXECUTION_PREPARATION", "result": human,
         }, producer_role="REVIEWER")
         return copy.deepcopy(link["payload"])
 

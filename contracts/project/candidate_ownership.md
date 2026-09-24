@@ -5,8 +5,9 @@ schemas contain only the fields in the Model-owned column. OCHES001 persists
 the aggregate map/testcase envelopes together with `PROJECT_ARTIFACT_UNIT
 1.0`, `PROJECT_ARTIFACT_INDEX 1.0`, `PROJECT_CODE_ASSEMBLY 1.0`, and local
 Reviewer certificate units. Staged Reviewer request/report/validation is `6.0`.
-Every final report, including one with findings, enters `AWAITING_HUMAN_REVIEW`;
-this contract does not express EDA eligibility.
+Every completed review flow, including one with findings, enters
+`READY_FOR_EXECUTION_PREPARATION`. Framework freezes execution inputs and binds
+RTL before Xcelium build/run. Stage 1 scenario review remains a Human boundary.
 
 | Stage | Model-owned candidate fields | Framework-derived formal fields |
 |---|---|---|

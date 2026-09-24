@@ -11,7 +11,6 @@ from domain.artifacts import artifact_fingerprint
 from domain.evidence import (
     _bounded_text, _failure_with_context, _provider_identity, _sha,
 )
-from domain.uvm_context import project_uvm_context
 from domain.uvm_testcase import build_manifest, validate_generated_tests
 from scripts.dvlib import canonical_hash
 
@@ -20,224 +19,6 @@ MAX_CODE_EVIDENCE_BYTES = 16384
 MAX_RETRY_CORRECTION_BYTES = 1024
 MAX_STAGE3_DIAGNOSTICS = 64
 MAX_STAGE3_DIAGNOSTIC_BYTES = 65536
-
-_SV_CALLABLE = re.compile(
-    r"\b(?:task|function)\b(?P<header>[^;]{0,512}?)(?:\(|;)", re.IGNORECASE)
-_SV_NAMED_TYPE = re.compile(
-    r"\b(?:class|interface)\s+([A-Za-z_][A-Za-z0-9_$]*)\b",
-    re.IGNORECASE)
-_SV_LOGIC_DECLARATION = re.compile(
-    r"\b(?:logic|wire|reg)\b(?P<body>[^;]{0,2048});", re.IGNORECASE)
-_NEGATED_CAPABILITY = re.compile(
-    r"\b(?:no|without|absent|missing|cannot|can't|does\s+not|doesn't|"
-    r"do\s+not|don't|not\s+expos(?:e|ed)|unavailable|lacks?|omits?)\b",
-    re.IGNORECASE)
-_CAPABILITY_NOUN_OR_VERB = re.compile(
-    r"\b(?:api|task|function|method|interface|signal|driver|monitor|checker|"
-    r"sequence|agent|capability|access|observe|observation|drive|stimulus|"
-    r"induce|read|write|wait|control|query)\w*\b", re.IGNORECASE)
-_ASSET_NOUN = re.compile(
-    r"\b(?:asset|image|binary|firmware|architectural\s+program|known\s+program|"
-    r"program\s+(?:bytes?|stimulus)|instruction\s+encodings?|"
-    r"reference\s+vectors?)\b", re.IGNORECASE)
-_GENERIC_CALLABLES = {
-    "new", "build_phase", "connect_phase", "run_phase", "report_phase",
-    "do_copy", "do_compare", "do_print", "initialize", "body",
-}
-_GENERIC_CAPABILITY_WORDS = {
-    "access", "agent", "automatic", "base", "configure", "create", "drive",
-    "driver", "execute", "get", "set", "start", "stop", "apply", "check",
-    "report", "public", "platform", "api", "task", "function", "method",
-    "core", "testcase", "test", "uvm", "coral", "npu", "void", "phase",
-    "unsigned", "input", "output", "sequence", "monitor", "high", "low",
-    "read", "write", "wait", "load",
-}
-_DISTINCTIVE_CAPABILITY_WORDS = {
-    "reset", "halted", "fault", "wfi", "interrupt", "backpressure", "boot",
-    "debug", "memory", "signature", "scoreboard", "transaction", "response",
-}
-
-
-def _identifier_words(identifier: str) -> tuple[str, ...]:
-    expanded = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", identifier)
-    return tuple(re.findall(r"[a-z0-9]+", expanded.replace("_", " ").casefold()))
-
-
-def _public_uvm_surface(
-        project_input: dict[str, Any], error: Callable[..., Exception]
-        ) -> tuple[dict[str, tuple[str, ...]], dict[str, tuple[str, ...]], set[str]]:
-    """Extract declared authoring capabilities from the frozen UVM text.
-
-    This is deliberately declaration-based. It does not recreate a capability
-    contract or infer behavior from RTL; it only prevents an agent from saying
-    that a visible declaration is absent.
-    """
-    files = project_uvm_context(project_input, error).files
-    callables: dict[str, tuple[str, ...]] = {}
-    named_types: dict[str, tuple[str, ...]] = {}
-    signals: set[str] = set()
-    for source in files:
-        code = _sv_code_tokens(source["content"])
-        for match in _SV_CALLABLE.finditer(code):
-            identifiers = re.findall(
-                r"[A-Za-z_][A-Za-z0-9_$]*", match.group("header"))
-            if identifiers:
-                name = identifiers[-1]
-                if name.casefold() not in _GENERIC_CALLABLES:
-                    callables[name] = _identifier_words(name)
-        for name in _SV_NAMED_TYPE.findall(code):
-            named_types[name] = _identifier_words(name)
-        for match in _SV_LOGIC_DECLARATION.finditer(code):
-            body = re.sub(r"\[[^\]]*\]", " ", match.group("body"))
-            for declaration in body.split(","):
-                before_assignment = declaration.split("=", 1)[0]
-                identifiers = re.findall(
-                    r"[A-Za-z_][A-Za-z0-9_$]*", before_assignment)
-                if identifiers:
-                    signals.add(identifiers[-1].casefold())
-    return callables, named_types, signals
-
-
-def _semantic_testcase_words(testcase: dict[str, Any]) -> set[str]:
-    fields = (
-        "objective", "preconditions", "stimulus", "transaction_sequence",
-        "timing_intent", "checker", "expected_result", "failure_condition",
-    )
-    return set(re.findall(
-        r"[a-z0-9]+", " ".join(
-            str(testcase.get(field, "")) for field in fields).casefold()))
-
-
-def _matching_public_operations(
-        testcase: dict[str, Any], callables: dict[str, tuple[str, ...]]
-        ) -> list[str]:
-    testcase_words = _semantic_testcase_words(testcase)
-    matches = []
-    testcase_text = " ".join(
-        str(testcase.get(field, "")) for field in (
-            "objective", "preconditions", "stimulus", "transaction_sequence",
-            "timing_intent", "checker", "expected_result", "failure_condition",
-        )).casefold()
-    for name, words in callables.items():
-        meaningful = {
-            word for word in words
-            if len(word) >= 4 and word not in _GENERIC_CAPABILITY_WORDS}
-        phrase = " ".join(words)
-        overlap = meaningful & testcase_words
-        if (phrase and phrase in testcase_text) or len(overlap) >= 2 or \
-                overlap & _DISTINCTIVE_CAPABILITY_WORDS:
-            matches.append(name)
-    return sorted(matches, key=str.casefold)
-
-
-def _has_exact_public_operation(
-        testcase: dict[str, Any], callables: dict[str, tuple[str, ...]]) -> bool:
-    text = " ".join(
-        str(testcase.get(field, "")) for field in (
-            "objective", "stimulus", "transaction_sequence", "checker",
-            "expected_result", "failure_condition",
-        )).casefold()
-    return any(" ".join(words) in text for words in callables.values())
-
-
-def _contradicted_public_declarations(
-        reason: str, callables: dict[str, tuple[str, ...]],
-        named_types: dict[str, tuple[str, ...]], signals: set[str]
-        ) -> list[str]:
-    """Find explicit absence claims contradicted by visible declarations."""
-    contradicted: set[str] = set()
-    clauses = re.split(r"[.;\n]|\b(?:but|however)\b", reason.casefold())
-    for clause in clauses:
-        negative = _NEGATED_CAPABILITY.search(clause)
-        if not negative:
-            continue
-        negative_clause = clause[negative.start():]
-        clause_words = set(re.findall(r"[a-z0-9]+", negative_clause))
-        for signal in signals & clause_words:
-            contradicted.add(signal)
-        for name, words in named_types.items():
-            phrase = " ".join(words)
-            if name.casefold() in negative_clause or (
-                    phrase and phrase in negative_clause):
-                contradicted.add(name)
-        if _ASSET_NOUN.search(negative_clause):
-            # A callable that loads an asset does not prove that the asset
-            # itself (for example a program image) was supplied.
-            continue
-        for name, words in callables.items():
-            phrase = " ".join(words)
-            meaningful = {
-                word for word in words
-                if len(word) >= 4 and word not in _GENERIC_CAPABILITY_WORDS}
-            overlap = meaningful & clause_words
-            explicitly_callable = re.search(
-                r"\b(?:api|task|function|method|capability)\b",
-                negative_clause)
-            if name.casefold() in negative_clause or (
-                    phrase and phrase in negative_clause) or \
-                    len(overlap) >= 2 or (
-                    overlap and explicitly_callable and
-                    _CAPABILITY_NOUN_OR_VERB.search(negative_clause)):
-                contradicted.add(name)
-    return sorted(contradicted, key=str.casefold)
-
-
-def _blocked_contract_diagnostics(
-        skipped: list[dict[str, Any]], logical_testcases: list[dict[str, Any]],
-        project_input: dict[str, Any], error: Callable[..., Exception]
-        ) -> list[dict[str, Any]]:
-    """Validate Stage 3 skip reasons against this Job's frozen UVM text."""
-    callables, named_types, signals = _public_uvm_surface(
-        project_input, error)
-    by_id = {item["testcase_id"]: item for item in logical_testcases}
-    diagnostics: list[dict[str, Any]] = []
-    blocked = [
-        item for item in skipped
-        if item.get("reason_kind") == "BLOCKED_CONTRACT"]
-    for item in blocked:
-        contradicted = _contradicted_public_declarations(
-            item["reason"], callables, named_types, signals)
-        if contradicted:
-            diagnostics.append(_stage3_diagnostic(
-                "UVM_CONTEXT_SKIP_CONTRADICTION",
-                "BLOCKED_CONTRACT contradicts declarations in the frozen UVM context",
-                offending_content="{}: {}".format(
-                    item["testcase_id"], ",".join(contradicted)),
-                match_count=len(contradicted),
-                required_correction=(
-                    "Implement this testcase using the visible public UVM declarations, "
-                    "or identify an exact still-missing drive or observation point.")))
-    checkable_ids = {
-        item["testcase_id"] for item in logical_testcases
-        if item.get("status") == "CHECKABLE"}
-    skipped_ids = {item.get("testcase_id") for item in skipped}
-    if (checkable_ids and skipped_ids == checkable_ids and
-            len(blocked) == len(skipped)):
-        matching = {
-            testcase_id: _matching_public_operations(
-                by_id[testcase_id], callables)
-            for testcase_id in sorted(checkable_ids)
-            if testcase_id in by_id
-        }
-        matching = {key: value for key, value in matching.items() if value}
-        distinct_operations = {
-            operation for operations in matching.values()
-            for operation in operations}
-        exact_match = any(
-            _has_exact_public_operation(by_id[testcase_id], callables)
-            for testcase_id in matching)
-        if exact_match or len(distinct_operations) >= 2:
-            diagnostics.append(_stage3_diagnostic(
-                "ALL_TESTCASES_SKIPPED",
-                "all CHECKABLE testcases were skipped despite matching public UVM capabilities",
-                offending_content=json.dumps(
-                    matching, sort_keys=True, ensure_ascii=False),
-                match_count=sum(len(value) for value in matching.values()),
-                required_correction=(
-                    "Generate every testcase supported by the frozen UVM context; keep only "
-                    "genuinely unsupported testcase IDs in skipped_testcases.")))
-    return diagnostics
-
 
 def _stage3_diagnostic(
         code: str, message: str, ac_id: str = "NONE",
@@ -461,13 +242,11 @@ def validate_testcase_candidate(
                 allowed_tc - (implemented_ids | skipped_id_set))),
             required_correction=("Partition every CHECKABLE logical testcase into "
                                  "implemented_testcase_ids or skipped_testcases.")))
-    diagnostics.extend(_blocked_contract_diagnostics(
-        skipped, logical_testcases, project_input, error))
+    # Skip feasibility is assessed by semantic review, not declaration matching.
     checks = sorted(["UVM_CONTEXT_CLASS_DECLARATION", "NO_PLATFORM_MARKER_CONTROL",
                      "NO_FORBIDDEN_CONSTRUCT", "MAPPING_LINEAGE",
                      "ASSEMBLY_COMPLETE", "TESTCASE_BINDING",
-                     "PARTIAL_TESTCASE_ROUTING",
-                     "UVM_CONTEXT_SKIP_CONSISTENCY"])
+                     "PARTIAL_TESTCASE_ROUTING"])
     expected_validation = {
         "status": "PASS",
         "checks": checks,
@@ -560,8 +339,7 @@ def enrich_stage3(
     checks = sorted([
         "UVM_CONTEXT_CLASS_DECLARATION", "NO_PLATFORM_MARKER_CONTROL",
         "NO_FORBIDDEN_CONSTRUCT", "MAPPING_LINEAGE", "ASSEMBLY_COMPLETE",
-        "TESTCASE_BINDING", "PARTIAL_TESTCASE_ROUTING",
-        "UVM_CONTEXT_SKIP_CONSISTENCY"])
+        "TESTCASE_BINDING", "PARTIAL_TESTCASE_ROUTING"])
     validation = {
         "status": "PASS",
         "checks": checks,

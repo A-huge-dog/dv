@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import copy
 import unittest
+from unittest.mock import patch
 
 from contracts.validator import accepted, load_document, validate
 from domain.agent_binding import binding_lineage
 from runtime.errors import ProjectJobError
 from runtime.repair_runtime import ProjectRepairRuntime
 from domain.artifacts import artifact_fingerprint
-from agents.project_tools import ProjectToolError
+from agents.project_tools import ProjectReadModel, ProjectToolError
 from agents.errors import AgentLoopError
 from runtime.staged_workflow import build_reviewer_repair_lineage
 from domain.review import build_review_request, provider_review_request
@@ -18,6 +19,7 @@ from scripts.dvlib import canonical_hash
 from tests.agent_runtime.test_oches001_repair_control import (
     Oches001RepairControlTests,
 )
+from tests.agent_runtime.test_project_job_workflow import FakeReviewerProvider
 
 
 class ScriptedBoundProvider:
@@ -75,9 +77,21 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
     def setUp(self):
         self.fixture = Oches001RepairControlTests(methodName="runTest")
         self.fixture.setUp()
-        (self.workflow, self.submission, self.job, self.checkpoint,
-         self.report, self.request, self.generator,
-         self.initial_reviewer) = self.fixture._awaiting()
+        original_report = FakeReviewerProvider._report
+
+        def report_with_warning(provider, review):
+            report = original_report(provider, review)
+            if self._testMethodName == "test_warning_plan_is_corrected_in_same_session":
+                warning = copy.deepcopy(report["findings"][0])
+                warning["severity"] = "WARNING"
+                warning["problem_and_required_change"] = "Use a bounded reset wait."
+                report["findings"].append(warning)
+            return report
+
+        with patch.object(FakeReviewerProvider, "_report", report_with_warning):
+            (self.workflow, self.submission, self.job, self.checkpoint,
+             self.report, self.request, self.generator,
+             self.initial_reviewer) = self.fixture._awaiting()
         self.value = self.workflow.bootstrap_handler.handle(
             self.submission, create=False)
         self.runtime = ProjectRepairRuntime(
@@ -284,12 +298,17 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
                     "repairs": [],
                     "plan_fingerprint": "0" * 64,
                 })])
-        with self.assertRaises(AgentLoopError) as caught:
-            self.runtime.run_orchestrator(
-                provider, "PLANNING.CANDIDATE.AUTHORITY.001")
-        self.assertEqual("MALFORMED_MODEL_OUTPUT", caught.exception.code)
-        self.assertFalse(list(self.job.glob(
-            "staging/orchestrator/repair_plan.*.json")))
+        target = {"kind": "TESTCASE", "id": next(
+            unit["unit_id"] for unit in self.runtime.model.units.values()
+            if unit["unit_kind"] == "LOGICAL_TESTCASE")}
+        provider.turns += self.orchestrator_provider(target).turns[1:]
+        result = self.runtime.run_orchestrator(
+            provider, "PLANNING.CANDIDATE.AUTHORITY.001")
+        self.assertEqual("ACCEPTED", result["status"])
+        self.assertIn("plan_fingerprint: unexpected property",
+                      provider.requests[1]["messages"][-1]["content"])
+        self.assertEqual(1, len(list(self.job.glob(
+            "staging/orchestrator/repair_plan.*.json"))))
 
     def test_stage_candidate_cannot_declare_framework_owned_fields(self):
         testcase_id = next(
@@ -415,15 +434,79 @@ class Oches002RepairRuntimeTests(unittest.TestCase):
         scenario_id = next(
             unit["unit_id"] for unit in self.runtime.model.units.values()
             if unit["unit_kind"] == "SCENARIO")
+        provider = self.orchestrator_provider(
+            {"kind": "SCENARIO", "id": scenario_id}, "STAGE_1")
+        target = {"kind": "TESTCASE", "id": next(
+            unit["unit_id"] for unit in self.runtime.model.units.values()
+            if unit["unit_kind"] == "LOGICAL_TESTCASE")}
+        provider.turns += self.orchestrator_provider(target).turns[1:]
         result = self.runtime.run_orchestrator(
-            self.orchestrator_provider(
-                {"kind": "SCENARIO", "id": scenario_id}, "STAGE_1",
-                "PLANNING.RUNTIME.STAGE1.001",
-                "REPAIRPLAN.STAGE_1.001"),
-            "PLANNING.RUNTIME.STAGE1.001")
-        self.assertEqual("REJECTED", result["status"])
-        self.assertEqual(
-            "WRONG_STAGE_TARGET_KIND", result["receipt"]["diagnostic"]["code"])
+            provider, "PLANNING.RUNTIME.STAGE1.001")
+        self.assertEqual("ACCEPTED", result["status"])
+        self.assertIn("WRONG_STAGE_TARGET_KIND",
+                      provider.requests[-1]["messages"][-1]["content"])
+        rebuilt = ProjectReadModel.from_checkpoint(self.job, self.checkpoint)
+        self.assertEqual(1, len([item for item in rebuilt.history
+                                if item["record_type"] == "REJECTED_REPAIR_PLAN"]))
+        replay = ScriptedBoundProvider(provider.provider_id, provider.model_id, [])
+        self.assertEqual(result, self.runtime.run_orchestrator(
+            replay, "PLANNING.RUNTIME.STAGE1.001"))
+        self.assertEqual([], replay.requests)
+
+    def test_invalid_candidates_are_corrected_until_budget_exhaustion(self):
+        binding = binding_lineage(self.value, "repair", "orchestrator")
+        target = {"kind": "TESTCASE", "id": next(
+            unit["unit_id"] for unit in self.runtime.model.units.values()
+            if unit["unit_kind"] == "LOGICAL_TESTCASE")}
+        invalid = {"schema_version": "1.0", "status": "READY", "repairs": [{
+            "stage": "STAGE_2", "targets": [target],
+            "issue_ids": ["ISSUE.UNKNOWN"]}]}
+        provider = ScriptedBoundProvider(binding["provider_id"], binding["model_id"],
+                                        [call(i, "submit_repair_plan", invalid)
+                                         for i in range(1, 4)])
+        from runtime.agent_loop import AgentLoopPolicy
+        with patch("runtime.repair_runtime.AgentLoopPolicy",
+                   side_effect=lambda **kwargs: AgentLoopPolicy(max_turns=3, **kwargs)):
+            with self.assertRaises(AgentLoopError) as caught:
+                self.runtime.run_orchestrator(provider, "PLANNING.BUDGET.001")
+        self.assertEqual("PAUSED_BUDGET", caught.exception.code)
+        self.assertEqual(3, len(provider.requests))
+        self.assertIn("ISSUE.UNKNOWN is not repairable",
+                      provider.requests[-1]["messages"][-1]["content"])
+        self.assertFalse((self.job / "audit/oches002_awaiting_scoped_replacement.json").exists())
+        rebuilt = ProjectReadModel.from_checkpoint(self.job, self.checkpoint)
+        self.assertEqual(3, len([item for item in rebuilt.history
+                                if item["record_type"] == "REJECTED_REPAIR_PLAN"]))
+
+    def test_warning_plan_is_corrected_in_same_session(self):
+        error_ids = [f["issue_id"] for f in self.report["findings"]
+                     if f["severity"] == "ERROR"]
+        warning_ids = [f["issue_id"] for f in self.report["findings"]
+                       if f["severity"] == "WARNING"]
+        target = {"kind": "TESTCASE", "id": next(
+            unit["unit_id"] for unit in self.runtime.model.units.values()
+            if unit["unit_kind"] == "LOGICAL_TESTCASE")}
+        candidate = {"schema_version": "1.0", "status": "READY", "repairs": [{
+            "stage": "STAGE_2", "targets": [target],
+            "issue_ids": error_ids + warning_ids}]}
+        corrected = copy.deepcopy(candidate)
+        corrected["repairs"][0]["issue_ids"] = error_ids
+        binding = binding_lineage(self.value, "repair", "orchestrator")
+        provider = ScriptedBoundProvider(binding["provider_id"], binding["model_id"], [
+            call(1, "submit_repair_plan", candidate),
+            call(2, "submit_repair_plan", corrected)])
+        result = self.runtime.run_orchestrator(provider, "PLANNING.WARNING.001")
+        self.assertEqual("ACCEPTED", result["status"])
+        self.assertEqual(error_ids, result["dispatch"]["issue_ids"])
+        self.assertIn("UNKNOWN_OR_UNREPAIRABLE_ISSUE",
+                      provider.requests[1]["messages"][-1]["content"])
+        import json
+        inputs = json.loads(provider.requests[0]["messages"][1]["content"])
+        self.assertEqual(error_ids, inputs["repairable_issue_ids"])
+        self.assertEqual(warning_ids, inputs["forbidden_issue_ids"])
+        prompt = provider.requests[0]["messages"][0]["content"]
+        self.assertIn("Never include WARNING findings, SPEC findings", prompt)
+        self.assertIn("call submit_repair_plan again in this session", prompt)
 
     def test_stage2_runtime_changes_only_testcase_content(self):
         testcase_id = next(

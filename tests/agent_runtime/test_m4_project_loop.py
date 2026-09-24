@@ -61,7 +61,8 @@ class ScriptedContinuousUvmProvider:
                     "logical_testcases"]))
         return [{
             "logical_path": path,
-            "content": "// M4 candidate {}\n{}\n".format(version, markers),
+            "content": "// M4 candidate {}\n{}\n".format(version, markers) + (
+                "module tb_tiny; initial run_test(); endmodule\n" if path.endswith("pkg.sv") else ""),
         } for path in payload["immutable_generation_context"][
             "generated_file_slots"]]
 
@@ -140,8 +141,10 @@ class M4ProjectLoopTests(unittest.TestCase):
             return self.reviewer if role.startswith("review.") \
                 else self.generator
 
+        from tests.agent_runtime.test_pj003_project_execution import install_xcelium
         return ProjectLoop(
             workflow, provider_factory=provider_factory,
+            eda_adapter_factory=install_xcelium(self.root),
             uvm_build_runner=runner), workflow
 
     def _route_to_generation(self, loop, submission):
@@ -170,7 +173,7 @@ class M4ProjectLoopTests(unittest.TestCase):
 
         result = self._route_to_generation(loop, submission)
 
-        self.assertEqual("AWAITING_HUMAN_REVIEW", result["state"])
+        self.assertEqual("EXECUTION_PASS", result["state"])
         self.assertEqual(2, len(xcelium.requests))
         self.assertEqual({"DVWORKER.UVM.INITIAL"}, {
             request["metadata"]["session_id"]
@@ -203,7 +206,7 @@ class M4ProjectLoopTests(unittest.TestCase):
         self.assertNotIn("TESTCASE", self._stage_names(self.generator))
 
         resumed = loop.run_until_pause(ProjectLoopRequest(submission))
-        self.assertEqual("AWAITING_HUMAN_REVIEW", resumed["state"])
+        self.assertEqual("EXECUTION_PASS", resumed["state"])
         self.assertEqual(2, len(xcelium.requests))
         self.assertEqual(6, provider.calls)
         self.assertEqual({"DVWORKER.UVM.INITIAL"}, {
@@ -230,7 +233,7 @@ class M4ProjectLoopTests(unittest.TestCase):
         self.assertNotIn("TESTCASE", self._stage_names(self.generator))
 
         resumed = loop.run_until_pause(ProjectLoopRequest(submission))
-        self.assertEqual("AWAITING_HUMAN_REVIEW", resumed["state"])
+        self.assertEqual("EXECUTION_PASS", resumed["state"])
         self.assertEqual(3, provider.calls)
         self.assertEqual(1, len(xcelium.requests))
         self.assertEqual(1, self._stage_names(self.generator).count("TESTCASE"))

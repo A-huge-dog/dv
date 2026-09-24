@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""Run the complete AXI-Lite Project Job vertical-slice self-test."""
+"""Run Project Job generation, review, repair, and execution self-tests."""
 import sys
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-TEST_ROOT = ROOT / "tests/agent_runtime"
-sys.path.insert(0, str(TEST_ROOT))
 suite = unittest.TestSuite()
 for module_name in (
         "test_configured_providers",
         "test_project_job_bootstrap",
         "test_project_job_workflow",
+        "test_pj003_project_execution",
         "test_project_stage3",
         "test_project_stage3_reviewer",
         "test_project_job_reviewer",
@@ -36,6 +35,7 @@ for module_name in (
         "test_ref005_project_loop",
         "test_ref005_project_loop_architecture",
         "test_ref006_physical_cleanup"):
-    suite.addTests(unittest.defaultTestLoader.loadTestsFromName(module_name))
+    suite.addTests(unittest.defaultTestLoader.loadTestsFromName(
+        "tests.agent_runtime." + module_name))
 result = unittest.TextTestRunner(verbosity=2).run(suite)
 raise SystemExit(0 if result.wasSuccessful() else 1)

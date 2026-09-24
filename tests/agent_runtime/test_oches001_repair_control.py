@@ -215,7 +215,7 @@ class Oches001RepairControlTests(unittest.TestCase):
         workflow = ProjectJobWorkflow(
             self.root, self.root / "result", generator, reviewer)
         checkpoint = self.start_checked(workflow)
-        self.assertEqual("AWAITING_HUMAN_REVIEW", checkpoint["state"])
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", checkpoint["state"])
         self.assertEqual(0, checkpoint["error_count"])
         self.assertEqual(1, checkpoint["warning_count"])
         job = self.root / "result/jobs/JOB.PROJECT.TINY.001"

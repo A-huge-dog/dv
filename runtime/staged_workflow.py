@@ -1,6 +1,10 @@
 """PJ-002 Spec-only staged generation, traceability, review, and Human gate."""
 from __future__ import annotations
 
+from domain.budgets import (
+    MAX_RETRIEVAL_TURNS, MAX_CORRECTION_ATTEMPTS,
+)
+
 import copy
 import hashlib
 import json
@@ -757,10 +761,11 @@ class StagedProjectWorkflow:
                 arguments: dict[str, Any], context: dict[str, Any]
                 ) -> dict[str, Any]:
             result = facade.write_replacements(arguments, context)
-            state.record_uvm_progress(
-                transcript_cursor=len(transcript.entries),
-                candidate_fingerprint=result["candidate_fingerprint"],
-                changed_files=result["changed_files"])
+            if result["status"] == "WRITTEN":
+                state.record_uvm_progress(
+                    transcript_cursor=len(transcript.entries),
+                    candidate_fingerprint=result["candidate_fingerprint"],
+                    changed_files=result["changed_files"])
             return result
 
         def compile_current(
@@ -1358,30 +1363,10 @@ class StagedProjectWorkflow:
             return normalize(before) == normalize(after)
         return before == after
 
-    @staticmethod
-    def _diagnosed_stage3_testcase_ids(
-            stage: str, error_value: Exception) -> set[str]:
-        if stage != STAGE3 or getattr(error_value, "code", "") != \
-                "UVM_CONTEXT_SKIP_CONTRADICTION":
-            return set()
-        context = getattr(error_value, "failure_context", {}) or {}
-        aggregate = context.get("diagnostics", [])
-        if not isinstance(aggregate, list):
-            return set()
-        return {
-            testcase_id
-            for item in aggregate if isinstance(item, dict) and
-            item.get("code") == "UVM_CONTEXT_SKIP_CONTRADICTION"
-            for testcase_id in re.findall(
-                r"\bTC\.[A-Z0-9_.-]+",
-                str(item.get("offending_content", "")))
-        }
-
     def _assert_candidate_correction_preserves_semantics(
             self, stage: str, before: dict[str, Any], after: dict[str, Any],
             contract_diagnostics: list[dict[str, Any]],
-            failure_code: str,
-            diagnosed_testcase_ids: set[str] | None = None) -> None:
+            failure_code: str) -> None:
         """Reject correction responses that rewrite unrelated semantics."""
         if contract_diagnostics:
             schema = load_schema(STAGE_CONTRACT[stage])
@@ -1408,62 +1393,6 @@ class StagedProjectWorkflow:
                 raise self.error(
                     "CANDIDATE_SEMANTIC_DRIFT",
                 "Stage 3 Verilator regeneration changed testcase scope")
-            return
-
-        if (stage == STAGE3 and
-                failure_code == "UVM_CONTEXT_SKIP_CONTRADICTION" and
-                diagnosed_testcase_ids):
-            allowed = diagnosed_testcase_ids
-
-            def unrelated_scope(candidate: dict[str, Any]) -> dict[str, Any]:
-                units = candidate.get("code_units", [])
-                assembly = candidate.get("assembly", [])
-                if not isinstance(units, list) or not isinstance(assembly, list):
-                    raise self.error(
-                        "CANDIDATE_SEMANTIC_DRIFT",
-                        "Stage 3 correction changed candidate structure")
-
-                def is_diagnosed_unit(unit: Any) -> bool:
-                    if not isinstance(unit, dict):
-                        return False
-                    testcase_ids = unit.get("testcase_ids", [])
-                    return isinstance(testcase_ids, list) and bool(
-                        testcase_ids) and set(testcase_ids) <= allowed
-
-                assembled_units = []
-                for index in assembly:
-                    if (type(index) is not int or index < 0 or
-                            index >= len(units)):
-                        raise self.error(
-                            "CANDIDATE_SEMANTIC_DRIFT",
-                            "Stage 3 correction changed candidate structure")
-                    if not is_diagnosed_unit(units[index]):
-                        assembled_units.append(units[index])
-                return {
-                    "assembly": assembled_units,
-                    "code_units": [
-                        unit for unit in units
-                        if not is_diagnosed_unit(unit)],
-                    "implemented_testcase_ids": sorted(
-                        testcase_id for testcase_id in candidate.get(
-                            "implemented_testcase_ids", [])
-                        if testcase_id not in allowed),
-                    "skipped_testcases": [
-                        item for item in candidate.get(
-                            "skipped_testcases", [])
-                        if not isinstance(item, dict) or
-                        item.get("testcase_id") not in allowed],
-                }
-
-            if unrelated_scope(before) != unrelated_scope(after):
-                raise self.error(
-                    "CANDIDATE_SEMANTIC_DRIFT",
-                    "Stage 3 correction changed a testcase outside the "
-                    "diagnosed UVM-context scope")
-            if before == after:
-                raise self.error(
-                    "CANDIDATE_SEMANTIC_DRIFT",
-                    "Stage 3 correction did not change the diagnosed testcase")
             return
 
         if stage in {STAGE1, STAGE2}:
@@ -1542,7 +1471,17 @@ class StagedProjectWorkflow:
         return bool(code) and code not in forbidden and not code.startswith(
             ("CROSS_", "TAMPER", "PROVIDER_"))
 
-    def _candidate_correction(
+    def _candidate_correction(self, **kwargs: Any) -> Any:
+        """Retry candidate validation with persisted, refreshed diagnostics."""
+        for attempt in range(MAX_CORRECTION_ATTEMPTS):
+            try:
+                return self._candidate_correction_once(**kwargs)
+            except self.error as caught:
+                if (caught.code != "ATTEMPT_PAUSED" or
+                        attempt == MAX_CORRECTION_ATTEMPTS - 1):
+                    raise
+
+    def _candidate_correction_once(
             self, *, value: dict[str, Any], job_root: Path, stage: str,
             revision: int, base_request: dict[str, Any], base_tag: str,
             response: dict[str, Any], caught: Exception,
@@ -1595,8 +1534,6 @@ class StagedProjectWorkflow:
         diagnostics, runtime_diagnostics, preservation_diagnostics = \
             correction_context(caught, prior_candidate)
 
-        diagnosed_testcase_ids = self._diagnosed_stage3_testcase_ids(
-            stage, caught)
         correction_pattern = re.compile(
             re.escape(base_tag) + r"\.correction([0-9]{3})\.json")
         persisted_attempts: list[int] = []
@@ -1631,9 +1568,28 @@ class StagedProjectWorkflow:
                     "STALE_EVIDENCE",
                     "candidate correction evidence is unavailable") \
                     from evidence_error
+            response_valid = accepted(validate(
+                "provider_response", persisted_response))
+            if not response_valid:
+                # Malformed model output is a retryable failure, provided its
+                # exact response is bound by the recorded rejection evidence.
+                for paused_path in job_root.glob(
+                        "audit/pj002_candidate_attempt_paused.*.json"):
+                    paused = load_document(paused_path)
+                    if (paused.get("job_id") == value["job_id"] and
+                            paused.get("input_fingerprint") == value["input_fingerprint"] and
+                            paused.get("stage") == stage and
+                            paused.get("revision") == revision and
+                            paused.get("correction_attempt") == attempt and
+                            paused.get("correction_response_fingerprint") ==
+                            canonical_hash(persisted_response) and
+                            paused.get("record_fingerprint") ==
+                            artifact_fingerprint(paused, "record_fingerprint")):
+                        response_valid = True
+                        break
             if (
                 not accepted(validate("provider_request", persisted_request)) or
-                not accepted(validate("provider_response", persisted_response)) or
+                not response_valid or
                 persisted_response.get("request_id") !=
                     persisted_request.get("request_id") or
                 persisted_response.get("operation") !=
@@ -1646,15 +1602,14 @@ class StagedProjectWorkflow:
                 raise self.error(
                     "STALE_EVIDENCE",
                     "candidate correction evidence has stale identity")
-            candidate = self._response_stage_candidate(persisted_response)
             try:
+                candidate = self._response_stage_candidate(persisted_response)
                 if not malformed_original and getattr(
                         caught, "code", "") != "ITEM_LIMIT_EXCEEDED":
                     self._assert_candidate_correction_preserves_semantics(
                         stage, prior_candidate, candidate,
                         preservation_diagnostics,
-                        str(getattr(caught, "code", "")),
-                        diagnosed_testcase_ids)
+                        str(getattr(caught, "code", "")))
             except self.error as correction_error:
                 latest_error = correction_error
                 continue
@@ -1687,11 +1642,6 @@ class StagedProjectWorkflow:
                 " Change only the candidate objects named by the diagnostic "
                 "paths in prior_failed_candidate; copy every other object "
                 "unchanged.")
-        if diagnosed_testcase_ids:
-            required_action += (
-                " Change only these diagnosed testcase IDs: {}. Copy every "
-                "other testcase, skipped entry, and code unit unchanged."
-            ).format(", ".join(sorted(diagnosed_testcase_ids)))
         if (stage == STAGE3 and
                 getattr(caught, "code", "") == "VERILATOR_BUILD_FAILED"):
             required_action = (
@@ -1799,8 +1749,7 @@ class StagedProjectWorkflow:
                 self._assert_candidate_correction_preserves_semantics(
                     stage, prior_candidate, corrected_candidate,
                     preservation_diagnostics,
-                    str(getattr(caught, "code", "")),
-                    diagnosed_testcase_ids)
+                    str(getattr(caught, "code", "")))
             result = validate_candidate(corrected_candidate, corrected_response)
         except self.error as correction_error:
             paused = {
@@ -2010,7 +1959,7 @@ class StagedProjectWorkflow:
             policy=AgentLoopPolicy(
                 role=transcript_role, retrieval_tools=frozenset(retrievals),
                 submission_tools=frozenset(handlers),
-                max_retrieval_turns=1 if retrievals else 0),
+                max_retrieval_turns=MAX_RETRIEVAL_TURNS if retrievals else 0),
             cancel_requested=lambda: False,
             request_metadata=(loop_metadata if retrievals else None),
             single_turn_request=active_request,
@@ -3202,11 +3151,20 @@ class StagedProjectWorkflow:
     def _load_terminal(
             self, job_root: Path, value: dict[str, Any]
             ) -> dict[str, Any] | None:
-        human_path = job_root / "audit/oches001_human_review_checkpoint.json"
+        human_path = job_root / "audit/project_review_complete.json"
+        expected_state = "READY_FOR_EXECUTION_PREPARATION"
+        recovered_path = job_root / "audit/oches004_final_review_checkpoint.json"
+        if recovered_path.exists():
+            recovered = load_document(recovered_path)
+            if recovered.get("state") == expected_state:
+                human_path = job_root / recovered["source_checkpoint_path"]
+        if not human_path.exists():
+            human_path = job_root / "audit/oches001_human_review_checkpoint.json"
+            expected_state = "AWAITING_HUMAN_REVIEW"
         if human_path.exists():
             checkpoint = load_document(human_path)
             if (checkpoint.get("workflow_version") != WORKFLOW_VERSION or
-                    checkpoint.get("state") != "AWAITING_HUMAN_REVIEW" or
+                    checkpoint.get("state") != expected_state or
                     checkpoint.get("job_id") != value["job_id"] or
                     checkpoint.get("input_fingerprint") !=
                         value["input_fingerprint"] or
@@ -3265,6 +3223,18 @@ class StagedProjectWorkflow:
                         candidate.get("content")):
                 raise self.error(
                     "STALE_EVIDENCE", "final Reviewer bundle is stale")
+            roots = self._incremental_roots(
+                job_root, value, map1, map2, candidate, report,
+                review_storage_revision=load_document(job_root / checkpoint["review_unit_index_path"])["revision"])
+            _, uvm_root = load_effective_uvm_pass(
+                job_root, job_id=value["job_id"], input_fingerprint=value["input_fingerprint"],
+                cycle_id=("initial" if map2["revision"] == 0 else "repair-r{:03d}".format(map2["revision"])),
+                stage2_root=map2["artifact_fingerprint"], error=self.error)
+            if uvm_root != checkpoint["bundle_fingerprints"]["effective_uvm"]:
+                raise self.error("STALE_EVIDENCE", "reviewed UVM source tree drifted")
+            if any(checkpoint["bundle_fingerprints"].get(key) != fingerprint
+                   for key, fingerprint in roots.items()):
+                raise self.error("STALE_EVIDENCE", "final review unit evidence drifted")
             return checkpoint
         validated_path = (
             job_root / "audit/oches002_scoped_replacement_validated.json")
@@ -4024,7 +3994,8 @@ class StagedProjectWorkflow:
                     "state": "SPEC_ISSUES_RECORDED",
                     "job_id": value["job_id"],
                     "input_fingerprint": value["input_fingerprint"],
-                    "checked_testcases_complete": False,
+                    "generation_complete": False,
+                    "review_complete": False,
                     "full_spec_coverage_complete": False,
                     **routing_state,
                 }

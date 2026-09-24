@@ -15,7 +15,7 @@ properties:
   source_report_fingerprint: {$ref: '#/$defs/fingerprint'}
   artifact_roots: {$ref: '#/$defs/roots'}
   scope_fingerprint: {$ref: '#/$defs/fingerprint'}
-  retrieval_rounds: {type: integer, minimum: 0, maximum: 3}
+  retrieval_rounds: {type: integer, minimum: 0, maximum: 24}
   status: {enum: [READY, INSUFFICIENT_EVIDENCE]}
   orchestrator:
     type: object

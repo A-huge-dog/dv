@@ -60,7 +60,10 @@ def uvm_worker_tool_definitions() -> list[dict[str, Any]]:
         READ_UVM_CANDIDATE:
             "Read the complete current candidate from authorized UVM slots.",
         WRITE_UVM_REPLACEMENTS:
-            "Replace every authorized generated UVM slot with exact content.",
+            "Replace every authorized generated UVM slot with complete exact "
+            "content, including unchanged files. Submit every slot exactly once. "
+            "If REJECTED, correct the submission using the returned slot lists "
+            "and retry.",
         RUN_XCELIUM_COMPILE:
             "Compile and elaborate the current fingerprint-bound UVM candidate "
             "with the Framework-owned Xcelium harness.",

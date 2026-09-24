@@ -1,181 +1,237 @@
-# Spec-only staged Project Job
+# 基于规格的芯片验证流程
 
-`dv/` 当前只保留一条 Project Job vertical slice：
+本项目从一份 YAML 项目配置出发，根据 Spec（设计规格）生成验证场景、验收条件和测试用例，
+经过人工场景审核、模型评审及必要的修复后，自动编译并运行已实现的用例。
+每次项目任务称为 Project Job，输入、生成结果和执行记录都按任务保存。
 
-```text
-one Project YAML
-  -> immutable submission/Spec/RTL baseline
-  -> configured Generator Spec-only Scenario↔AC map
-  -> configured Generator Spec-only AC↔testcase/stimulus/check map
-  -> configured Generator Spec-only portable SV testcase
-  -> configured Reviewer Spec-only bundle review
-  -> repairable ERROR: global FIFO + Orchestrator read-tool session
-  -> Framework formalizes semantic repair-plan candidate and computes fingerprint
-  -> deterministic Router receipt + scope-rich formal dispatch
-  -> dispatched Stage Agent read-tool session + scoped replacement
-  -> deterministic replacement validation
-  -> SCOPED_REPLACEMENT_VALIDATED
-  -> exact assembled-candidate Verilator precommit build
-  -> canonical repair groups: just-in-time dispatch + atomic serial commit
-  -> deterministic roots/dependency/impact recomputation after each commit
-  -> one final Spec-only Reviewer call
-  -> AWAITING_HUMAN_REVIEW
-  -> explicit DV_OWNER testcase decision
-  -> AWAITING_EXECUTION_AUTHORIZATION
-  -> separate explicit DV_OWNER execution authorization
-  -> exact approved testcase + immutable baseline RTL binding
-  -> trusted Xcelium build, then run only after build PASS
-  -> EXECUTION_PASS | EXECUTION_FAIL | EXECUTION_BLOCKED
-```
+Spec 是预期行为的唯一依据。RTL（Register Transfer Level，寄存器传输级）是待验证的硬件实现代码，
+只提供给最终执行环节。UVM（Universal Verification Methodology，通用验证方法学）是组织验证环境和
+测试用例的方法；本项目使用 SystemVerilog 编写 UVM 环境和用例，用 Xcelium 编译与仿真。
 
-三阶段 generation/review contract、全局 FIFO、真实 Orchestrator/Stage 工具会话、deterministic Router 和
-replacement validation 和 OCHES003 commit runtime 已接入同一个 one-YAML CLI。OCHES002 只保存经过验证但尚未
-提交的 replacement；OCHES003 按 canonical group（规范修复组）基于 exact current roots 即时 dispatch，先对精确
-组装后的新 testcase 做 Verilator build-only 编译，只有整组 PASS 才以编号化 commit manifest 原子切换 current
-authority。每次成功提交后都会重算 roots、dependency closure 和 impact；全部 groups 到达终态后只调用一次 final
-Reviewer，并生成 Human review request/checkpoint 后进入 `AWAITING_HUMAN_REVIEW`。PJ-003 由唯一 ProjectLoop
-继续处理 Human decision、独立 execution authorization、binding 和 trusted execution；PJ-004 才拥有最终 report
-closure 和 `COMPLETE`。
+## 主要流程
 
-## Authority
+1. **冻结输入**：保存项目配置、规格、RTL、UVM 输入及模型配置的不可变快照。
+2. **场景生成（Stage 1）**：生成场景与 AC（Acceptance Criteria，验收条件）的对应关系，然后等待人工场景审核。
+3. **用例规划（Stage 2）**：根据审核结果生成验收条件与测试用例的对应关系，明确刺激和检查条件。
+4. **验证环境生成**：UVM Worker（验证环境生成 Agent）生成或修复环境，通过不含 RTL 的隔离 Xcelium 编译和展开检查。
+5. **测试代码生成（Stage 3）**：生成 SystemVerilog 用例，校验结构，并将每个可检查用例明确归为已实现或已跳过。
+6. **评审与修复**：Reviewer（评审 Agent）根据规格评审用例。存在可修复错误时，执行修复调度、校验和提交，
+   所有修复组结束后进入最终评审；无需修复时，初始评审完成后直接进入执行准备。
+7. **自动执行**：进入 `READY_FOR_EXECUTION_PREPARATION`，冻结评审结果和实际使用的 UVM 环境，
+   绑定 RTL，完整编译通过后逐个运行已实现用例，发布执行结果。
 
-- Spec 是 expected behavior、scenario、AC、stimulus 和 oracle 的唯一 authority。
-- Generator 三阶段与 Reviewer 不得读取或接收 RTL bytes/path/fingerprint/RTLIR/interface evidence。
-- Spec 信息不足时返回 `SPEC_AMBIGUITY` / `BLOCKED_INPUT`，不得从 RTL 补全。
-- RTL 只在 Human 批准 exact testcase 后进入 trusted binding/build/run。
-- Mapping/testcase/review 都是 staging candidates；LLM 不能 approval 或 promotion。
-- testcase approval 与 execution authorization 是两次不同的 `DV_OWNER` 外部提交，任何一份都不能替代另一份。
-- `CheckpointRepository` 只读取 contract-owned 固定路径，不按目录或时间选择“最新” authority。
+Stage 1 后的场景审核是流程中的人工提交点。后续评审完成后自动执行，不再要求最终人工批准或单独执行授权。
+`EXECUTION_PASS` 只表示已实现用例执行通过，完整验证是否通过由 `full_verification_passed` 单独表达。
 
-## PJ-003 approval and execution
+## 输入与证据边界
 
-testcase decision 与 execution authorization 必须在两次命令中提交：
+- 场景、验收条件、刺激和预期结果只从 Spec 推导。规格信息不足时报告 `SPEC_AMBIGUITY` 或 `BLOCKED_INPUT`。
+- 三阶段生成 Agent 与 Reviewer 不得接收 RTL 的内容、路径、指纹或从 RTL 提取的接口证据。
+  指纹是对内容计算的摘要，用于检测文件是否变化、核对结果是否属于同一份输入。
+- RTL 在启动时冻结保存，评审流程结束后才绑定到执行输入并用于编译、运行。
+- 映射、测试代码和评审报告先作为候选结果保存。模型不能自行批准结果或将其切换为项目正式使用的版本。
+- 最终评审的错误、警告和覆盖缺口保留在结果中，不单独阻止执行。
+- 恢复只读取代码规定的固定路径和正式引用，不按目录或修改时间寻找“最新结果”。
+- 历史手写映射、旧输入格式和已停用任务的结果不能直接作为当前任务的输入或执行依据。
+
+## 输入配置
+
+公开输入使用 [项目配置格式](contracts/project/project_job_submission.schema.yaml) `2.0`。
+schema（数据格式约束）规定哪些字段必须提供、每个字段允许什么值。项目 YAML 包含以下必填字段：
+
+| 字段 | 含义 |
+|---|---|
+| `schema_version` | 固定为 `"2.0"` |
+| `job_id`、`project_id` | 任务和项目标识 |
+| `spec.sources` | 规格文件路径列表 |
+| `rtl.sources`、`rtl.top`、`rtl.parameters` | RTL 文件列表、DUT 顶层模块与参数；DUT（Design Under Test）即待测设计 |
+| `uvm_testcase_context.files` | 提供给生成流程的 UVM 源文件列表 |
+| `uvm_testcase_context.generated_files` | 允许 UVM Worker 生成或替换的文件逻辑路径，必须对应上面的输入文件 |
+| `agent_profile` | 项目内的 Agent 角色配置路径 |
+| `eda.profile_id`、`eda.timeout_seconds` | EDA（Electronic Design Automation，电子设计自动化）工具配置与超时；当前使用 Xcelium |
+| `input_authority` | 人工确认输入的记录：`actor_type: HUMAN`、身份、`SPEC_OWNER` 与 `DESIGN_OWNER` 两个角色及 `decision: APPROVE` |
+
+Spec、RTL、Agent 角色配置和模型服务配置的路径相对于工作区根目录；当前命令入口使用 `/home/xinyu`。
+UVM 的 `files` 支持绝对路径，也支持相对于项目 YAML 所在目录的路径。
+相对路径直接作为逻辑路径，绝对路径使用文件名作为逻辑路径；`generated_files` 必须使用对应的逻辑路径。
+
+Agent 角色配置再为每个角色指定 Provider（模型服务提供方）配置，决定该角色使用的服务和模型。
+完整角色见 [默认角色配置](config/agents/project_default.yaml)：
+
+| 配置分组 | 必须配置的角色 |
+|---|---|
+| `initial`：初始生成 | `stage1`、`stage2`、`uvm`、`stage3` |
+| `repair`：修复 | `orchestrator`、`stage1`、`stage2`、`uvm`、`stage3` |
+| `review`：评审 | `initial`、`final` |
+
+Orchestrator（修复编排 Agent）负责根据错误制定修复计划。
+框架保存所引用角色配置和模型配置的完整快照，运行时按角色使用这些快照。
+模型凭据通过环境变量提供，不写入项目 YAML 或结果。
+
+项目 YAML 不接受用户提供的内容指纹、源文件正文、测试用例标识、预先编写的映射附件、
+测试批准或豁免记录。生成的映射只写入 `staging/`，不得回写 `input_baseline/`。
+模型选择统一来自项目 YAML 引用的角色配置，不通过额外命令参数传入。
+
+## 启动与场景审核
+
+依赖版本记录在 [requirements.lock](requirements.lock)。已配置环境中的普通启动和断点续跑命令为：
 
 ```bash
-python /home/xinyu/dv/scripts/run_project_job.py \
-  --project-input /path/to/project.yaml \
-  --decision /path/to/testcase_decision.json
-
-python /home/xinyu/dv/scripts/run_project_job.py \
-  --project-input /path/to/project.yaml \
-  --execution-authorization /path/to/execution_authorization.json
+/home/xinyu/.venv/bin/python /home/xinyu/dv/scripts/run_project_job.py \
+  --project-input /home/xinyu/coral_npu.yaml
 ```
 
-第一条命令最多进入 `AWAITING_EXECUTION_AUTHORIZATION`；第二条命令验证 exact approved bundle、授权有效期、
-opaque executable reference（不暴露实际命令路径的执行程序引用）和 environment fingerprint（环境指纹）后，自动完成
-binding、build/run 和 immutable evidence 发布。restart 直接验证已登记 request/evidence 与完整 output tree，不重复
-Provider、Human transition、build 或 run。
+首次运行在 Stage 1 完成后返回 `AWAITING_SCENARIO_ROUTING`。
+命令输出的 `owner_review_path` 指向任务目录内的审核表：
 
-## Public input
+```text
+/home/xinyu/result/jobs/<job_id>/staging/validations/scenario_owner_review.json
+```
 
-Public `project_job_submission` schema `2.0` 只包含：
+由验证负责人填写 `actor.identity`，并为每个场景填写 `routing.destination`。
+`actor.role` 保持 `DV_OWNER`（验证负责人）。每个场景必须恰好出现一次，去向可选：
 
-- Job/project identity；
-- Spec/RTL workspace-relative paths；
-- DUT top/parameters；
-- 一个 code-owned Agent profile 路径；该 profile 再分别映射 initial Stage 1/2/3、repair
-  Orchestrator/Stage 1/2/3、initial/final Reviewer 的 Provider config；
-- EDA profile/timeout；
-- Human `SPEC_OWNER` + `DESIGN_OWNER` input authority。
+| `routing.destination` | 处理方式 | 填写要求 |
+|---|---|---|
+| `AC_TESTCASE_MAP_AND_TESTCASE` | 进入用例规划与生成 | 场景状态必须为 `CHECKABLE` |
+| `SCENARIO_AC_MAPPER` | 返回场景与验收条件生成环节修正 | `comment` 必须写明修改意见 |
+| `SPEC_AGENT` | 记录为规格问题 | `comment` 必须写明问题 |
 
-它不接受 fingerprint、source content、testcase identity、behavior/scenario/AC/testcase mapping sidecar、
-credential value、testcase approval、waiver 或 disposition。
+只填写身份、意见和去向，保留场景内容、规格引用、任务标识和指纹。
+将下面的 `<job_id>` 替换为实际任务标识，提交完整审核表并继续：
 
-Framework 自动保存 exact submission、Spec、RTL、Agent profile 和全部被引用 Provider YAML bytes，
-生成 internal manifest、完整角色 binding、source/input/authority fingerprints、testcase top 和 unique
-pass marker。Derived mappings 只写 `staging/`，不得回写 `input_baseline/`。完整 Project Job 的 CLI 仍只接受
-一个总 YAML；模型不能通过额外 CLI 参数或 sidecar 配置传入。
+```bash
+/home/xinyu/.venv/bin/python /home/xinyu/dv/scripts/run_project_job.py \
+  --project-input /home/xinyu/coral_npu.yaml \
+  --scenario-routing "/home/xinyu/result/jobs/<job_id>/staging/validations/scenario_owner_review.json"
+```
 
-## Main files
+未提交完整表单时，普通续跑仍停在场景审核。提交后，框架保存不可变审核记录；
+原审核记录不能修改，后续普通续跑直接复用该记录。
+已生成阶段结果、但评审尚未完成的受阻任务，也可通过 `--retry-blocked-review` 显式重试评审；
+该参数不能与 `--scenario-routing` 同时使用。
 
-- `application/`：REF-004 的 application handlers（应用处理器）。每个 handler 只执行一次明确业务动作，显式接收
-  exact artifact、lineage/authority 和 Provider/persistence/EDA dependency，并返回带精确输出路径的 typed result。
-  这里分别包含 bootstrap、Stage 1/2/3 generation、initial/final review、repair plan、scoped replacement、
-  compile candidate、commit group、impact recomputation 与 Human gate；handler 不搜索“最新 Job/revision/artifact”。
-- `runtime/project_loop.py`：唯一 Project loop（项目循环）。它从固定 authority path 读取 checkpoint，按显式
-  transition table 推进 AUTO 状态，并在 Human/operator/retry/terminal 边界暂停；不实现 Agent 工具协议。
-- `runtime/project_job.py`：输入校验、Provider budget/probe 与 bootstrap 支撑；bootstrap 的持久化动作由
-  `application/bootstrap.py` 单独拥有。
-- `agents/profile.py`：从总 YAML 递归解析、校验并绑定统一 Agent profile 与 Provider config
-  快照；运行时按角色返回 exact provider/model lineage。
-- `runtime/staged_workflow.py`：三阶段 workflow 协调、no-RTL inspection、checkpoint 与 Provider session 支撑；
-  generation/review/Human gate 动作已调用 `application/` 中的独立 handler。production Stage 3 先做确定性 candidate-contract
-  validation，再用 Verilator 检查 exact assembled bytes，Generator candidate 不携带 AC-level code evidence；
-  只在 Router formal dispatch 后执行一次回流。
-- `domain/stage1.py`、`stage2.py`、`stage3.py`：纯确定性的三阶段 candidate 生成、map/traceability/
-  testcase validation 与 Stage 3 assembly/enrichment；不读取 Job 文件，不调用 Provider，也不推进 checkpoint。
-- `domain/review.py`：Reviewer request/report/validation 与 bounded diagnostic 规则。
-- `domain/artifacts.py`：artifact/direct-lineage fingerprint、semantic unit、index、assembly 和 commit-candidate
-  确定性规则；`infrastructure/persistence/artifact_store.py` 只负责这些 artifact 的显式路径读写。
-- `domain/repair.py`：repair plan 形式化、Router authority 校验、scoped replacement、canonical grouping 与 impact
-  计算；Router 不做语义路由，domain 层不拥有 workflow 或 commit authority。
-- `application/scoped_repair.py`：显式 authority 文件与 transcript lineage 的边界校验；业务 replacement
-  规则位于 `domain/repair.py`。
-- `infrastructure/persistence/repair_records.py`：统一 Provider stop mapping、五角色 versioned prompt contract、十类 append-only
-  repair records、四类派生索引及 serial repair executor。
-- `runtime/job_runtime.py` 与 `runtime/repair_runtime.py`：one-YAML Project loop 使用的 FIFO/repair 协调层；从每个 Job immutable
-  manifest 的 Provider snapshot 创建对应角色，按 checkpoint 恢复并停止在未提交的 validated replacement；
-  对只有 request、没有 response/plan/replacement 的 terminal `PROVIDER_UNAVAILABLE`，校验完整 append-only
-  evidence 后最多追加一次新 attempt，并切换到新的 session ID。
-- `runtime/commit_runtime.py`：OCHES003 串行协调层；compile、group commit、impact、final Reviewer 与 Human
-  gate 分别调用独立 application handler。每个编号化 commit manifest 是对应 group 的唯一 authority switch，失败组
-  不改变 current roots，已成功的先前 group 不回滚。
-- `runtime/agent_loop.py`：唯一的单 Agent 协议循环；既支持原有的一次性提交协议，也支持 UVM Worker 的
-  observation/action/terminal 连续协议。连续 Worker 在同一 session 中反复修改和验证，只有 Framework 的
-  CompletionValidator（完成校验器）通过后才成功；budget、恢复和 exact replay 也由同一实现控制。
-- `infrastructure/persistence/transcript_store.py`：append-only transcript（只追加对话记录）的唯一文件持久化实现；
-  它只负责事件、manifest、序号和指纹的安全写入与读取，不决定工具权限、业务流程、commit 或 Human authority。
-- `agents/project_tools.py`：从一个经过 fingerprint/lineage 校验的 exact current Job snapshot 提供 9 个只读工具；
-  复用现有 unit/index、Reviewer report、Spec baseline 和 repair records，不建立第二套 evidence authority；accepted
-  formal plan 可成为 authority，rejected plan 仅在 exact receipt + transcript 配对后作为 untrusted failure history。
-- `runtime/standalone_stage3.py`、`runtime/standalone_reviewer.py` 与对应 CLI：从 immutable
-  source Job 运行隔离的 test-only Stage 3；输出不得 promotion、approval 或进入 EDA。
-- `adapters/llm/`：configured OpenAI-compatible provider boundary；model identity 由 config 选择。
-- `adapters/eda/`：trusted no-shell EDA boundary。Xcelium adapter 提供隔离的 version probe、
-  compile/elaboration 和完整 run。UVM Worker 在 Human gate 前只通过固定 Framework harness 做 UVM
-  compile/elaboration，不读取 RTL；Human 批准后的 Project execution 仍使用独立 authorization 和 binding。使用边界见
-  [`adapters/eda/README.md`](adapters/eda/README.md)。
-- `contracts/project/`：Project submission、internal manifest、mapping、candidate、unit/index/assembly、
-  review、impact 和 report contracts。
-- `tests/agent_runtime/`：current Project positive/negative tests。
+## 自动执行与结果
 
-## Development validation
+评审流程结束后，框架冻结候选测试代码、实际使用的 UVM 环境、映射、评审记录与工具配置，
+再绑定不可变的 RTL 基线和编译入口。工具位置、资源上限来自
+[environment/xcelium.json](environment/xcelium.json)，工具配置与超时来自冻结的任务配置；
+私有环境变量不写入结果。
+
+完整编译通过后，按清单中的用例名称、随机种子、超时和通过标记逐个执行。
+编译失败时不运行用例，也不自动增加模型修复循环。跳过用例保留原因，零个可执行用例报告阻塞。
+
+| 状态或字段 | 含义 |
+|---|---|
+| `EXECUTION_PASS` | 已实现用例全部执行通过 |
+| `EXECUTION_FAIL` | 构建失败或至少一个用例执行失败 |
+| `EXECUTION_BLOCKED` | 在没有执行失败的情况下，没有可执行用例或存在阻塞 |
+| `generation_complete`、`review_complete` | 生成和评审阶段是否完成 |
+| `full_spec_coverage_complete` | 没有跳过用例、场景规格问题，且评审将所有验收条件标为已覆盖 |
+| `full_verification_passed` | 存在可执行用例、执行通过、规格覆盖完整，且评审没有遗留问题 |
+
+结果保存在 `/home/xinyu/result/jobs/<job_id>/`。命令输出包含 `summary`、`testcases`、
+`build` 和 `execution_evidence_path`；最后一个字段给出执行证据文件相对于任务目录的路径。
+证据保留构建及逐用例日志、错误计数、原始评审问题、覆盖缺口，以及实现、跳过、执行、通过、失败和阻塞数量。
+
+恢复会校验输入、内容指纹和完整输出树，复用已完成且匹配的构建与用例证据。
+既有任务只允许从代码明确支持且校验通过的检查点恢复，恢复来源文件保持原文，新执行检查点优先。
+结果文件及定位方式详见 [阶段与执行结果](PROJECT_JOB_STAGE_SUMMARY.md)。
+
+## 评审修复
+
+可修复错误进入全局 FIFO（First In, First Out，先进先出）队列。
+修复编排 Agent 通过只读工具查看规格、评审和当前结果，提出包含修复范围的计划。
+框架校验计划并计算指纹，Router（分发器）按计划确定接收任务的阶段 Agent，不自行做语义判断。
+
+阶段 Agent 读取被分配的证据并生成限定范围内的替换结果。替换结果通过校验后，先保存为待提交候选。
+提交协调器按规范修复组串行推进：根据当前版本即时分配任务，检查修复后的 UVM 环境，
+生成并校验测试代码结构，然后通过提交清单原子切换正式版本。
+这里的原子切换表示一个修复组要么完整生效，要么不改变当前版本；已成功提交的先前修复组不回滚。
+
+每次成功提交后，重新计算结果根指纹、依赖关系和影响范围。
+所有修复组到达终态后，进入一次最终评审阶段；若评审输出不符合要求，则按修正预算处理。
+测试代码的完整编译和运行统一在评审结束后执行。
+
+## 主要模块
+
+| 目录或文件 | 职责 |
+|---|---|
+| `application/` | 应用处理器：每个处理器执行一次明确业务动作，接收具体输入与依赖，返回输出路径 |
+| `runtime/project_loop.py` | 项目主循环：按检查点推进自动状态，在人工输入、预算、重试或终态边界暂停 |
+| `runtime/project_job.py`、`application/bootstrap.py` | 输入校验、模型预算与服务能力检查，以及输入快照保存 |
+| `agents/profile.py` | 解析角色配置、保存模型配置绑定，并核对使用的模型来源 |
+| `runtime/staged_workflow.py` | 协调三阶段生成、场景审核、UVM 生成和评审，确保模型请求不包含 RTL |
+| `domain/stage1.py`、`stage2.py`、`stage3.py` | 确定性校验、映射构造、可追溯关系和测试代码组装；不调用模型或推进流程 |
+| `domain/review.py` | 构造与校验评审请求、报告及诊断信息 |
+| `domain/artifacts.py`、`infrastructure/persistence/artifact_store.py` | 结果指纹、依赖关系、索引、组装规则及固定路径读写 |
+| `domain/repair.py`、`application/scoped_repair.py` | 修复计划、分发校验、限定范围替换、修复分组与影响计算 |
+| `runtime/job_runtime.py`、`runtime/repair_runtime.py` | 全局队列与修复会话协调，保存待提交且已通过校验的替换结果 |
+| `runtime/commit_runtime.py` | 串行提交修复组，重算影响范围并完成最终评审 |
+| `application/project_execution.py` | 冻结执行输入、绑定 RTL、运行已实现用例并发布结果 |
+| `runtime/agent_loop.py` | 单 Agent 协议循环：管理读取、提交和连续修改工具调用，以及预算与恢复 |
+| `infrastructure/persistence/transcript_store.py`、`repair_records.py` | 持久化只追加的对话及修复记录；已有记录不覆盖 |
+| `agents/project_tools.py` | 从校验过的当前任务快照提供只读证据工具 |
+| `runtime/standalone_stage3.py`、`runtime/standalone_reviewer.py` | 从来源任务运行隔离的测试代码生成与评审 |
+| `adapters/llm/`、`adapters/eda/` | 连接模型服务和仿真工具，隔离外部调用 |
+| `contracts/`、`tests/agent_runtime/` | 数据格式约束与自动测试 |
+
+Stage 3 只检查生成结果是否满足结构和映射要求，允许全部跳过的候选进入评审。
+程序不通过跳过理由中的关键词或已有信号、函数名猜测实现能力；
+跳过是否合理、覆盖是否完整由后续语义评审判断，生成阶段校验通过不代表验证完成。
+
+连续运行的 UVM Worker 会反复修改和验证，只有框架的 CompletionValidator（完成校验器）
+确认结果满足要求后才成功。UVM 环境检查在场景人工审核之后、测试代码生成之前进行；
+完整 RTL 仿真在评审之后自动执行。工具边界见 [EDA 工具说明](adapters/eda/README.md)。
+
+## 开发验证
+
+统一自测入口：
 
 ```bash
 /home/xinyu/.venv/bin/python \
   /home/xinyu/dv/scripts/validate_project_job_workflow.py
 ```
 
-Self-test must use scripted/mock providers、scripted Human submissions and fake/test-only EDA, and prove no production
-Generator/Reviewer、Human decision、legacy/new production Job or production Project EDA evidence occurred.
+自测使用模拟模型服务、预先编写的场景审核输入和模拟 Xcelium，不调用生产模型或真实仿真工具，
+也不修改生产任务结果。测试覆盖生成、场景审核、评审修复、自动执行及恢复；
+自动执行回归包含编译失败不运行、逐用例失败、超时、跳过和零用例、输入及日志篡改拒绝，
+以及构建和逐用例之间的中断恢复。
 
-Self-test 只调用 scripted providers 和 fake compile runner。无可修复 ERROR 时进入
-`AWAITING_HUMAN_REVIEW`；有可修复 ERROR 时先由 OCHES002 产生 `SCOPED_REPLACEMENT_VALIDATED`，再由 OCHES003
-按 canonical groups 执行 build-only 编译、serial commit、impact 和 final review。失败 group 记录
-`NOT_COMMITTED` 且不切换 current authority；全部 groups 到达终态后，无论 final report 为 CLEAN、ERROR 或 WARNING，
-都只生成 Human review request/checkpoint 并进入 `AWAITING_HUMAN_REVIEW`。测试不执行 production EDA、真实 Human
-decision 或 promotion。PJ-003 fake Xcelium qualification covers approval/authorization、binding、PASS/FAIL/BLOCKED、
-restart/replay、partial/tamper/cross-Job and complete output-tree verification.
+## 独立测试代码生成
 
-## Standalone Stage 3 test
-
-当 source Job 已有有效 Stage 1/2、但没有有效 Stage 3 candidate 时，可只重测 Stage 3：
+来源任务必须已有有效的 Stage 1/2 映射，以及与所选 Stage 2 对应、通过隔离 Xcelium 检查的 UVM 环境。
+满足这些条件后，可在独立任务中重测 Stage 3；来源任务是否已有 Stage 3 结果不影响使用。
 
 ```bash
-python /home/xinyu/dv/scripts/run_project_stage3.py \
-  --stage3-input /home/xinyu/stage3_R.yaml
+/home/xinyu/.venv/bin/python /home/xinyu/dv/scripts/run_project_stage3.py \
+  --stage3-input /path/to/stage3_test.yaml
 ```
 
-YAML 是唯一运行输入，选择独立 Stage 3 Job ID、source Project Job 中 exact Stage 1/2 mapping、Stage 3
-Generator config 和 Human `STAGE3_TEST_OWNER` authority。修改 Stage 3 模型时创建新的 provider config，
-在新 YAML 中引用它并使用新的 Stage 3 Job ID；source Stage 1/2 不重跑。
+独立 YAML 按 [测试代码生成输入格式](contracts/project/project_stage3_submission.schema.yaml)
+指定测试任务标识、来源任务及 Stage 1/2 映射、生成模型配置，以及人工 `STAGE3_TEST_OWNER` 输入确认。
+更换模型时创建新的模型服务配置和测试任务标识，在新 YAML 中引用；来源阶段不重跑。
 
-该命令只进行一次 Provider 调用；无效响应保存 rejection evidence 后失败关闭，不自动 repair。所有新 evidence 只写 YAML 指定的
-`result/jobs/<stage3_job_id>/`；source Job 保持只读。该目录是明确的 test-only Job，不是完整 Project
-Job，不得提交 Human approval、promotion 或 EDA execution。
+首次生成结果不符合要求时，保存失败记录，并对允许修正的错误最多自动追加 3 次修正；
+输入、证据或模型服务等不可修正错误直接停止。修正还受调用次数、时间和 token 预算限制，
+因此不能把此命令理解为固定只有一次模型调用。运行前可能需要检查模型服务能力；
+已有完整结果通过校验后可直接复用。
 
-## Legacy
+所有新结果只写入独立的 `result/jobs/<stage3_job_id>/`，来源任务只读。
+该目录仅用于测试，不进入项目正式版本或自动仿真执行。
 
-`JOB.PROJECT.AXI_LITE_SRAM.FIRST_RUN.R1`、preauthored mapping sidecars、旧的分散 Provider 字段、
-fingerprint-bearing Project input 和 retired Phase A～G/R artifacts 都只属于历史 evidence。它们不能被
-retry、approved、promoted、executed or migrated into a current Job。
+## Agent 执行预算
+
+共享默认预算定义在 [domain/budgets.py](domain/budgets.py)，用于三阶段生成、UVM Worker、
+Reviewer 和修复编排 Agent 的循环：
+
+- 模型轮次最多 60 次；每轮最多调用一个工具，读取也消耗模型轮次。
+- UVM Worker 最多执行 30 次动作；写入和编译共用额度，读取不消耗动作额度。
+- 读取工具会话最多读取 24 次，同一工具可重复读取不同证据。
+- 每次受预算控制的运行或会话最多 3600 秒；token（模型计量文本的单位）总量上限为 4,000,000。
+- 初始三阶段候选失败后，每次进入修正流程最多新增 3 次修正。
+- 初始或最终评审每次进入处理器最多提交 4 次，即首次评审加 3 次修正。
+
+修正读取已保存的失败记录并反馈最新诊断；仍未通过则保存记录并暂停，同一任务可续跑。
+各层上限共同生效，外层调用、时间或 token 预算可能先耗尽。
+模型服务的网络重试与候选修正分别计数；人工暂停发生在场景审核环节。

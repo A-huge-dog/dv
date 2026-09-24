@@ -715,8 +715,7 @@ class ProjectReadModel:
         if (not accepted(validate("project_transcript_manifest", manifest)) or
                 manifest.get("job_id") != self.job_id or
                 manifest.get("role") != "ORCHESTRATOR" or
-                manifest.get("session_id") != session_id or
-                manifest.get("terminal", {}).get("status") != "COMPLETED"):
+                manifest.get("session_id") != session_id):
             raise ProjectToolError(
                 "STALE_EVIDENCE", "rejected plan transcript lineage is stale")
 
@@ -738,16 +737,22 @@ class ProjectReadModel:
                     "STALE_EVIDENCE", "rejected plan transcript event is stale") \
                     from error
 
-        result_sequence = manifest["terminal"].get("result_sequence")
-        if (not isinstance(result_sequence, int) or result_sequence < 2 or
-                result_sequence != len(values) or
-                manifest["entries"][result_sequence - 2]["kind"] !=
-                    "TOOL_CALL" or
-                manifest["entries"][result_sequence - 1]["kind"] !=
-                    "TOOL_RESULT"):
+        # Rejected candidates may precede the accepted submission, or a pause.
+        # Bind this receipt to its exact recorded call rather than the terminal.
+        expected_result = {
+            "status": "REJECTED", "receipt": receipt, "dispatch": None,
+        }
+        matches = [
+            index + 1 for index, value in enumerate(values)
+            if index >= 1 and value == expected_result and
+            manifest["entries"][index]["kind"] == "TOOL_RESULT" and
+            manifest["entries"][index - 1]["kind"] == "TOOL_CALL" and
+            values[index - 1].get("name") == "submit_repair_plan"]
+        if len(matches) != 1:
             raise ProjectToolError(
                 "STALE_EVIDENCE",
-                "rejected plan transcript terminal sequence is invalid")
+                "rejected plan transcript must contain one exact submission")
+        result_sequence = matches[0]
         call = values[result_sequence - 2]
         result = values[result_sequence - 1]
         if (call.get("name") != "submit_repair_plan" or result != {

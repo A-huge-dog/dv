@@ -88,6 +88,10 @@ def validate_schema(value, schema, where="value", _root=None):
             errors.append("{}: shorter than minLength".format(where))
         if "maxLength" in schema and len(value) > schema["maxLength"]:
             errors.append("{}: longer than maxLength".format(where))
+        # Project extension: JSON Schema maxLength counts characters, not bytes.
+        if ("maxUtf8Bytes" in schema and
+                len(value.encode("utf-8")) > schema["maxUtf8Bytes"]):
+            errors.append("{}: exceeds maxUtf8Bytes".format(where))
         if ("pattern" in schema and
                 re.match(schema["pattern"] + r"\Z", value) is None):
             errors.append("{}: does not match pattern".format(where))

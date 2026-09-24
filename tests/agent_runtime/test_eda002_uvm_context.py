@@ -5,7 +5,7 @@ import hashlib
 import unittest
 
 from contracts.validator import accepted, validate
-from domain.stage3 import _blocked_contract_diagnostics
+from domain.stage3 import enrich_stage3
 from domain.uvm_context import project_uvm_context
 from domain.uvm_testcase import build_manifest, validate_generated_tests
 from runtime.errors import ProjectJobError
@@ -99,55 +99,43 @@ endclass
         del candidate["skipped_testcases"]
         self.assertFalse(accepted(validate("uvm_testcase_candidate", candidate)))
 
-    def test_blocked_contract_cannot_deny_frozen_public_uvm_declarations(self):
+    def test_all_skipped_capability_reasons_are_preserved_for_review(self):
         testcases = [{
-            "testcase_id": "TC.SMOKE.1",
-            "status": "CHECKABLE",
+            "testcase_id": "TC.SMOKE.1", "status": "CHECKABLE",
             "objective": "Apply reset and wait for halted.",
-            "stimulus": "Apply reset.",
-            "transaction_sequence": "Call reset, then wait for halted.",
-            "checker": "Observe halted.",
-            "expected_result": "halted is asserted.",
+            "stimulus": "Apply reset.", "checker": "Observe halted.",
         }]
-        skipped = [{
-            "testcase_id": "TC.SMOKE.1",
-            "reason_kind": "BLOCKED_CONTRACT",
-            "reason": "The frozen context has no apply_reset task and cannot observe halted.",
-            "routing_required": True,
-        }]
-
-        diagnostics = _blocked_contract_diagnostics(
-            skipped, testcases, _project_context_with_public_api(),
-            ProjectJobError)
-
-        self.assertEqual(
-            {"UVM_CONTEXT_SKIP_CONTRADICTION", "ALL_TESTCASES_SKIPPED"},
-            {item["code"] for item in diagnostics})
-        contradiction = next(
-            item for item in diagnostics
-            if item["code"] == "UVM_CONTEXT_SKIP_CONTRADICTION")
-        self.assertIn("apply_reset", contradiction["offending_content"])
-        self.assertIn("halted", contradiction["offending_content"])
-
-    def test_genuinely_missing_public_uvm_capability_can_still_be_skipped(self):
-        testcases = [{
-            "testcase_id": "TC.SMOKE.1",
-            "status": "CHECKABLE",
-            "objective": "Exercise JTAG edge timing.",
-            "stimulus": "Toggle TMS and TDI around TCK.",
-            "transaction_sequence": "Pulse TRST and sample TDO.",
-            "checker": "Check JTAG edge behavior.",
-            "expected_result": "TDO changes on the specified edge.",
-        }]
-        skipped = [{
-            "testcase_id": "TC.SMOKE.1",
-            "reason_kind": "BLOCKED_CONTRACT",
-            "reason": "The frozen UVM context defines no JTAG interface or TCK signal.",
-            "routing_required": True,
-        }]
-
-        self.assertEqual([], _blocked_contract_diagnostics(
-            skipped, testcases, _project_context(), ProjectJobError))
+        project = dict(_project_context_with_public_api(),
+                       job_id="JOB.PROJECT.TEST", input_fingerprint="1" * 64,
+                       testcase={"top": "tiny"})
+        response = {
+            "model_id": "test-model", "request_id": "test-request",
+            "provider_metadata": {"provider_id": "test-provider",
+                                  "response_id": "test-response"},
+        }
+        for reason in (
+            "The context exposes halted but no mechanism establishes halted-only conditions.",
+            "The context has no apply_reset task and cannot observe halted.",
+        ):
+            with self.subTest(reason=reason):
+                skipped = [{
+                    "testcase_id": "TC.SMOKE.1", "reason_kind": "BLOCKED_CONTRACT",
+                    "reason": reason, "routing_required": True,
+                }]
+                raw = {
+                    "code_units": [{"role": "SHARED", "testcase_ids": [],
+                                    "content": "// All testcases require review.\n"}],
+                    "assembly": [0], "implemented_testcase_ids": [],
+                    "skipped_testcases": skipped,
+                }
+                result = enrich_stage3(
+                    raw, project, {"artifact_fingerprint": "2" * 64},
+                    {"artifact_fingerprint": "3" * 64}, testcases, "4" * 64,
+                    0, response, "5" * 64, "6" * 64, ProjectJobError)
+                self.assertEqual([], result["implemented_testcase_ids"])
+                self.assertEqual(skipped, result["skipped_testcases"])
+                self.assertEqual("STAGING", result["state"])
+                self.assertIn("PARTIAL_TESTCASE_ROUTING", result["validation"]["checks"])
 
 
 if __name__ == "__main__":

@@ -33,7 +33,7 @@ properties:
       dependencies: {type: array}
       spec_identities: {type: array}
       tool_allow_list: {type: array}
-      retrieval_call_limit: {type: integer, const: 3}
+      retrieval_call_limit: {type: integer, minimum: 0, maximum: 24}
     additionalProperties: true
   record_fingerprint: {$ref: '#/$defs/fingerprint'}
 $defs:

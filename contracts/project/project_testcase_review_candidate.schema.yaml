@@ -35,7 +35,7 @@ $defs:
     additionalProperties: false
     required: [content]
     properties:
-      content: {type: string, minLength: 1, maxLength: 16384}
+      content: {type: string, minLength: 1, maxUtf8Bytes: 16384}
   affected:
     type: object
     additionalProperties: false

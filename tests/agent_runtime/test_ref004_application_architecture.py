@@ -22,7 +22,6 @@ HANDLERS = {
         "CreateRepairPlanHandler", "ValidateRepairPlanHandler",
         "ScopedReplacementHandler",
     },
-    "compile_candidate.py": {"CompileCandidateHandler"},
     "commit_group.py": {"CommitGroupHandler"},
     "recompute_impact.py": {"RecomputeImpactHandler"},
     "human_gate.py": {"CreateHumanGateHandler"},
@@ -82,8 +81,6 @@ class Ref004ApplicationArchitectureTests(unittest.TestCase):
     def test_handlers_receive_commands_and_return_named_result_types(self):
         from application.bootstrap import BootstrapHandler, BootstrapResult
         from application.commit_group import CommitGroupHandler, CommitGroupResult
-        from application.compile_candidate import (
-            CompileCandidateHandler, CompileCandidateResult)
         from application.generation import (
             GenerateStage1Handler, GenerateStage2Handler,
             GenerateStage3Handler, GenerationResult)
@@ -108,7 +105,6 @@ class Ref004ApplicationArchitectureTests(unittest.TestCase):
             (CreateRepairPlanHandler, RepairPlanResult),
             (ValidateRepairPlanHandler, RepairPlanResult),
             (ScopedReplacementHandler, ScopedReplacementResult),
-            (CompileCandidateHandler, CompileCandidateResult),
             (CommitGroupHandler, CommitGroupResult),
             (RecomputeImpactHandler, RecomputeImpactResult),
             (CreateHumanGateHandler, HumanGateResult),

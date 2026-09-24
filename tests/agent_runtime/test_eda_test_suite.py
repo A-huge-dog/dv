@@ -125,7 +125,7 @@ class EdaTestSuiteTests(unittest.TestCase):
         checkpoint = ExecuteEdaSuiteInLoopHandler().handle(
             ExecuteEdaSuiteInLoopInput(
                 job_root, self.root, {"job_id": self.job_id}, {
-                    "state": "AWAITING_HUMAN_REVIEW", "job_id": self.job_id,
+                    "state": "READY_FOR_EXECUTION_PREPARATION", "job_id": self.job_id,
                     "error_count": 0, "review_verdict": "CLEAN"}, suite, self.tool))
         self.assertEqual("EDA_EXECUTION_PASS", checkpoint["state"])
         self.assertNotIn("authorization", checkpoint)
