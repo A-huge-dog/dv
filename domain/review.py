@@ -13,6 +13,7 @@ from domain.evidence import (
     _provider_identity, _sha, _utc, _validate_enriched_evidence,
 )
 from domain.agent_binding import binding_lineage
+from domain.uvm_testcase import UVM_TEST_SELECTION_CONTRACT
 from scripts.dvlib import canonical_hash
 
 
@@ -103,6 +104,58 @@ def _raise_review_diagnostics(
     raise _failure_with_context(
         error, primary["code"], "Reviewer validation failed: {}".format(
             ",".join(item["code"] for item in ordered)), context)
+
+
+def _ac_coverage_diagnostics(
+        item: dict[str, Any], ac: dict[str, Any]) -> list[dict[str, Any]]:
+    """Check status/evidence consistency for both candidates and reports."""
+    ac_id = item["ac_id"]
+    if ac["status"] != "CHECKABLE":
+        if item["status"] == "COVERED":
+            return [_review_diagnostic(
+                "UNAUTHORIZED_ORACLE",
+                "blocked/observation AC cannot be functionally covered",
+                ac_id, offending_content="status=COVERED",
+                required_correction=(
+                    "Use a non-COVERED status consistent with the upstream "
+                    "AC and explain the limitation in omission. Do not invent "
+                    "an oracle or change the upstream AC status."))]
+        return []
+    if item["status"] != "COVERED":
+        if not item["omission"]:
+            return [_review_diagnostic(
+                "REVIEW_COVERAGE_MISMATCH",
+                "non-covered CHECKABLE AC requires a nonempty omission",
+                ac_id, offending_content='omission=""',
+                required_correction=(
+                    "Set omission to explain what is not verified and why "
+                    "for this AC. Keep status consistent with the actual "
+                    "stimulus and checker coverage."))]
+        return []
+    diagnostics = []
+    for field, kind in (("stimulus_evidence", "STIMULUS"),
+                        ("checker_evidence", "CHECKER")):
+        if not item[field]:
+            diagnostics.append(_review_diagnostic(
+                "REVIEW_COVERAGE_MISMATCH",
+                "COVERED requires nonempty {}".format(field),
+                ac_id, kind, offending_content="{}=[]".format(field),
+                required_correction=(
+                    "Provide exact executable testcase content in {} that "
+                    "demonstrates this AC's {}. If the testcase does not "
+                    "provide it, use an appropriate non-COVERED status, "
+                    "explain the gap in omission, and report the defect. "
+                    "Do not invent evidence.".format(field, kind.lower()))))
+    if item["omission"]:
+        diagnostics.append(_review_diagnostic(
+            "REVIEW_COVERAGE_MISMATCH",
+            "COVERED requires empty omission",
+            ac_id, offending_content="omission=" + item["omission"],
+            required_correction=(
+                "Use omission=\"\" only if real stimulus and checker evidence "
+                "fully cover this AC. Otherwise use an appropriate "
+                "non-COVERED status and retain the actual gap in omission.")))
+    return diagnostics
 
 
 
@@ -511,19 +564,44 @@ def provider_review_request(review_request: dict[str, Any]) -> dict[str, Any]:
         "problem and requested modification together in the single "
         "problem_and_required_change field. suspected_origin_stage is only a "
         "Reviewer suspicion; never choose or dispatch a repair Stage. "
+        "In each finding's affected references, every testcase must map "
+        "to at least one listed AC when ac_ids is nonempty. Every TESTCASE "
+        "code unit must map to at least one listed testcase when testcase_ids "
+        "is nonempty. Use the supplied mappings, not inferred ID numbering. "
+        "SHARED code units have empty testcase_ids by design and may be "
+        "cited alongside the testcases affected by a shared-code defect. "
+        "For each CHECKABLE AC, status COVERED requires BOTH a nonempty "
+        "stimulus_evidence array and a nonempty checker_evidence array, "
+        "and omission must be exactly the empty string. Each evidence array "
+        "must cite actual executable code demonstrating its stated role "
+        "for that AC; finding evidence does not replace per-AC evidence. "
+        "If the testcase lacks the required stimulus or checker, choose an "
+        "appropriate non-COVERED status (OBSERVATION_ONLY, BLOCKED, or "
+        "OMITTED), give a nonempty omission explaining what is not verified "
+        "and why, and report an actionable finding. Non-COVERED entries "
+        "may have empty evidence arrays. Never invent evidence or change "
+        "status merely to satisfy validation. An upstream non-CHECKABLE AC "
+        "cannot be marked COVERED. "
         "Every {content} testcase-evidence selection must match the complete "
         "submitted testcase exactly once. Repeated short lines (for example "
         "@(posedge clk);, #1;, begin, or end) require unique contiguous "
-        "multi-line context. "
+        "multi-line context. Preserve indentation, and do not include a "
+        "leading or trailing newline or any carriage return in content. "
         "Before final submission, you may call check_review_evidence once "
         "with a batch of exact complete-line content selections. It only "
         "checks unique mechanical matching against the supplied candidate; "
         "it is not a verdict. If you call it, your next response must call "
         "submit_staged_project_review with one complete corrected review. "
-        "Return CLEAN only with no findings; otherwise return "
+        "Return CLEAN only with no findings, every CHECKABLE AC COVERED, "
+        "and any non-CHECKABLE AC OBSERVATION_ONLY or BLOCKED; otherwise return "
         "FINDINGS_REPORTED. You cannot "
         "approve, waive, impersonate a Human, run EDA, or use any DUT/RTL "
-        "evidence. Call submit_staged_project_review exactly once."
+        "evidence. Call submit_staged_project_review exactly once. "
+        + UVM_TEST_SELECTION_CONTRACT + " "
+        "Assess skipped testcase reasons against this execution contract "
+        "as well as the supplied UVM context. Report an unsupported skip "
+        "based only on a named run_test default as a testcase-generation "
+        "defect, not a missing Spec requirement."
     )
     return {
         "schema_version": "1.0",
@@ -806,6 +884,7 @@ def build_review_report(
                         "review references an unknown AC")
         ac = ac_by_id[item["ac_id"]]
         coverage = coverage_by_id[item["ac_id"]]
+        candidate_diagnostics.extend(_ac_coverage_diagnostics(item, ac))
         item["scenario_ids"] = copy.deepcopy(ac["scenario_ids"])
         item["testcase_ids"] = copy.deepcopy(coverage["testcase_ids"])
         item["scenario_ac_item_fingerprint"] = ac["item_fingerprint"]
@@ -928,6 +1007,7 @@ def validate_review_report(
         raise error("REVIEW_COVERAGE_MISMATCH",
                     "review must cover every AC exactly once")
     content = candidate["content"]
+    coverage_diagnostics = []
     for ac_id, item in reviews.items():
         ac = ac_by_id[ac_id]
         coverage = coverage_by_id[ac_id]
@@ -944,24 +1024,19 @@ def validate_review_report(
                         "per-AC review mapping lineage is stale")
         _validate_enriched_evidence(
             item["spec_evidence"], spec_sources, error)
+        coverage_diagnostics.extend(_ac_coverage_diagnostics(item, ac))
+    if coverage_diagnostics:
+        _raise_review_diagnostics(error, coverage_diagnostics)
+    for ac_id, item in reviews.items():
+        ac = ac_by_id[ac_id]
         if ac["status"] == "CHECKABLE":
             if item["status"] == "COVERED":
-                if not item["stimulus_evidence"] or \
-                        not item["checker_evidence"] or item["omission"]:
-                    raise error("REVIEW_COVERAGE_MISMATCH",
-                                "covered AC lacks stimulus/check evidence")
                 for evidence in item["stimulus_evidence"]:
                     _validate_code_evidence(
-                        evidence, content, "stimulus", error)
+                        evidence, content, "stimulus", error, ac_id)
                 for evidence in item["checker_evidence"]:
                     _validate_code_evidence(
-                        evidence, content, "checker", error)
-            elif not item["omission"]:
-                raise error("REVIEW_COVERAGE_MISMATCH",
-                            "non-covered AC requires an omission reason")
-        elif item["status"] == "COVERED":
-            raise error("UNAUTHORIZED_ORACLE",
-                        "blocked/observation AC cannot be functionally covered")
+                        evidence, content, "checker", error, ac_id)
     scenario_ids = set(item["scenario_id"] for item in map1["scenarios"])
     testcase_by_id = {
         item["testcase_id"]: item
@@ -974,6 +1049,7 @@ def validate_review_report(
     code_by_id = {
         item["code_unit_id"]: item for item in candidate.get("code_units", [])}
     issue_ids = set()
+    finding_diagnostics = []
     for issue in report["findings"]:
         if issue["issue_id"] in issue_ids or \
                 issue["issue_fingerprint"] != artifact_fingerprint(
@@ -1010,18 +1086,44 @@ def validate_review_report(
             testcase = testcase_by_id[testcase_id]
             if affected["ac_ids"] and not set(
                     testcase["ac_ids"]) & set(affected["ac_ids"]):
-                raise error(
+                finding_diagnostics.append(_review_diagnostic(
                     "REVIEW_EVIDENCE_MISMATCH",
-                    "affected testcase does not close to an affected AC")
+                    "{} does not map to any affected AC".format(testcase_id),
+                    issue["issue_id"], offending_content=json.dumps({
+                        "testcase_id": testcase_id,
+                        "mapped_ac_ids": testcase["ac_ids"],
+                        "affected_ac_ids": affected["ac_ids"],
+                    }, sort_keys=True), required_correction=(
+                        "{} maps to ACs {}. Correct affected.testcase_ids "
+                        "and affected.ac_ids to identify the actual defect "
+                        "using the supplied mapping. Do not change upstream "
+                        "mappings to satisfy validation.".format(
+                            testcase_id, ", ".join(testcase["ac_ids"])))))
         for code_unit_id in affected["code_unit_ids"]:
-            unit_testcases = set(code_by_id[code_unit_id]["testcase_ids"])
-            if affected["testcase_ids"] and not unit_testcases & set(
-                    affected["testcase_ids"]):
-                raise error(
+            unit = code_by_id[code_unit_id]
+            unit_testcases = set(unit["testcase_ids"])
+            # SHARED units intentionally have no owning testcase; defects in
+            # them may still affect any testcase using the shared code.
+            if (unit["role"] == "TESTCASE" and affected["testcase_ids"]
+                    and not unit_testcases & set(affected["testcase_ids"])):
+                finding_diagnostics.append(_review_diagnostic(
                     "REVIEW_EVIDENCE_MISMATCH",
-                    "affected code unit does not close to an affected testcase")
+                    "{} does not map to any affected testcase".format(
+                        code_unit_id),
+                    issue["issue_id"], offending_content=json.dumps({
+                        "code_unit_id": code_unit_id,
+                        "mapped_testcase_ids": unit["testcase_ids"],
+                        "affected_testcase_ids": affected["testcase_ids"],
+                    }, sort_keys=True), required_correction=(
+                        "{} maps to testcases {}. Correct "
+                        "affected.code_unit_ids and affected.testcase_ids "
+                        "to identify the actual defect using the supplied "
+                        "mapping. Do not relabel TESTCASE code as SHARED.".format(
+                            code_unit_id, ", ".join(unit["testcase_ids"])))))
         for evidence in issue["testcase_evidence"]:
             _validate_code_exact(evidence, content, error)
+    if finding_diagnostics:
+        _raise_review_diagnostics(error, finding_diagnostics)
     clean_coverage = all(
         (ac_by_id[ac_id]["status"] == "CHECKABLE" and
          item["status"] == "COVERED") or

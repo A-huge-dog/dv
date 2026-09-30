@@ -49,7 +49,7 @@ from runtime.staged_workflow import (
     StagedProjectWorkflow, build_reviewer_repair_lineage,
 )
 from domain.review import WORKFLOW_VERSION
-from agents.project_tools import ProjectReadModel
+from agents.project_tools import ProjectReadModel, STAGE_READ_TOOLS
 from infrastructure.persistence.transcript_store import (
     load_terminal_transcript_events,
 )
@@ -737,27 +737,28 @@ class ProjectCommitRuntime:
                 "repair", stage_role, "STAGE_AGENT", "PROFILED"),
         }
 
-    def _next_stage_session_id(
+    def _next_stage_attempt(
             self, job_root: Path, runtime: ProjectRepairRuntime,
-            dispatch: Mapping[str, Any]) -> str:
-        """Resume an open attempt or advance past request-only failures."""
+            dispatch: Mapping[str, Any]) -> tuple[str, dict[str, Any] | None]:
+        """Resume an open attempt or advance past safe, rejected attempts."""
         role = str(dispatch["stage"])
         role_directory = role.replace("STAGE_", "stage")
         lineage = self._stage_lineage(runtime, dispatch)
         attempt = 1
+        feedback = None
         while True:
             session_id = self._stage_session_id(
                 dispatch, runtime.model.artifact_roots, attempt)
             session_dir = job_root / "transcripts" / role_directory / session_id
             if not session_dir.exists():
-                return session_id
+                return session_id, feedback
             if (not session_dir.is_dir() or session_dir.is_symlink()):
                 raise ProjectJobError(
                     "STALE_EVIDENCE", "Stage Provider attempt path is unsafe")
             if not (session_dir / "manifest.json").exists():
                 # AgentLoop validates and resumes every existing
                 # raw event before it invokes the Provider again.
-                return session_id
+                return session_id, feedback
             try:
                 transcript = load_terminal_transcript_events(
                     job_root=job_root, job_id=runtime.model.job_id,
@@ -770,6 +771,80 @@ class ProjectCommitRuntime:
                 raise ProjectJobError(
                     "STALE_EVIDENCE",
                     "completed Stage Provider session lacks its checkpoint")
+            if role == "STAGE_2" and terminal == {
+                    "status": "FAILED", "code": "PAUSED_BUDGET",
+                    "result_sequence": None}:
+                events = transcript["events"]
+                if (not events or len(events) % 4 not in {0, 2} or any(
+                        event["kind"] != (
+                            "REQUEST", "RESPONSE", "TOOL_CALL", "TOOL_RESULT"
+                        )[index % 4] for index, event in enumerate(events))):
+                    raise ProjectJobError(
+                        "INVALID_RETRY_STATE", "Stage 2 rejection history is incomplete")
+                rejected = None
+                for offset in range(0, len(events), 4):
+                    request = events[offset]["value"]
+                    response = events[offset + 1]["value"]
+                    if (not accepted(validate("provider_request", request)) or
+                            not accepted(validate("provider_response", response)) or
+                            request.get("metadata", {}).get("job_id") !=
+                                runtime.model.job_id or
+                            request.get("metadata", {}).get("role") != role or
+                            request.get("metadata", {}).get("session_id") != session_id or
+                            request.get("request_id") != "{}.TURN.{:03d}".format(
+                                session_id, offset // 4 + 1) or
+                            response.get("request_id") != request.get("request_id") or
+                            response.get("operation") != "SELECT_TOOLS" or
+                            response.get("model_id") != dispatch["stage_agent"]["model_id"] or
+                            response.get("provider_metadata", {}).get("provider_id") !=
+                                dispatch["stage_agent"]["provider_id"]):
+                        raise ProjectJobError(
+                            "STALE_EVIDENCE", "Stage 2 rejection authority is stale")
+                    calls = response.get("tool_calls", [])
+                    if (len(calls) != 1 or not isinstance(calls[0], dict) or
+                            not isinstance(calls[0].get("arguments"), dict) or
+                            calls[0].get("name") not in
+                                STAGE_READ_TOOLS | {"submit_stage2_replacement"}):
+                        raise ProjectJobError(
+                            "INVALID_RETRY_STATE", "Stage 2 attempt includes an unsafe tool")
+                    if offset + 2 == len(events):
+                        # Token/time budget may stop after RESPONSE but before
+                        # TOOL_CALL. This candidate has never been executed.
+                        continue
+                    call = events[offset + 2]["value"]
+                    result = events[offset + 3]["value"]
+                    if call != calls[0] or not isinstance(result, dict):
+                        raise ProjectJobError(
+                            "STALE_EVIDENCE", "Stage 2 recorded tool result is stale")
+                    if call.get("name") == "submit_stage2_replacement":
+                        if result.get("status") != "REJECTED":
+                            raise ProjectJobError(
+                                "INVALID_RETRY_STATE",
+                                "Stage 2 attempt includes an accepted submission")
+                        rejected = {
+                            "source_session_id": session_id,
+                            "candidate": copy.deepcopy(call["arguments"]),
+                            "validation": copy.deepcopy(result),
+                        }
+                if rejected is None:
+                    raise ProjectJobError(
+                        "INVALID_RETRY_STATE", "Stage 2 attempt has no rejected candidate")
+                persisted = (
+                    (job_root / runtime.validated_checkpoint_path).exists() or
+                    any(load_document(path).get("session_id") == session_id
+                        for path in (job_root / "staging/scoped_replacements").glob(
+                            "*.json")) or
+                    any(record["record_type"] == "SCOPED_REPLACEMENT" and
+                        record["payload"].get("dispatch_fingerprint") ==
+                            dispatch["dispatch_fingerprint"]
+                        for _, record in runtime._records().records()))
+                if persisted:
+                    raise ProjectJobError(
+                        "INVALID_RETRY_STATE",
+                        "Stage 2 rejected attempt has persisted successful output")
+                feedback = rejected
+                attempt += 1
+                continue
             if terminal != {
                     "status": "FAILED", "code": "PROVIDER_UNAVAILABLE",
                     "result_sequence": None,
@@ -849,7 +924,7 @@ class ProjectCommitRuntime:
             self, job_root: Path, project_input: Mapping[str, Any],
             runtime: ProjectRepairRuntime, dispatch: Mapping[str, Any],
             validated_path: str) -> tuple[str | None, str]:
-        session_id = self._next_stage_session_id(job_root, runtime, dispatch)
+        session_id, feedback = self._next_stage_attempt(job_root, runtime, dispatch)
         stage_role = dispatch["stage"].replace("STAGE_", "stage")
         profile_role = "repair.{}".format(stage_role)
         expected = binding(project_input, "repair", stage_role)
@@ -880,7 +955,8 @@ class ProjectCommitRuntime:
             role_providers={profile_role: provider})
         probe_workflow._probe_provider(job_root, profile_role)
         try:
-            runtime.run_stage(provider, dispatch, session_id)
+            runtime.run_stage(
+                provider, dispatch, session_id, correction_feedback=feedback)
         except AgentLoopError as caught:
             if caught.code == "PROVIDER_UNAVAILABLE":
                 return None, "PROVIDER_UNAVAILABLE"
@@ -1694,9 +1770,7 @@ class ProjectCommitRuntime:
                 "artifact_roots": copy.deepcopy(authority["artifact_roots"]),
                 "diagnostic": {
                     "code": "ATTEMPT_PAUSED",
-                    "message": (
-                        "Reviewer candidate attempt failed; rerun the same "
-                        "Job for a fresh correction attempt"),
+                    "message": str(caught),
                 },
             }
 

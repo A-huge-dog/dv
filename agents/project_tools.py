@@ -239,6 +239,8 @@ class ProjectReadModel:
             spec_fingerprint: str, artifact_roots: dict[str, str],
             index_paths: Mapping[str, str], review_report_path: str,
             review_request_path: str,
+            scenario_ac_map: Mapping[str, Any] | None = None,
+            ac_testcase_map: Mapping[str, Any] | None = None,
             prior_review_artifact_roots: Mapping[str, str] | None = None,
             allowed_stale_stages: set[str] | None = None,
             budget_status: Mapping[str, Any] | Callable[[], Mapping[str, Any]]
@@ -260,6 +262,21 @@ class ProjectReadModel:
         self.units: dict[str, dict[str, Any]] = {}
         self._units_by_lineage: dict[tuple[str, str], dict[str, Any]] = {}
         self._load_current_snapshot()
+        self.scenario_ac_map = copy.deepcopy(dict(
+            self.review_request["scenario_ac_map"]
+            if scenario_ac_map is None else scenario_ac_map))
+        self.ac_testcase_map = copy.deepcopy(dict(
+            self.review_request["ac_testcase_map"]["index"]
+            if ac_testcase_map is None else ac_testcase_map))
+        for value, key in (
+                (self.scenario_ac_map, "scenario_ac_map"),
+                (self.ac_testcase_map, "ac_testcase_map")):
+            if (value["artifact_fingerprint"] != self.artifact_roots[key] or
+                    value["artifact_fingerprint"] !=
+                        _artifact_fingerprint(value, "artifact_fingerprint")):
+                raise ProjectToolError(
+                    "STALE_EVIDENCE", "current mapping snapshot is stale")
+        self.logical_testcases = self._load_logical_testcases()
 
     @classmethod
     def from_checkpoint(
@@ -345,9 +362,36 @@ class ProjectReadModel:
             artifact_roots=expected_roots, index_paths=index_paths,
             review_report_path=checkpoint["review_report_path"],
             review_request_path=checkpoint["review_request_path"],
+            scenario_ac_map=map1, ac_testcase_map=map2,
             prior_review_artifact_roots=prior_roots,
             allowed_stale_stages=allowed_stale_stages,
             budget_status=budget_status)
+
+    def _load_logical_testcases(self) -> list[dict[str, Any]]:
+        mapping = self.ac_testcase_map
+        if mapping["storage"] == "INLINE":
+            if mapping["shards"]:
+                raise ProjectToolError(
+                    "STALE_EVIDENCE", "inline mapping unexpectedly has shards")
+            return copy.deepcopy(mapping["logical_testcases"])
+        if mapping["logical_testcases"] or not mapping["shards"]:
+            raise ProjectToolError(
+                "PARTIAL_ARTIFACT", "sharded mapping index is inconsistent")
+        testcases = []
+        for reference in mapping["shards"]:
+            path = _safe_relative(self.job_root, reference["path"])
+            if not path.is_file() or path.is_symlink():
+                raise ProjectToolError("PARTIAL_ARTIFACT", "mapping shard is missing")
+            shard = load_document(path)
+            if (shard.get("content_fingerprint") !=
+                    reference["content_fingerprint"] or
+                    shard.get("content_fingerprint") !=
+                    _artifact_fingerprint(shard, "content_fingerprint") or
+                    [item["testcase_id"] for item in
+                     shard.get("logical_testcases", [])] != reference["testcase_ids"]):
+                raise ProjectToolError("STALE_EVIDENCE", "mapping shard is stale")
+            testcases.extend(copy.deepcopy(shard["logical_testcases"]))
+        return testcases
 
     def _load_current_snapshot(self) -> None:
         if (self.job_root.name != self.job_id or

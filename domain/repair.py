@@ -11,8 +11,10 @@ from typing import Any, Callable, Iterable, Mapping
 from contracts.validator import accepted, validate
 from domain.artifacts import (
     IMPACT_CONTRACT_VERSION, _ZERO, _lineage_fingerprint,
-    _producer_dependency, artifact_fingerprint,
+    _producer_dependency, _rebuild_stage2, artifact_fingerprint,
 )
+from domain.stage2 import validate_ac_testcase_map
+from domain.evidence import _failure_with_context, _provider_identity
 from scripts.dvlib import canonical_hash
 
 
@@ -609,6 +611,40 @@ def validate_scoped_replacement(
     if replacement["replacement_id"] != expected_replacement_id:
         raise error(
             "STALE_EVIDENCE", "replacement identity is not deterministic")
+    if stage == "STAGE_2":
+        mapping, testcases = _rebuild_stage2(
+            model.ac_testcase_map, model.logical_testcases,
+            {item["unit_id"]: item for item in submitted},
+            model.scenario_ac_map, _provider_identity(dict(response)),
+            model.ac_testcase_map["revision"] + 1)
+        try:
+            validate_ac_testcase_map(
+                mapping, model.scenario_ac_map,
+                {"job_id": model.job_id,
+                 "input_fingerprint": model.input_fingerprint},
+                {path: item["content"] for path, item in model.spec_documents.items()},
+                model.spec_fingerprint, model.policy_fingerprint, testcases, error)
+        except Exception as caught:
+            if getattr(caught, "code", None) != "INVALID_SCHEMA":
+                raise
+            diagnostics = []
+            for item in validate("ac_testcase_map", mapping):
+                diagnostic = {
+                    "code": "INVALID_REPLACEMENT_CONTENT",
+                    "message": item["message"], "path": item["path"],
+                }
+                testcase_path = re.match(
+                    r"ac_testcase_map\.logical_testcases\[(\d+)\]", item["path"])
+                if testcase_path is not None:
+                    testcase_id = testcases[int(testcase_path.group(1))]["testcase_id"]
+                    diagnostic["testcase_id"] = testcase_id
+                    diagnostic["message"] = "{}: {}".format(
+                        testcase_id, item["message"])
+                diagnostics.append(diagnostic)
+            raise _failure_with_context(
+                error, "INVALID_REPLACEMENT_CONTENT",
+                "Stage 2 replacement violates the complete AC/testcase map contract",
+                {"correction_diagnostics": diagnostics}) from caught
     return copy.deepcopy(dict(replacement))
 
 def _utc() -> str:

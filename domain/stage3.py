@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+from collections import Counter
 from typing import Any, Callable
 
 from contracts.validator import accepted, validate
@@ -232,16 +233,35 @@ def validate_testcase_candidate(
     allowed_tc = {
         tc_id for tc_id, item in tc_by_id.items()
         if item["status"] == "CHECKABLE"}
-    if (len(skipped_ids) != len(skipped_id_set) or
-            implemented_ids & skipped_id_set or
-            implemented_ids | skipped_id_set != allowed_tc):
+    # Upstream blocked/observation-only testcases may be explicitly recorded
+    # as skipped. They remain non-executable and visible to semantic review.
+    mapping_errors = (
+        ("unknown testcase IDs",
+         (implemented_ids | skipped_id_set) - set(tc_by_id),
+         "Use only testcase IDs from the current AC/testcase mapping."),
+        ("non-CHECKABLE testcases declared implemented",
+         (implemented_ids & set(tc_by_id)) - allowed_tc,
+         "Remove non-CHECKABLE IDs from implementation and code-unit bindings; "
+         "they may be explicitly skipped."),
+        ("CHECKABLE testcases neither implemented nor skipped",
+         allowed_tc - (implemented_ids | skipped_id_set),
+         "Implement or explicitly skip each missing CHECKABLE testcase."),
+        ("testcases both implemented and skipped",
+         implemented_ids & skipped_id_set,
+         "Choose exactly one disposition for each testcase."),
+        ("duplicate skipped testcase IDs",
+         {tc_id for tc_id, count in Counter(skipped_ids).items() if count > 1},
+         "Keep one skipped_testcases entry per testcase ID."),
+    )
+    for message, offending_ids, correction in mapping_errors:
+        if not offending_ids:
+            continue
         diagnostics.append(_stage3_diagnostic(
             "TESTCASE_MAPPING_OVERREACH",
-            "each CHECKABLE testcase must be implemented or explicitly skipped",
-            offending_content=",".join(sorted(
-                allowed_tc - (implemented_ids | skipped_id_set))),
-            required_correction=("Partition every CHECKABLE logical testcase into "
-                                 "implemented_testcase_ids or skipped_testcases.")))
+            message,
+            offending_content=",".join(sorted(offending_ids)),
+            match_count=len(offending_ids),
+            required_correction=correction))
     # Skip feasibility is assessed by semantic review, not declaration matching.
     checks = sorted(["UVM_CONTEXT_CLASS_DECLARATION", "NO_PLATFORM_MARKER_CONTROL",
                      "NO_FORBIDDEN_CONSTRUCT", "MAPPING_LINEAGE",

@@ -32,7 +32,13 @@ $defs:
       failure_condition: {type: string}
       timeout_cycles: {type: integer, minimum: 1}
       status:
-        {enum: [PLANNED, CHECKABLE, OBSERVATION_ONLY, BLOCKED_CONTRACT, SPEC_AMBIGUITY]}
+        enum: [PLANNED, CHECKABLE, OBSERVATION_ONLY, BLOCKED_CONTRACT, SPEC_AMBIGUITY]
+        description: >-
+          CHECKABLE requires complete stimulus and oracle fields.
+          BLOCKED_CONTRACT skips stimulus/oracle completeness and executable
+          coverage requirements; checker and expected_result may be empty or
+          populated, including when the mapped AC is CHECKABLE. A blocked
+          testcase does not establish executed or verified coverage.
       reason: {type: string}
       scenario_ids:
         type: array

@@ -66,23 +66,30 @@ def validate_ac_testcase_map(
                         "logical testcase references unknown scenario/AC")
         _validate_enriched_evidence(
             testcase["spec_evidence"], spec_sources, error)
-        if testcase["status"] == "CHECKABLE" and (
-            not testcase["stimulus"].strip() or
-            not testcase["transaction_sequence"].strip() or
-            not testcase["checker"].strip() or
-            not testcase["expected_result"].strip() or
-            not testcase["failure_condition"].strip()
-        ):
-            raise error("MISSING_STIMULUS_OR_ORACLE",
-                        "checkable AC mapping requires stimulus and oracle")
-        if testcase["status"] in {
-                "BLOCKED_CONTRACT", "SPEC_AMBIGUITY"} and (
+        if testcase["status"] == "CHECKABLE":
+            missing_fields = [field for field in (
+                "stimulus", "transaction_sequence", "checker",
+                "expected_result", "failure_condition")
+                if not testcase[field].strip()]
+            if missing_fields:
+                raise _failure_with_context(
+                    error, "MISSING_STIMULUS_OR_ORACLE",
+                    "{} is CHECKABLE but lacks {}".format(
+                        testcase["testcase_id"], ", ".join(missing_fields)),
+                    {"correction_diagnostics": [{
+                        "code": "MISSING_STIMULUS_OR_ORACLE",
+                        "message": "{} requires nonempty {} when CHECKABLE".format(
+                            testcase["testcase_id"], field),
+                        "path": "ac_testcase_candidate.logical_testcases[{}].{}".format(
+                            index, field),
+                    } for field in missing_fields]})
+        if testcase["status"] == "SPEC_AMBIGUITY" and (
                     testcase["checker"].strip() or
                     testcase["expected_result"].strip()):
             unauthorized_oracles.append({
                 "code": "UNAUTHORIZED_ORACLE",
                 "message": (
-                    "blocked/ambiguous mapping cannot define an oracle; "
+                    "ambiguous mapping cannot define an oracle; "
                     "clear checker and expected_result"),
                 "path": (
                     "ac_testcase_candidate.logical_testcases[{}]".format(
@@ -91,7 +98,7 @@ def validate_ac_testcase_map(
     if unauthorized_oracles:
         raise _failure_with_context(
             error, "UNAUTHORIZED_ORACLE",
-            "blocked/ambiguous mappings cannot define an oracle",
+            "ambiguous mappings cannot define an oracle",
             {"correction_diagnostics": unauthorized_oracles})
     coverage = value["ac_coverage"]
     coverage_ids = [item["ac_id"] for item in coverage]
@@ -116,8 +123,18 @@ def validate_ac_testcase_map(
                         "AC coverage and testcase mapping disagree")
         ac = ac_by_id[item["ac_id"]]
         if ac["status"] == "CHECKABLE" and item["ac_id"] not in omitted_ac_ids:
-            if not item["testcase_ids"] or not any(
-                    testcase_by_id[tc_id]["status"] == "CHECKABLE"
+            if not item["testcase_ids"]:
+                missing_checkable_coverage.append({
+                    "code": "MISSING_TESTCASE_COVERAGE",
+                    "message": (
+                        "{} requires a CHECKABLE or explicitly "
+                        "BLOCKED_CONTRACT logical testcase, or a declared "
+                        "omission".format(item["ac_id"])),
+                    "path": "ac_testcase_candidate.logical_testcases",
+                })
+            elif not any(
+                    testcase_by_id[tc_id]["status"] in {
+                        "CHECKABLE", "BLOCKED_CONTRACT"}
                     for tc_id in item["testcase_ids"]):
                 for index, testcase in enumerate(logical_testcases):
                     if item["ac_id"] in testcase["ac_ids"]:
@@ -126,7 +143,8 @@ def validate_ac_testcase_map(
                             "message": (
                                 "{} is CHECKABLE upstream; this mapped "
                                 "testcase must be CHECKABLE with a complete "
-                                "stimulus and oracle".format(item["ac_id"])),
+                                "stimulus and oracle, or explicitly "
+                                "BLOCKED_CONTRACT".format(item["ac_id"])),
                             "path": (
                                 "ac_testcase_candidate.logical_testcases[{}]"
                                 .format(index)),
@@ -134,7 +152,7 @@ def validate_ac_testcase_map(
     if missing_checkable_coverage:
         raise _failure_with_context(
             error, "MISSING_TESTCASE_COVERAGE",
-            "checkable AC lacks a checkable logical testcase",
+            "checkable AC lacks a checkable or explicitly blocked logical testcase",
             {"correction_diagnostics": missing_checkable_coverage})
     complete = value["completeness"]
     if complete["ac_ids"] != sorted(ac_by_id) or \

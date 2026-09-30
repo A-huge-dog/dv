@@ -13,6 +13,7 @@ from infrastructure.persistence.repair_records import (
     map_provider_stop,
 )
 from domain.repair import canonical_repair_groups
+from domain.uvm_testcase import UVM_TEST_SELECTION_CONTRACT
 
 
 FP = "a" * 64
@@ -101,6 +102,10 @@ class Oches003RecordTests(unittest.TestCase):
             self.assertEqual(0 if role == "REVIEWER" else 24,
                              prompt["retrieval_call_limit"])
             self.assertIn("Never invent", prompt["instructions"])
+            if role == "STAGE_1":
+                self.assertNotIn(UVM_TEST_SELECTION_CONTRACT, prompt["instructions"])
+            else:
+                self.assertIn(UVM_TEST_SELECTION_CONTRACT, prompt["instructions"])
         base = {"finish_reason": "TOOL_CALLS",
                 "tool_calls": [{"name": "read", "arguments": {}}],
                 "legal_tools": ["read"], "submission_tools": {"submit"}}

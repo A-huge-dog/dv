@@ -51,10 +51,19 @@ $defs:
         items: {type: string, pattern: '^AC\.[A-Z0-9_.-]+$'}
       testcase_ids:
         type: array
+        description: >-
+          Affected testcase IDs from the supplied logical-testcase mapping.
+          When affected ac_ids is non-empty, every listed testcase must map
+          to at least one of those ACs.
         uniqueItems: true
         items: {type: string, pattern: '^TC\.[A-Z0-9_.-]+$'}
       code_unit_ids:
         type: array
+        description: >-
+          Affected code-unit IDs from the supplied candidate. When affected
+          testcase_ids is non-empty, each TESTCASE unit must map to at least
+          one listed testcase. SHARED units have empty testcase_ids by design
+          and may be cited alongside testcases affected by their shared code.
         uniqueItems: true
         items: {type: string, pattern: '^CODE\.[A-Z0-9_.-]+$'}
   finding:
@@ -84,7 +93,14 @@ $defs:
       checker_evidence, omission]
     properties:
       ac_id: {type: string, pattern: '^AC\.[A-Z0-9_.-]+$'}
-      status: {enum: [COVERED, OBSERVATION_ONLY, BLOCKED, OMITTED]}
+      status:
+        enum: [COVERED, OBSERVATION_ONLY, BLOCKED, OMITTED]
+        description: >-
+          COVERED is allowed only when the upstream AC status is CHECKABLE
+          and requires non-empty stimulus_evidence and checker_evidence,
+          with omission set to an empty string. For an upstream CHECKABLE
+          AC, every other review status requires a non-empty omission reason.
+          An upstream non-CHECKABLE AC must not be marked COVERED.
       spec_evidence:
         type: array
         minItems: 1
@@ -92,10 +108,23 @@ $defs:
         items: {$ref: '#/$defs/spec_evidence'}
       stimulus_evidence:
         type: array
+        description: >-
+          Must contain at least one stimulus code excerpt when status is
+          COVERED. May be empty for any other review status.
         maxItems: 32
         items: {$ref: '#/$defs/code_evidence'}
       checker_evidence:
         type: array
+        description: >-
+          Must contain at least one checker code excerpt when status is
+          COVERED. May be empty for any other review status.
         maxItems: 32
         items: {$ref: '#/$defs/code_evidence'}
-      omission: {type: string, maxLength: 2048}
+      omission:
+        type: string
+        description: >-
+          Must be an empty string when status is COVERED. Must be non-empty
+          when the upstream AC status is CHECKABLE and the review status is
+          OBSERVATION_ONLY, BLOCKED, or OMITTED. May be empty when the upstream
+          AC status is not CHECKABLE.
+        maxLength: 2048

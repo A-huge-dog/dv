@@ -4,9 +4,19 @@
 经过人工场景审核、模型评审及必要的修复后，自动编译并运行已实现的用例。
 每次项目任务称为 Project Job，输入、生成结果和执行记录都按任务保存。
 
-Spec 是预期行为的唯一依据。RTL（Register Transfer Level，寄存器传输级）是待验证的硬件实现代码，
-只提供给最终执行环节。UVM（Universal Verification Methodology，通用验证方法学）是组织验证环境和
-测试用例的方法；本项目使用 SystemVerilog 编写 UVM 环境和用例，用 Xcelium 编译与仿真。
+运行前需要在终端输入api key：
+```bash
+export OPENAI_API_KEY=
+```
+并且启动Xcelium
+```bash
+export XCELIUM_HOME=/arm/tools/cadence/xcelium/26.03_e065
+export PATH="$XCELIUM_HOME/bin:$XCELIUM_HOME/tools/bin/64bit:$XCELIUM_HOME/tools/bin:$PATH"
+```
+
+## 使用 ChatGPT 进行 scenario routing 的prompt
+现在你作为dv owner，对这个文件进行commnet和routing的填充，你自行根据spec的source判断是进行comment补充还是宣告为spec的问题，对checkable的同样进行检查
+comment 是自由文本字段， routing.destination 只能填写“AC_TESTCASE_MAP_AND_TESTCASE”、“SCENARIO_AC_MAPPER”、“SPEC_AGENT”这三个字段
 
 ## 主要流程
 
@@ -34,43 +44,6 @@ Stage 1 后的场景审核是流程中的人工提交点。后续评审完成后
 - 恢复只读取代码规定的固定路径和正式引用，不按目录或修改时间寻找“最新结果”。
 - 历史手写映射、旧输入格式和已停用任务的结果不能直接作为当前任务的输入或执行依据。
 
-## 输入配置
-
-公开输入使用 [项目配置格式](contracts/project/project_job_submission.schema.yaml) `2.0`。
-schema（数据格式约束）规定哪些字段必须提供、每个字段允许什么值。项目 YAML 包含以下必填字段：
-
-| 字段 | 含义 |
-|---|---|
-| `schema_version` | 固定为 `"2.0"` |
-| `job_id`、`project_id` | 任务和项目标识 |
-| `spec.sources` | 规格文件路径列表 |
-| `rtl.sources`、`rtl.top`、`rtl.parameters` | RTL 文件列表、DUT 顶层模块与参数；DUT（Design Under Test）即待测设计 |
-| `uvm_testcase_context.files` | 提供给生成流程的 UVM 源文件列表 |
-| `uvm_testcase_context.generated_files` | 允许 UVM Worker 生成或替换的文件逻辑路径，必须对应上面的输入文件 |
-| `agent_profile` | 项目内的 Agent 角色配置路径 |
-| `eda.profile_id`、`eda.timeout_seconds` | EDA（Electronic Design Automation，电子设计自动化）工具配置与超时；当前使用 Xcelium |
-| `input_authority` | 人工确认输入的记录：`actor_type: HUMAN`、身份、`SPEC_OWNER` 与 `DESIGN_OWNER` 两个角色及 `decision: APPROVE` |
-
-Spec、RTL、Agent 角色配置和模型服务配置的路径相对于工作区根目录；当前命令入口使用 `/home/xinyu`。
-UVM 的 `files` 支持绝对路径，也支持相对于项目 YAML 所在目录的路径。
-相对路径直接作为逻辑路径，绝对路径使用文件名作为逻辑路径；`generated_files` 必须使用对应的逻辑路径。
-
-Agent 角色配置再为每个角色指定 Provider（模型服务提供方）配置，决定该角色使用的服务和模型。
-完整角色见 [默认角色配置](config/agents/project_default.yaml)：
-
-| 配置分组 | 必须配置的角色 |
-|---|---|
-| `initial`：初始生成 | `stage1`、`stage2`、`uvm`、`stage3` |
-| `repair`：修复 | `orchestrator`、`stage1`、`stage2`、`uvm`、`stage3` |
-| `review`：评审 | `initial`、`final` |
-
-Orchestrator（修复编排 Agent）负责根据错误制定修复计划。
-框架保存所引用角色配置和模型配置的完整快照，运行时按角色使用这些快照。
-模型凭据通过环境变量提供，不写入项目 YAML 或结果。
-
-项目 YAML 不接受用户提供的内容指纹、源文件正文、测试用例标识、预先编写的映射附件、
-测试批准或豁免记录。生成的映射只写入 `staging/`，不得回写 `input_baseline/`。
-模型选择统一来自项目 YAML 引用的角色配置，不通过额外命令参数传入。
 
 ## 启动与场景审核
 
@@ -119,6 +92,11 @@ Orchestrator（修复编排 Agent）负责根据错误制定修复计划。
 私有环境变量不写入结果。
 
 完整编译通过后，按清单中的用例名称、随机种子、超时和通过标记逐个执行。
+框架为每个生成测试类注册 `dv_exec_<uvm_class>` 子类，并通过
+`+UVM_TESTNAME=dv_exec_<uvm_class>` 选择它。UVM（通用验证方法学）规定此命令行参数
+优先于 `run_test("directed_test")` 中的默认名称，因此顶层指定默认测试并不妨碍生成用例执行。
+生成测试类需要支持标准的 `(name, parent)` 构造参数，并在 UVM 阶段中运行对应的激励和检查；
+继承默认测试的行为并不等于实现了映射用例。生成、评审和修复环节共用这份执行约定。
 编译失败时不运行用例，也不自动增加模型修复循环。跳过用例保留原因，零个可执行用例报告阻塞。
 
 | 状态或字段 | 含义 |
@@ -197,28 +175,6 @@ Stage 3 只检查生成结果是否满足结构和映射要求，允许全部跳
 也不修改生产任务结果。测试覆盖生成、场景审核、评审修复、自动执行及恢复；
 自动执行回归包含编译失败不运行、逐用例失败、超时、跳过和零用例、输入及日志篡改拒绝，
 以及构建和逐用例之间的中断恢复。
-
-## 独立测试代码生成
-
-来源任务必须已有有效的 Stage 1/2 映射，以及与所选 Stage 2 对应、通过隔离 Xcelium 检查的 UVM 环境。
-满足这些条件后，可在独立任务中重测 Stage 3；来源任务是否已有 Stage 3 结果不影响使用。
-
-```bash
-/home/xinyu/.venv/bin/python /home/xinyu/dv/scripts/run_project_stage3.py \
-  --stage3-input /path/to/stage3_test.yaml
-```
-
-独立 YAML 按 [测试代码生成输入格式](contracts/project/project_stage3_submission.schema.yaml)
-指定测试任务标识、来源任务及 Stage 1/2 映射、生成模型配置，以及人工 `STAGE3_TEST_OWNER` 输入确认。
-更换模型时创建新的模型服务配置和测试任务标识，在新 YAML 中引用；来源阶段不重跑。
-
-首次生成结果不符合要求时，保存失败记录，并对允许修正的错误最多自动追加 3 次修正；
-输入、证据或模型服务等不可修正错误直接停止。修正还受调用次数、时间和 token 预算限制，
-因此不能把此命令理解为固定只有一次模型调用。运行前可能需要检查模型服务能力；
-已有完整结果通过校验后可直接复用。
-
-所有新结果只写入独立的 `result/jobs/<stage3_job_id>/`，来源任务只读。
-该目录仅用于测试，不进入项目正式版本或自动仿真执行。
 
 ## Agent 执行预算
 

@@ -65,6 +65,12 @@ $defs:
       status:
         enum: [PLANNED, CHECKABLE, OBSERVATION_ONLY, BLOCKED_CONTRACT,
           SPEC_AMBIGUITY]
+        description: >-
+          CHECKABLE requires complete stimulus and oracle fields.
+          BLOCKED_CONTRACT skips stimulus/oracle completeness and executable
+          coverage requirements; checker and expected_result may be empty or
+          populated, including when the mapped AC is CHECKABLE. A blocked
+          testcase does not establish executed or verified coverage.
       reason: {type: string, maxLength: 2048}
       spec_evidence:
         type: array

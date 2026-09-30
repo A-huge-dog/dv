@@ -310,8 +310,6 @@ class GenerateStage3Handler:
                 job_root, value, tag, command.revision, 0,
                 command.spec_fingerprint, map1, map2, response,
                 prior_candidate, caught)
-            if command.revision != 0 or command.prior is not None:
-                raise
             artifact = deps.candidate_correction(
                 value=value, job_root=job_root, stage=STAGE3,
                 revision=command.revision, base_request=base_request,

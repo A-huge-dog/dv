@@ -18,6 +18,7 @@ from contracts.validator import accepted, load_document, validate
 from infrastructure.persistence.atomic_artifact import publish_immutable_bytes, publish_replaceable_bytes
 from scripts.dvlib import canonical_hash
 from domain.repair import canonical_repair_groups
+from domain.uvm_testcase import UVM_TEST_SELECTION_CONTRACT
 
 
 RECORD_TYPES = (
@@ -148,6 +149,27 @@ def build_prompt_contract(
             f"{MAX_RETRIEVAL_TURNS} retrieval calls. Submit only schema_version, "
             "status, and repairs; Framework owns plan IDs, fingerprints, "
             "dispatches, and session identities.")
+    elif role == "STAGE_2":
+        instructions = instructions.replace(
+            "Submit exactly one final output.",
+            "Submit a complete replacement candidate. If "
+            "submit_stage2_replacement returns REJECTED, read its "
+            "diagnostics, correct the candidate for the same dispatch, "
+            "and submit again within the session budget. Finish only "
+            "when the result is VALIDATED. Do not change IDs, authority, "
+            "Spec, upstream mappings, or repair scope.")
+        instructions += (
+            " CHECKABLE logical testcases require complete stimulus, "
+            "transaction_sequence, checker, expected_result, and "
+            "failure_condition fields. BLOCKED_CONTRACT logical testcases "
+            "may retain or leave empty these fields and do not require "
+            "executable coverage, including when their upstream AC is "
+            "CHECKABLE. Preserve the blocked status and reason; accepting "
+            "a blocked mapping does not establish verified coverage. "
+            "Replacements are validated against the complete current "
+            "Scenario/AC and testcase mappings before acceptance.")
+    if role != "STAGE_1":
+        instructions += " " + UVM_TEST_SELECTION_CONTRACT
     value = {
         "schema_version": "1.0", "artifact_kind": "PROJECT_SYSTEM_PROMPT",
         "role": role, "job_id": job_id,

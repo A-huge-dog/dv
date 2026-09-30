@@ -13,6 +13,8 @@ for module_name in (
         "test_project_job_workflow",
         "test_pj003_project_execution",
         "test_project_stage3",
+        "test_stage3_mapping",
+        "test_stage3_repair_generation_correction",
         "test_project_stage3_reviewer",
         "test_project_job_reviewer",
         "test_project_incremental_artifacts",

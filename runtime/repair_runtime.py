@@ -40,6 +40,12 @@ _SUBMISSION_TOOLS = {
         "project_stage3_replacement_candidate"),
 }
 
+_STAGE2_CORRECTABLE_ERRORS = frozenset({
+    "INVALID_REPLACEMENT_CONTENT", "NO_SEMANTIC_CHANGE",
+    "MISSING_STIMULUS_OR_ORACLE", "UNAUTHORIZED_ORACLE",
+    "MISSING_TESTCASE_COVERAGE",
+})
+
 
 def _submission_tool(name: str, contract: str) -> dict[str, Any]:
     return {
@@ -386,7 +392,8 @@ class ProjectRepairRuntime:
     def run_stage(
             self, provider: Any, dispatch: Mapping[str, Any],
             session_id: str,
-            cancel_requested: Callable[[], bool] | None = None
+            cancel_requested: Callable[[], bool] | None = None, *,
+            correction_feedback: Mapping[str, Any] | None = None
             ) -> dict[str, Any]:
         dispatch = self.validate_stage_authority(dispatch)
         stage = str(dispatch["stage"])
@@ -404,14 +411,46 @@ class ProjectRepairRuntime:
                     persist=self._persist,
                     records=self._records,
                 ))
-            result = handler.handle(ScopedReplacementInput(
-                candidate=candidate, agent_context=context,
-                dispatch=dispatch, read_model=self.model,
-                session_id=session_id, job_root=self.job_root,
-                authority_checkpoint_path=self.authority_checkpoint_path,
-                validated_checkpoint_path=self.validated_checkpoint_path,
-            ))
+            try:
+                result = handler.handle(ScopedReplacementInput(
+                    candidate=candidate, agent_context=context,
+                    dispatch=dispatch, read_model=self.model,
+                    session_id=session_id, job_root=self.job_root,
+                    authority_checkpoint_path=self.authority_checkpoint_path,
+                    validated_checkpoint_path=self.validated_checkpoint_path,
+                ))
+            except self.error as caught:
+                if stage != "STAGE_2" or caught.code not in _STAGE2_CORRECTABLE_ERRORS:
+                    raise
+                diagnostic = {"code": caught.code, "message": str(caught)}
+                diagnostics = copy.deepcopy(getattr(
+                    caught, "failure_context", {}).get("correction_diagnostics"))
+                return {
+                    "status": "REJECTED", "diagnostic": diagnostic,
+                    "diagnostics": diagnostics or [{
+                        **diagnostic, "path": "replacements",
+                    }],
+                    "required_action": (
+                        "Correct the candidate content described by the diagnostics "
+                        "and resubmit the complete replacement for the same dispatch. "
+                        "Preserve dispatched IDs, scope, Spec evidence, and upstream "
+                        "mappings. No replacement has been accepted."),
+                }
             return result.tool_result
+
+        def completion(candidate: dict[str, Any], context: dict[str, Any]
+                       ) -> dict[str, str]:
+            replacements = candidate.get("replacements", [])
+            if (set(candidate) - {"replacements"} or
+                    (isinstance(replacements, list) and any(
+                        isinstance(item, dict) and
+                        set(item) - {"unit_id", "semantic_body"}
+                        for item in replacements))):
+                raise AgentLoopError(
+                    "MALFORMED_MODEL_OUTPUT",
+                    "Stage candidate must not declare Framework-owned fields")
+            return {"status": "PASS" if context["terminal_result"].get(
+                "status") == "VALIDATED" else "FAIL"}
 
         findings = [
             item for item in self.model.report["findings"]
@@ -436,6 +475,19 @@ class ProjectRepairRuntime:
                 "formal_dispatch": dispatch, "findings": findings,
             }),
         }]
+        if correction_feedback is not None:
+            if stage != "STAGE_2":
+                raise self.error(
+                    "INVALID_RETRY_STATE", "correction feedback is only for Stage 2")
+            messages.append({
+                "role": "USER", "content": _json_message({
+                    "stage2_candidate_correction_feedback": dict(correction_feedback),
+                    "required_action": (
+                        "The prior candidate was rejected and is not authority. "
+                        "Correct it using the recorded diagnostics and submit a "
+                        "complete replacement within the unchanged formal dispatch."),
+                }),
+            })
         lineage = {
                 "dispatch_id": dispatch["dispatch_id"],
                 "dispatch_fingerprint": dispatch["dispatch_fingerprint"],
@@ -454,6 +506,7 @@ class ProjectRepairRuntime:
             initial_messages=messages, tools=tools,
             retrieval_handlers=self._scoped_handlers(dispatch),
             submission_handlers={submit_name: submit},
+            completion_validator=completion if stage == "STAGE_2" else None,
             provider_binding=self._provider_identity(self._role_binding(
                 "repair", stage.replace("STAGE_", "stage"),
                 "STAGE_AGENT", "PROFILED")),

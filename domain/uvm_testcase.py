@@ -12,6 +12,28 @@ import re
 from typing import Any, Callable, Mapping, Sequence
 
 
+UVM_TEST_SELECTION_CONTRACT = (
+    "Framework-owned UVM test-selection contract (execution infrastructure, "
+    "not DUT behavior or Spec evidence): Stage 3 emits each implemented test "
+    "using its manifest uvm_class. For execution, the Framework compiles the "
+    "generated classes into a package, registers a subclass named "
+    "dv_exec_<uvm_class>, and selects that subclass with "
+    "+UVM_TESTNAME=dv_exec_<uvm_class>. Standard UVM gives +UVM_TESTNAME "
+    "precedence over the default name passed to run_test, including "
+    "run_test(\"directed_test\"). This selection mechanism is supplied by the "
+    "Framework and need not appear in the project UVM source. A named "
+    "run_test default alone is never a BLOCKED_CONTRACT reason. Do not "
+    "require a new selector, another run_test call, or a changed top solely "
+    "to select a generated test. Generated tests must support construction "
+    "with (string name, uvm_component parent), forwarding both to super.new, "
+    "and execute their mapped stimulus and checks through normal UVM phases. "
+    "Inherited default stimulus is not evidence that the mapped testcase "
+    "runs: override the appropriate public phase or hook when needed. The "
+    "Framework owns pass markers; generated code must not print or control "
+    "them. Verify the supplied project's actual public drive and observation "
+    "capabilities independently; genuine missing capabilities remain gaps."
+)
+
 
 _TESTCASE_ID = re.compile(r"^TC\.[A-Z0-9_.-]+$")
 _CLASS = re.compile(r"^uvm_tc_[a-z0-9_]+_[0-9a-f]{12}$")
@@ -153,5 +175,5 @@ def validate_generated_tests(
             raise error("INVALID_GENERATED_ARTIFACT", "generated code may not control a platform pass marker")
 
 
-__all__ = ["build_manifest", "testcase_class_name", "testcase_marker",
+__all__ = ["UVM_TEST_SELECTION_CONTRACT", "build_manifest", "testcase_class_name", "testcase_marker",
            "validate_generated_tests"]

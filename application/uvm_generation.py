@@ -18,6 +18,7 @@ from typing import Any, Callable, Mapping, Sequence
 from agents.dv_worker_tools import bounded_xcelium_observation
 from contracts.validator import accepted, load_document, validate
 from domain.artifacts import artifact_fingerprint
+from domain.uvm_testcase import UVM_TEST_SELECTION_CONTRACT
 from infrastructure.persistence.atomic_artifact import (
     publish_immutable_bytes, publish_immutable_text,
 )
@@ -261,7 +262,8 @@ class UvmGenerationHandler:
                 "must include every authorized slot exactly once, including "
                 "unchanged files. Correct REJECTED submissions and resubmit. "
                 "Explicitly declare input/output/inout directions on each "
-                "SystemVerilog task or function argument.")},
+                "SystemVerilog task or function argument. "
+                + UVM_TEST_SELECTION_CONTRACT)},
             {"role": "USER", "content": json.dumps(
                 payload, sort_keys=True, ensure_ascii=False)},
         ]

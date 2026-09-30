@@ -13,6 +13,7 @@ from pathlib import Path
 from application.uvm_generation import UvmGenerationInput
 from adapters.eda import XceliumAdapter, XceliumRunConfiguration
 from contracts.validator import load_document
+from domain.uvm_testcase import UVM_TEST_SELECTION_CONTRACT
 from infrastructure.persistence.transcript_store import transcript_session_dir
 from infrastructure.persistence.worker_state_store import WorkerStateStore
 from runtime.errors import ProjectJobError
@@ -186,6 +187,8 @@ class M3UvmWorkerTests(unittest.TestCase):
         ], ["FAIL", "PASS"])
 
         self.assertEqual("UVM_GENERATION_PASS", result.state)
+        self.assertIn(UVM_TEST_SELECTION_CONTRACT,
+                      provider.requests[0]["messages"][0]["content"])
         self.assertEqual(2, len(runs))
         self.assertEqual({"DVWORKER.UVM.INITIAL"}, {
             request["metadata"]["session_id"] for request in provider.requests})

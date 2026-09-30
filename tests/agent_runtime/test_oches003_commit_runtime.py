@@ -170,6 +170,47 @@ class Oches003CommitRuntimeTests(unittest.TestCase):
         self.verilator.assert_not_called()
         self.assertEqual(1, self.reviewer.calls)
 
+    def test_final_review_pause_preserves_diagnostics_and_resumes(self):
+        runtime = self.runtime()
+        complete_report = self.reviewer._report
+
+        def missing_checker(review):
+            report = complete_report(review)
+            report["ac_reviews"][0]["checker_evidence"] = []
+            return report
+
+        with patch.object(self.reviewer, "_report", side_effect=missing_checker):
+            paused = runtime.advance(self.value["job_id"])
+
+        self.assertEqual("PAUSED_RETRYABLE", paused["state"])
+        self.assertEqual("ATTEMPT_PAUSED", paused["diagnostic"]["code"])
+        rejected = max((load_document(path) for path in self.job.glob(
+            "audit/pj002_rejected_review_response.*.json")),
+            key=lambda item: (item["review_round"], item["attempt"]))
+        primary = rejected["diagnostics"][0]
+        self.assertEqual("REVIEW_COVERAGE_MISMATCH", primary["code"])
+        self.assertEqual("CHECKER", primary["evidence_kind"])
+        rejection_path = "audit/pj002_rejected_review_response.{}.json".format(
+            rejected["record_fingerprint"][:24])
+        self.assertTrue((self.job / rejection_path).is_file())
+        for detail in (primary["code"], primary["ac_id"], primary["message"],
+                       rejection_path):
+            self.assertIn(detail, paused["diagnostic"]["message"])
+        self.assertFalse((self.job / FINAL_PATH).exists())
+        provider_calls = (self.fixture.generator.calls, self.uvm.calls)
+        reviewer_calls = self.reviewer.calls
+
+        resumed = runtime.advance(self.value["job_id"])
+
+        self.assertEqual("READY_FOR_EXECUTION_PREPARATION", resumed["state"])
+        self.assertEqual(provider_calls,
+                         (self.fixture.generator.calls, self.uvm.calls))
+        self.assertEqual(reviewer_calls + 1, self.reviewer.calls)
+        feedback = json.loads(self.reviewer.requests[-1]["messages"][-1][
+            "content"])["review_correction_feedback"]
+        self.assertEqual(rejected, feedback)
+        self.verilator.assert_not_called()
+
     def test_tampered_replacement_fails_before_compile(self):
         replacement_path = self.job / self.repair["replacement_path"]
         replacement = load_document(replacement_path)

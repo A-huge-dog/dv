@@ -268,7 +268,9 @@ class _ReviewHandler:
                     "review_correction_feedback": rejection,
                     "required_action": (
                         "Submit a new complete Reviewer candidate. Correct "
-                        "the recorded typed validation failures without "
+                        "every entry in review_correction_feedback.diagnostics, "
+                        "using its ac_id, evidence_kind, and required_correction. "
+                        "Recheck the complete current bundle without "
                         "expanding Owner scope or changing upstream data."),
                 }, sort_keys=True, ensure_ascii=False),
             })
@@ -317,14 +319,21 @@ class _ReviewHandler:
                 prior_candidate = deps.response_candidate(response)
             except deps.error:
                 prior_candidate = {}
-            deps.persist_review_rejection(
+            rejection = deps.persist_review_rejection(
                 job_root, value, tag, review_request,
                 rejection_request_path, command.review_round, attempt,
                 response, prior_candidate, caught)
+            primary = rejection["diagnostics"][0]
+            rejection_path = "audit/pj002_rejected_review_response.{}.json".format(
+                rejection["record_fingerprint"][:24])
             raise deps.error(
                 "ATTEMPT_PAUSED",
-                "Reviewer candidate attempt failed; rerun the same Job "
-                "to create a new Reviewer attempt") from caught
+                "Reviewer attempt {} failed [{}; {}]: {}. "
+                "See {} for all {} diagnostics. Rerun the same Job to "
+                "create a new Reviewer attempt.".format(
+                    attempt, primary["code"], primary["ac_id"],
+                    primary["message"], rejection_path,
+                    len(rejection["diagnostics"]))) from caught
         deps.persist_artifact(job_root, report_path, report)
         deps.persist_artifact(job_root, validation_path, validation)
         output = self._persist_review_units(command, report)

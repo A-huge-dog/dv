@@ -76,7 +76,7 @@ from domain.stage3 import (
     _raise_stage3_diagnostics, _stage3_diagnostic, enrich_stage3,
     validate_testcase_candidate,
 )
-from domain.uvm_testcase import build_manifest
+from domain.uvm_testcase import UVM_TEST_SELECTION_CONTRACT, build_manifest
 from domain.review import (
     REVIEW_TOOL, WORKFLOW_VERSION, _raise_review_diagnostics,
     _review_diagnostic, _validate_review_scope,
@@ -1084,9 +1084,13 @@ class StagedProjectWorkflow:
                 "Scenario/AC map. Select Spec evidence using only "
                 "path,line_start,line_end; runtime derives exact text and "
                 "fingerprints. Submit the result through the registered stage "
-                "candidate tool. Checkable ACs require nonempty stimulus, transaction "
+                "candidate tool. CHECKABLE logical testcases require nonempty stimulus, transaction "
                 "sequence, checker, expected result, failure condition and "
-                "bounded timeout. Reference only existing formal Scenario/AC "
+                "bounded timeout. A BLOCKED_CONTRACT logical testcase may "
+                "retain or leave empty its stimulus and oracle fields; it "
+                "does not need executable coverage even when its upstream "
+                "AC is CHECKABLE. Preserve its blocked status and reason. "
+                "Reference only existing formal Scenario/AC "
                 "IDs supplied by runtime. Never generate a logical testcase "
                 "for an AC classified BLOCKED_CONTRACT; preserve it as a typed "
                 "omission/issue instead. "
@@ -1104,9 +1108,10 @@ class StagedProjectWorkflow:
                 "Generate generic SHARED and TESTCASE SystemVerilog UVM code units "
                 "for each CHECKABLE logical testcase that has complete stimulus "
                 "and oracle support. Read the supplied "
-                "UVM context files as the complete available UVM implementation. "
-                "Use only classes, interfaces, signals, tasks, functions, configuration, "
-                "and checkers defined in those files. A simple complete "
+                "UVM context files as the complete available project UVM implementation. "
+                "Use standard UVM APIs and the project classes, interfaces, signals, "
+                "tasks, functions, configuration, and checkers defined in those files, "
+                "together with the Framework test-selection contract below. A simple complete "
                 "testcase may use one TESTCASE unit; SHARED units are optional. "
                 "SHARED units have no testcase IDs; TESTCASE units bind exact "
                 "existing testcase IDs. "
@@ -1114,11 +1119,14 @@ class StagedProjectWorkflow:
                 "once; runtime concatenates it into the only complete candidate. "
                 "Submit through the registered stage candidate tool. Do not "
                 "output AC-level evidence, testcase line numbers, snippets, "
-                "review findings, verdicts, or fingerprints. Every mapped "
-                "AC must have actual executable stimulus and a checker/oracle; a checker or "
+                "review findings, verdicts, or fingerprints. Every AC covered by an "
+                "implemented testcase must have executable stimulus and a checker/oracle; a checker or "
                 "stimulus may be implemented through a task/function call chain. Implement all "
                 "and only implemented_testcase_ids. Every CHECKABLE logical testcase "
                 "must appear exactly once in implemented_testcase_ids or skipped_testcases. "
+                "Only CHECKABLE testcases may be implemented. Existing non-CHECKABLE "
+                "testcases may also be explicitly listed in skipped_testcases; "
+                "preserve their blocked status without generating executable code. "
                 "Each skipped_testcases entry must give its exact testcase_id, one of "
                 "SPEC_AMBIGUITY, BLOCKED_CONTRACT, or RTL_CONTRACT_MISMATCH, a concise "
                 "auditable reason, and routing_required: true. Never generate an empty "
@@ -1129,11 +1137,11 @@ class StagedProjectWorkflow:
                 "task, function, sequence, agent, or checker is absent when it is present in "
                 "the supplied UVM context. If that context provides the required public "
                 "stimulus and oracle capability for a CHECKABLE testcase, implement it. An "
-                "all-skipped, comment-only candidate is not a recovery strategy and will be "
-                "rejected when any CHECKABLE testcase has matching public UVM capability. "
+                "all-skipped, comment-only candidate must explain each skip; the "
+                "Reviewer assesses whether those reasons are supported by the context. "
                 "Each generated test class must use the exact "
                 "runtime-provided class name and extend a suitable base class defined in the "
-                "provided UVM context. Do not reference any UVM file, class, signal, task, "
+                "provided UVM context. Do not reference any project UVM file, class, signal, task, "
                 "function, or hierarchy absent from that context. Do not "
                 "print or otherwise control pass markers. Do not use DPI, external `include, "
                 "system commands, or raw backdoor access. The Framework will validate the "
@@ -1142,6 +1150,8 @@ class StagedProjectWorkflow:
                 "request will include bounded candidate-local diagnostics; "
                 "regenerate the complete testcase candidate to resolve them."),
         }[stage]
+        if stage == STAGE3:
+            instructions += " " + UVM_TEST_SELECTION_CONTRACT
         owner_correction = bool(issues) and all(
             isinstance(item, dict) and "routing" in item
             for item in (issues or []))
@@ -1365,9 +1375,18 @@ class StagedProjectWorkflow:
 
     def _assert_candidate_correction_preserves_semantics(
             self, stage: str, before: dict[str, Any], after: dict[str, Any],
-            contract_diagnostics: list[dict[str, Any]],
-            failure_code: str) -> None:
+            contract_diagnostics: list[dict[str, Any]]) -> None:
         """Reject correction responses that rewrite unrelated semantics."""
+        if stage == STAGE3:
+            # Code-unit boundaries are authoring choices, not semantic scope.
+            # Regeneration can repair several coupled units or their assembly.
+            # Full validation against the frozen mappings and subsequent review
+            # enforce testcase identity and Spec-defined behavior.
+            if before == after:
+                raise self.error(
+                    "CANDIDATE_SEMANTIC_DRIFT",
+                    "Stage 3 correction did not change the diagnosed candidate")
+            return
         if contract_diagnostics:
             schema = load_schema(STAGE_CONTRACT[stage])
             invalid_paths = self._diagnostic_paths(contract_diagnostics)
@@ -1383,16 +1402,6 @@ class StagedProjectWorkflow:
                     "CANDIDATE_SEMANTIC_DRIFT",
                     "candidate correction changed business content outside "
                     "the diagnosed contract fields")
-            return
-
-        if stage == STAGE3 and failure_code == "VERILATOR_BUILD_FAILED":
-            if (sorted(before.get("implemented_testcase_ids", [])) !=
-                    sorted(after.get("implemented_testcase_ids", [])) or
-                    before.get("skipped_testcases", []) !=
-                    after.get("skipped_testcases", [])):
-                raise self.error(
-                    "CANDIDATE_SEMANTIC_DRIFT",
-                "Stage 3 Verilator regeneration changed testcase scope")
             return
 
         if stage in {STAGE1, STAGE2}:
@@ -1417,45 +1426,6 @@ class StagedProjectWorkflow:
                     "semantic correction must change exactly one diagnosed "
                     "candidate object")
             return
-
-        mapping_scope = failure_code in {
-            "TESTCASE_MAPPING_OVERREACH", "MISSING_TRACEABILITY"}
-        if (before.get("assembly") != after.get("assembly") or
-                (not mapping_scope and
-                 before.get("implemented_testcase_ids") !=
-                    after.get("implemented_testcase_ids")) or
-                (not mapping_scope and
-                 before.get("skipped_testcases") !=
-                    after.get("skipped_testcases"))):
-            raise self.error(
-                "CANDIDATE_SEMANTIC_DRIFT",
-                "Stage 3 correction changed assembly or testcase identity")
-        old_units, new_units = before.get("code_units"), after.get("code_units")
-        if (not isinstance(old_units, list) or not isinstance(new_units, list) or
-                len(old_units) != len(new_units)):
-            raise self.error(
-                "CANDIDATE_SEMANTIC_DRIFT",
-                "Stage 3 correction changed code-unit scope")
-        changed_content = 0
-        for old, new in zip(old_units, new_units):
-            if old.get("role") != new.get("role"):
-                raise self.error(
-                    "CANDIDATE_SEMANTIC_DRIFT",
-                    "Stage 3 correction changed code-unit identity")
-            if (not mapping_scope and
-                    old.get("testcase_ids") != new.get("testcase_ids")):
-                raise self.error(
-                    "CANDIDATE_SEMANTIC_DRIFT",
-                    "Stage 3 correction changed unrelated testcase scope")
-            changed_content += old.get("content") != new.get("content")
-        if changed_content > 1:
-            raise self.error(
-                "CANDIDATE_SEMANTIC_DRIFT",
-                "Stage 3 correction rewrote unrelated code units")
-        if before == after:
-            raise self.error(
-                "CANDIDATE_SEMANTIC_DRIFT",
-                "Stage 3 correction did not change the diagnosed candidate")
 
     def _candidate_correction_allowed(self, caught: Exception) -> bool:
         code = str(getattr(caught, "code", ""))
@@ -1523,6 +1493,16 @@ class StagedProjectWorkflow:
                 "message": _bounded_text(item.get("message", ""), 17408),
                 "path": _bounded_text(item.get("path", ""), 512),
             } for item in runtime_diagnostics if isinstance(item, dict)]
+            if stage == STAGE3:
+                # Stage 3 aggregates failures in `diagnostics`; retain the
+                # offending IDs/content and correction, not just the code.
+                runtime_diagnostics.extend({
+                    "code": _bounded_text(item.get("code", ""), 64),
+                    "message": _bounded_text(json.dumps(
+                        item, sort_keys=True, ensure_ascii=False), 17408),
+                    "path": STAGE_CONTRACT[stage],
+                } for item in failure_context.get("diagnostics", [])
+                    if isinstance(item, dict))
             preservation_diagnostics = schema_diagnostics or [
                 item for item in runtime_diagnostics
                 if item["path"].startswith(
@@ -1551,7 +1531,8 @@ class StagedProjectWorkflow:
                 "candidate correction attempt sequence is incomplete")
 
         expected_binding = agent_binding(
-            value, "initial", {
+            value, base_request["metadata"].get(
+                "agent_profile_section", "initial"), {
                 STAGE1: "stage1", STAGE2: "stage2", STAGE3: "stage3",
             }[stage])
         latest_error: Exception = caught
@@ -1608,8 +1589,7 @@ class StagedProjectWorkflow:
                         caught, "code", "") != "ITEM_LIMIT_EXCEEDED":
                     self._assert_candidate_correction_preserves_semantics(
                         stage, prior_candidate, candidate,
-                        preservation_diagnostics,
-                        str(getattr(caught, "code", "")))
+                        preservation_diagnostics)
             except self.error as correction_error:
                 latest_error = correction_error
                 continue
@@ -1642,14 +1622,16 @@ class StagedProjectWorkflow:
                 " Change only the candidate objects named by the diagnostic "
                 "paths in prior_failed_candidate; copy every other object "
                 "unchanged.")
-        if (stage == STAGE3 and
-                getattr(caught, "code", "") == "VERILATOR_BUILD_FAILED"):
+        if stage == STAGE3:
             required_action = (
                 "Regenerate the complete Stage 3 testcase candidate using the "
-                "candidate-local Verilator diagnostics below. Preserve the "
-                "mapped testcase scope and Spec-defined behavior, but replace "
-                "any code, assembly, and evidence needed to produce a clean "
-                "Verilator build. Submit the complete candidate schema.")
+                "candidate-local diagnostics below. Preserve the frozen upstream "
+                "mappings and Spec-defined behavior. You may change code units, "
+                "their assembly, and implementation/skip declarations to repair "
+                "all diagnosed failures. Implement only CHECKABLE testcases; "
+                "account for every CHECKABLE testcase as implemented or skipped. "
+                "Existing non-CHECKABLE testcases may be explicitly skipped. "
+                "Submit the complete candidate schema for validation and review.")
         if ("maxItems" in prior_candidate or any(
                 "maxItems" in str(item.get("message", "")) or
                 "maxItems" in str(item.get("path", ""))
@@ -1661,7 +1643,7 @@ class StagedProjectWorkflow:
             )
         feedback = {
             "schema_version": "1.0",
-            "artifact_kind": "INITIAL_STAGE_CANDIDATE_CORRECTION_FEEDBACK",
+            "artifact_kind": "STAGE_CANDIDATE_CORRECTION_FEEDBACK",
             "job_id": value["job_id"],
             "input_fingerprint": value["input_fingerprint"],
             "stage": stage,
@@ -1748,8 +1730,7 @@ class StagedProjectWorkflow:
                     caught, "code", "") != "ITEM_LIMIT_EXCEEDED":
                 self._assert_candidate_correction_preserves_semantics(
                     stage, prior_candidate, corrected_candidate,
-                    preservation_diagnostics,
-                    str(getattr(caught, "code", "")))
+                    preservation_diagnostics)
             result = validate_candidate(corrected_candidate, corrected_response)
         except self.error as correction_error:
             paused = {
@@ -1787,7 +1768,7 @@ class StagedProjectWorkflow:
                     paused["record_fingerprint"][:24]), paused)
             raise self.error(
                 "ATTEMPT_PAUSED",
-                "initial Stage candidate correction failed; rerun the same "
+                "Stage candidate correction failed; rerun the same "
                 "Job to create a new correction attempt") from correction_error
         if (job_root / response_relative).read_bytes() != original_response_bytes:
             raise self.error(

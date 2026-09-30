@@ -11,6 +11,7 @@ from unittest.mock import patch
 from adapters.eda import XceliumAdapter
 from contracts.validator import load_document
 from domain.artifacts import artifact_fingerprint
+from domain.uvm_testcase import UVM_TEST_SELECTION_CONTRACT
 from runtime.errors import ProjectJobError
 from runtime.project_job import ProjectJobWorkflow
 from runtime.project_loop import ProjectLoop, ProjectLoopRequest, CheckpointRepository
@@ -87,6 +88,36 @@ class Pj003ProjectExecutionTests(unittest.TestCase):
         for path in ("audit/pj003_testcase_decision.json", "audit/pj003_execution_authorization.json",
                      "staging/validations/human_review_request.json"):
             self.assertFalse((self.job / path).exists())
+
+    def test_named_run_test_default_keeps_framework_selected_testcases(self):
+        pkg = self.root / "uvm/pkg.sv"
+        pkg.write_text(pkg.read_text().replace(
+            "run_test()", 'run_test("directed_test")'))
+        self.prepare()
+        stage3 = next(request for request in self.generator.requests
+                      if request["metadata"]["stage"] == "TESTCASE")
+        for request in (stage3, self.reviewer.requests[-1]):
+            self.assertIn(UVM_TEST_SELECTION_CONTRACT,
+                          request["messages"][0]["content"])
+
+        selections = []
+        original_run = XceliumAdapter.run
+
+        def capture_selection(adapter, execution_id, configuration):
+            selections.append(configuration.uvm_test)
+            return original_run(adapter, execution_id, configuration)
+
+        with patch.object(XceliumAdapter, "run", capture_selection):
+            result = self.execute()
+        self.assertEqual("EXECUTION_PASS", result["state"])
+        self.assertEqual(2, result["summary"]["passed"])
+        self.assertEqual([
+            "dv_exec_" + testcase["uvm_class"]
+            for testcase in result["testcases"]], selections)
+        wrapper = (self.job / "execution/inputs/project_tests_pkg.sv").read_text()
+        for testcase, selected in zip(result["testcases"], selections):
+            self.assertIn("class {} extends {};".format(
+                selected, testcase["uvm_class"]), wrapper)
 
     def test_legacy_checkpoint_resumes_without_provider_or_old_bytes_changes(self):
         checkpoint = self.prepare()

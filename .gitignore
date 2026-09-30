@@ -33,9 +33,6 @@ dist/
 # Operating-system metadata
 .DS_Store
 Thumbs.db
-# Accidental empty file
-/--project-input
-
 # Simulation outputs
 results/
 xcelium.d/
